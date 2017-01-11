@@ -1,11 +1,20 @@
 [package]
 name = "scroll"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["m4b <m4b.github.io@gmail.com>"]
 readme = "README.md"
-keywords = ["bytes", "buffer", "scroll", "fun", "immutable"]
+keywords = ["bytes", "endian", "buffer", "scroll", "immutable", "pread", "pwrite"]
 repository = "https://github.com/m4b/scroll"
 license = "MIT"
-description = "Putting the lol back in scroll since 2016"
+documentation = "https://docs.rs/scroll"
+description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits and contextual conversion traits"
 
-[dependencies]
+[features]
+default = ["std"]
+std = []
+
+[dev-dependencies]
+rayon = "0.6.0"
+byteorder = "1.0.0"
+#commit = "b7decdfd"
+byteio = { git = "https://github.com/nwin/byteio", version = "*" }
