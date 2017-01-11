@@ -1,4 +1,4 @@
-# Scroll - cast some magic
+## Scroll - cast some magic [![Build Status](https://travis-ci.org/m4b/scroll.svg?branch=master)](https://travis-ci.org/m4b/scroll)
 
 ```
          _______________
@@ -12,6 +12,7 @@
 
 ```
 
+(not published on crates.io yet, sorry)
 [Documentation](https://docs.rs/scroll)
 
 Scroll implements several traits for read/writing generic containers (byte buffers are currently implemented by default). Most familiar will likely be the `Pread` trait, which at its basic takes an immutable reference to self, an immutable offset to read at, (and a parsing context, more on that later), and then returns the deserialized value.
