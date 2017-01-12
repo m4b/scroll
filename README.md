@@ -62,4 +62,14 @@ Because self is immutable, _all reads can be performed in parallel_ and hence ar
 
 Scroll is designed to be highly configurable - it allows you to implement various `Ctx` traits, which then grants the implementor _automatic_ uses of the `Pread`/`Gread` and/or `Pwrite`/`Gwrite` traits.
 
-Please see the official documentation for more.
+Please see the official documentation, or a simple [example](examples/data_ctx.rs) for more.
+
+# Contributing
+
+There are several open issues right now which I'd like clarified/closed before releasing on crates.io. Keep in mind, the primary use case is an immutable byte parser/reader, which `Pread` implements, and which I want backwards compability at this point.
+
+In fact, if you look at the tests, most of them actually are just testing the APIs remain unbroken (still compiling), which is very easy to do with something this generic.
+
+However, I believe there are some really interesting ideas to pursue, particularly in terms of the more generic contexts that scroll allows.
+
+Any ideas, thoughts, or contributions are welcome!

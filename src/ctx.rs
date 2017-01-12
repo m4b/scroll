@@ -1,3 +1,66 @@
+//! Generic context-aware conversion traits, for automatic _downstream_ extension of `Pread`, et. al
+//!
+//! # Discussion
+//! Let us postulate that there is a deep relationship between trying to make something from something else, and
+//! the generic concept of "parsing" or "reading".
+//!
+//! Further let us suppose that central to this notion is also the importance of codified failure, in addition to a
+//! _context_ in which this reading/parsing/from-ing occurs.
+//!
+//! A context in this case is a set of values, preconditions, etc., which make the parsing meaningful for a particular type of input.
+//!
+//! For example, to make this more concrete, when parsing an array of bytes, for a concrete numeric type, say `u32`,
+//! we might be interested in parsing this value at a given offset in a "big endian" byte order.
+//! Consequently, we might say our context is a 2-tuple, `(offset, endianness)`.
+//!
+//! Another example might be parsing a `&str` from a stream of bytes, which would require both an offset and a size.
+//! Still another might be parsing a list of ELF dynamic table entries from a byte array - which requires both something called
+//! a "load bias" and an array of program headers _maybe_ pointing to their location.
+//!
+//! Scroll builds on this idea by providing a generic context as a parameter to conversion traits
+//! (the parsing `Ctx`, akin to a "contextual continuation"), which is typically sufficient to model a large amount of data constructs using this single conversion trait, but with different `Ctx` implementations.
+//! In particular, parsing a u64, a leb128, a byte, a custom datatype, can all be modelled using a single trait - `TryFromCtx<Ctx, This, Error = E>`. What this enables is a _single method_ for parsing disparate datatypes out of a given type, with a given context - **without** re-implementing the reader functions, and all done at compile time, without runtime dispatch!
+//!
+//! Consequently, instead of "hand specializing" function traits by appending `pread_<type>`,
+//! almost all of the complexity of `Pread` and its sister trait `Gread` can be collapsed
+//! into two methods (`pread` and `pread_slice`).
+//!
+//! # Example
+//! **NOTE**: currently data structures with lifetime parameters are not supported
+//!
+//! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
+//! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
+//! do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
+//! calling `pread::<YourDatatype>` on arrays of bytes.
+//!
+//! ```rust
+//! use scroll::{self, ctx, Pread, BE};
+//! struct Data {
+//!   name: String,
+//!   id: u32,
+//! }
+//!
+//! // we could use a `(usize, endian::Scroll)` if we wanted
+//! #[derive(Debug, Clone, Copy, Default)]
+//! struct DataCtx { pub size: usize, pub endian: scroll::Endian }
+//!
+//! impl ctx::TryFromCtx<(usize, DataCtx)> for Data {
+//!   type Error = scroll::Error;
+//!   fn try_from_ctx (src: &[u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+//!     -> Result<Self, Self::Error> {
+//!     let name = src.pread_slice::<str>(offset, size)?.to_string();
+//!     let id = src.pread(offset+size, endian)?;
+//!     Ok(Data { name: name, id: id })
+//!   }
+//! }
+//!
+//! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
+//! let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+//! assert_eq!(data.id, 0x01020304);
+//! assert_eq!(data.name, "UserName".to_string());
+//!
+//! ```
+
 use core::ptr::copy_nonoverlapping;
 use core::mem::transmute;
 use core::str;
@@ -34,7 +97,7 @@ pub trait RefFrom<This: ?Sized = [u8], I = usize> {
     fn ref_from(from: &This, offset: I, count: I) -> Result<&Self, Self::Error>;
 }
 
-/// Tries to read a reference from `This` using the context `Ctx`
+/// Tries to read a reference to `Self` from `This` using the context `Ctx`
 pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized = [u8]> {
     type Error;
     #[inline]
@@ -42,7 +105,7 @@ pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized 
 }
 
 // TODO: fixme
-/// Tries to write `Self` into `This` using the context `Ctx`
+/// Tries to write a reference to `Self` into `This` using the context `Ctx`
 pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_ref_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;

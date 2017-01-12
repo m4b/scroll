@@ -51,7 +51,7 @@
 #[cfg(feature = "std")]
 extern crate core;
 
-mod ctx;
+pub mod ctx;
 mod measure;
 mod pread;
 mod pwrite;
@@ -70,7 +70,6 @@ pub use pwrite::*;
 pub use greater::*;
 pub use buffer::*;
 pub use error::*;
-pub use ctx::*;
 pub use leb128::*;
 #[cfg(feature = "std")]
 pub use lesser::*;
@@ -189,7 +188,7 @@ mod tests {
     #[derive(Debug, PartialEq, Eq)]
     pub struct Foo(u16);
 
-    impl super::TryIntoCtx for Foo {
+    impl super::ctx::TryIntoCtx for Foo {
         type Error = ExternalError;
         fn into_ctx(self, this: &mut [u8], ctx: (usize, super::Endian)) -> Result<(), Self::Error> {
             use super::Pwrite;
@@ -201,7 +200,7 @@ mod tests {
         }
     }
 
-    impl super::TryFromCtx for Foo {
+    impl super::ctx::TryFromCtx for Foo {
         type Error = ExternalError;
         fn try_from_ctx(this: &[u8], ctx: (usize, super::Endian)) -> Result<Self, Self::Error> {
             use super::Pread;
@@ -418,5 +417,4 @@ mod tests {
     /////////////////////////////////////////////////////////////////
     // end gread
     /////////////////////////////////////////////////////////////////
-
 }

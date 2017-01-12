@@ -10,12 +10,12 @@ use endian::Endian;
 /// To implement writing into an arbitrary byte buffer, implement `TryIntoCtx`
 /// # Example
 /// ```rust
-/// use scroll::{self, TryIntoCtx};
+/// use scroll::{self, ctx};
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
 ///
 /// // this will use the default `Ctx = scroll::Endian` and `I = usize`...
-/// impl TryIntoCtx for Foo {
+/// impl ctx::TryIntoCtx for Foo {
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
 ///     // you can write using your own context too... see `leb128.rs`

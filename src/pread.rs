@@ -17,11 +17,11 @@ use endian::Endian;
 /// If you want to implement your own reader for a type `Foo` from some kind of buffer (say `[u8]`), then you need to implement `TryFromCtx`
 ///
 /// ```rust
-/// use scroll::{self, TryFromCtx};
+/// use scroll::{self, ctx};
 ///  #[derive(Debug, PartialEq, Eq)]
 ///  pub struct Foo(u16);
 ///
-///  impl TryFromCtx for Foo {
+///  impl ctx::TryFromCtx for Foo {
 ///      type Error = scroll::Error;
 ///      fn try_from_ctx(this: &[u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;
@@ -44,7 +44,7 @@ use endian::Endian;
 ///
 /// # Advanced: Using Your Own Error in `TryFromCtx`
 /// ```rust
-///  use scroll::{self, TryFromCtx};
+///  use scroll::{self, ctx};
 ///  use std::error;
 ///  use std::fmt::{self, Display};
 ///  // make some kind of normal error which also can transform a scroll error ideally (quick_error, error_chain allow this automatically nowadays)
@@ -74,7 +74,7 @@ use endian::Endian;
 ///  #[derive(Debug, PartialEq, Eq)]
 ///  pub struct Foo(u16);
 ///
-///  impl TryFromCtx for Foo {
+///  impl ctx::TryFromCtx for Foo {
 ///      type Error = ExternalError;
 ///      fn try_from_ctx(this: &[u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;
@@ -133,7 +133,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(hi, "HI");
     /// let bytes2 = bytes.pread_slice::<[u8]>(0, 2).unwrap();
     /// assert_eq!(bytes, bytes2);
-    fn pread_slice<N: ?Sized + TryRefFromCtx<SliceCtx, Error = E>>(&self, offset: I, count: I) -> result::Result<&N, E>;
+    fn pread_slice<'a, N: ?Sized + TryRefFromCtx<SliceCtx, Error = E>>(&'a self, offset: I, count: I) -> result::Result<&'a N, E>;
 }
 
 impl<E, Ctx> Pread<E, Ctx> for [u8]
