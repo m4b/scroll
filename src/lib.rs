@@ -57,6 +57,8 @@
 //!
 //! Please see the [Pread documentation examples](trait.Pread.html#implementing-your-own-reader)
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 #[cfg(feature = "std")]
 extern crate core;
 
@@ -199,7 +201,7 @@ mod tests {
 
     impl super::ctx::TryIntoCtx for Foo {
         type Error = ExternalError;
-        fn into_ctx(self, this: &mut [u8], ctx: (usize, super::Endian)) -> Result<(), Self::Error> {
+        fn try_into_ctx(self, this: &mut [u8], ctx: (usize, super::Endian)) -> Result<(), Self::Error> {
             use super::Pwrite;
             let offset = ctx.0;
             let le = ctx.1;

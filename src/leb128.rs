@@ -4,7 +4,7 @@ use core::convert::{From, AsRef};
 use ctx::TryFromCtx;
 use measure;
 use error;
-use endian;
+//use endian;
 
 #[derive(Debug, Copy, Clone, Default)]
 /// A variable length integer parsing `Ctx`

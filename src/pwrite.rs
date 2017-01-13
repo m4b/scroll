@@ -66,7 +66,7 @@ impl<E, Ctx> Pwrite<E, Ctx> for [u8]
     //     n.into_ctx(&mut self[offset..], le);
     // }
     fn pwrite<N: TryIntoCtx<(usize, Ctx), Error = E>>(&mut self, n: N, offset: usize, le: Ctx) -> result::Result<(), E> {
-        n.into_ctx(self, (offset, le))
+        n.try_into_ctx(self, (offset, le))
     }
 }
 
