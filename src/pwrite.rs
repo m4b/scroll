@@ -19,7 +19,7 @@ use endian::Endian;
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
 ///     // you can write using your own context too... see `leb128.rs`
-///     fn into_ctx(self, this: &mut [u8], ctx: (usize, scroll::Endian)) -> Result<(), Self::Error> {
+///     fn try_into_ctx(self, this: &mut [u8], ctx: (usize, scroll::Endian)) -> Result<(), Self::Error> {
 ///         use scroll::Pwrite;
 ///         let offset = ctx.0;
 ///         let le = ctx.1;
