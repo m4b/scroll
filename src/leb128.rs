@@ -102,10 +102,10 @@ fn mask_continuation_u64(val: u64) -> u8 {
     mask_continuation(byte as u8)
 }
 
-impl TryFromCtx<(usize, Leb128)> for Uleb128 {
+impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &[u8], ctx: (usize, Leb128)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], ctx: (usize, Leb128)) -> error::Result<Self> {
         use pread::Pread;
         let offset = ctx.0;
         let mut result = 0;
@@ -130,10 +130,10 @@ impl TryFromCtx<(usize, Leb128)> for Uleb128 {
     }
 }
 
-impl TryFromCtx<(usize, Leb128)> for Sleb128 {
+impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &[u8], (offset, _): (usize, Leb128)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], (offset, _): (usize, Leb128)) -> error::Result<Self> {
         use greater::Gread;
         let o = offset;
         let offset = &mut offset.clone();

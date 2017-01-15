@@ -26,7 +26,6 @@
 //! into two methods (`pread` and `pread_slice`).
 //!
 //! # Example
-//! **NOTE**: currently data structures with lifetime parameters are not supported
 //!
 //! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
@@ -35,8 +34,8 @@
 //!
 //! ```rust
 //! use scroll::{self, ctx, Pread, BE};
-//! struct Data {
-//!   name: String,
+//! struct Data<'a> {
+//!   name: &'a str,
 //!   id: u32,
 //! }
 //!
@@ -44,11 +43,11 @@
 //! #[derive(Debug, Clone, Copy, Default)]
 //! struct DataCtx { pub size: usize, pub endian: scroll::Endian }
 //!
-//! impl ctx::TryFromCtx<(usize, DataCtx)> for Data {
+//! impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
 //!   type Error = scroll::Error;
-//!   fn try_from_ctx (src: &[u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+//!   fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
 //!     -> Result<Self, Self::Error> {
-//!     let name = src.pread_slice::<str>(offset, size)?.to_string();
+//!     let name = src.pread_slice::<str>(offset, size)?;
 //!     let id = src.pread(offset+size, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
@@ -57,7 +56,7 @@
 //! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
 //! let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
 //! assert_eq!(data.id, 0x01020304);
-//! assert_eq!(data.name, "UserName".to_string());
+//! assert_eq!(data.name.to_string(), "UserName".to_string());
 //!
 //! ```
 
@@ -74,10 +73,10 @@ pub trait FromCtx<Ctx: Copy = super::Endian, This: ?Sized = [u8]> where Self: Si
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<Ctx: Copy = (usize, super::Endian), This: ?Sized = [u8]> where Self: Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = (usize, super::Endian), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     #[inline]
-    fn try_from_ctx(from: &This, ctx: Ctx) -> Result<Self, Self::Error>;
+    fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<Self, Self::Error>;
 }
 
 /// Writes `Self` into `This` using the context `Ctx`
@@ -104,7 +103,6 @@ pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized 
     fn try_ref_from_ctx(from: &This, ctx: Ctx) -> Result<&Self, Self::Error>;
 }
 
-// TODO: fixme
 /// Tries to write a reference to `Self` into `This` using the context `Ctx`
 pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized = [u8]>: Sized {
     type Error;
@@ -234,10 +232,10 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl TryFromCtx<(usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &[u8], ctx: (usize, $ctx)) -> error::Result<Self> {
+            fn try_from_ctx(src: &'a [u8], ctx: (usize, $ctx)) -> error::Result<Self> {
                 let offset = ctx.0;
                 let le = ctx.1;
                 if offset + $size > src.len () {
@@ -262,10 +260,10 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<T> TryFromCtx<(usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &T, ctx: (usize, $ctx)) -> error::Result<Self> {
+            fn try_from_ctx(src: &'a T, ctx: (usize, $ctx)) -> error::Result<Self> {
                 let src = src.as_ref();
                 let offset = ctx.0;
                 let le = ctx.1;

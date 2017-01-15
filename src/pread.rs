@@ -21,9 +21,9 @@ use endian::Endian;
 ///  #[derive(Debug, PartialEq, Eq)]
 ///  pub struct Foo(u16);
 ///
-///  impl ctx::TryFromCtx for Foo {
+///  impl<'a> ctx::TryFromCtx<'a> for Foo {
 ///      type Error = scroll::Error;
-///      fn try_from_ctx(this: &[u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
+///      fn try_from_ctx(this: &'a [u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;
 ///          let offset = ctx.0;
 ///          let le = ctx.1;
@@ -74,9 +74,9 @@ use endian::Endian;
 ///  #[derive(Debug, PartialEq, Eq)]
 ///  pub struct Foo(u16);
 ///
-///  impl ctx::TryFromCtx for Foo {
+///  impl<'a> ctx::TryFromCtx<'a> for Foo {
 ///      type Error = ExternalError;
-///      fn try_from_ctx(this: &[u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
+///      fn try_from_ctx(this: &'a [u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;
 ///          let offset = ctx.0;
 ///          let le = ctx.1;
@@ -101,7 +101,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
 {
     #[inline]
     /// Implement this if you need a faster version for use by `Gread`
-    fn pread_unsafe<N: TryFromCtx<TryCtx, Error = E>>(&self, offset: I, ctx: Ctx) -> N {
+    fn pread_unsafe<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> N {
         self.pread(offset, ctx).unwrap()
     }
     #[inline]
@@ -111,7 +111,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.pread_into::<u8>(0).unwrap();
-    fn pread_into<N: TryFromCtx<TryCtx, Error = E>>(&self, offset: I) -> result::Result<N, E> {
+    fn pread_into<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I) -> result::Result<N, E> {
         self.pread(offset, Ctx::default())
     }
     #[inline]
@@ -122,7 +122,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// let bytes: [u8; 2] = [0xde, 0xad];
     /// let dead: u16 = bytes.pread(0, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
-    fn pread<N: TryFromCtx<TryCtx, Error = E>>(&self, offset: I, ctx: Ctx) -> result::Result<N, E>;
+    fn pread<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E>;
     /// Slices an `N` from `self` at `offset` up to `count` times
     #[inline]
     /// # Example
@@ -141,11 +141,11 @@ impl<E, Ctx> Pread<E, Ctx> for [u8]
     E: Debug,
     Ctx: Debug + Copy + Default {
     #[inline]
-    fn pread_unsafe<N: TryFromCtx<(usize, Ctx), Error = E>>(&self, offset: usize, le: Ctx) -> N {
+    fn pread_unsafe<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> N {
         TryFromCtx::try_from_ctx(self, (offset, le)).unwrap()
     }
     #[inline]
-    fn pread<N: TryFromCtx<(usize, Ctx), Error = E>>(&self, offset: usize, le: Ctx) -> result::Result<N, E> {
+    fn pread<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
         TryFromCtx::try_from_ctx(self, (offset, le))
     }
     #[inline]
@@ -160,12 +160,12 @@ impl<E, Ctx, T> Pread<E, Ctx> for T
     Ctx: Debug + Copy + Default,
     T: AsRef<[u8]> {
     #[inline]
-    fn pread_unsafe<N: TryFromCtx<(usize, Ctx), Error = E>>(&self, offset: usize, le: Ctx) -> N {
+    fn pread_unsafe<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> N {
         <[u8] as Pread<E, Ctx>>::pread_unsafe::<N>(self.as_ref(), offset, le)
         //FromCtx::try_from_ctx(self.as_ref(), offset, le)
     }
     #[inline]
-    fn pread<N: TryFromCtx<(usize, Ctx), Error = E>>(&self, offset: usize, le: Ctx) -> result::Result<N, E> {
+    fn pread<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
         TryFromCtx::try_from_ctx(self.as_ref(), (offset, le))
         //<[u8] as Pread<E, Ctx>>::pread::<N>(self.as_ref(), offset, le)
         //(*self.as_ref()).pread(offset, le)

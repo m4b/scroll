@@ -3,8 +3,8 @@ extern crate scroll;
 use scroll::{ctx, Pread, BE};
 
 #[derive(Debug)]
-struct Data {
-    name: String,
+struct Data<'a> {
+    name: &'a str,
     id: u32,
 }
 
@@ -14,11 +14,11 @@ struct DataCtx {
     pub endian: scroll::Endian
 }
 
-impl ctx::TryFromCtx<(usize, DataCtx)> for Data {
+impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
     type Error = scroll::Error;
-    fn try_from_ctx (src: &[u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+    fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
                      -> Result<Self, Self::Error> {
-        let name = src.pread_slice::<str>(offset, size)?.to_string();
+        let name = src.pread_slice::<str>(offset, size)?;
         let id = src.pread(offset+size, endian)?;
         Ok(Data { name: name, id: id })
     }
@@ -28,6 +28,6 @@ fn main() {
     let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
     let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
     assert_eq!(data.id, 0x01020304);
-    assert_eq!(data.name, "UserName".to_string());
+    assert_eq!(data.name.to_string(), "UserName".to_string());
     println!("Data: {:?}", &data);
 }

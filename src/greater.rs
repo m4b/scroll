@@ -32,7 +32,7 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
           SliceCtx: Copy + Default + Debug,
 {
     #[inline]
-    fn gread_unsafe<N: TryFromCtx<(I, Ctx), Error = E>>(&self, offset: &mut I, ctx: Ctx) -> N {
+    fn gread_unsafe<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> N {
         let o = *offset;
         let count = self.try_offset::<N>(o).unwrap();
         *offset += count;
@@ -46,7 +46,7 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.gread_into::<u8>(offset).unwrap();
     /// assert_eq!(*offset, 1);
-    fn gread_into<N: TryFromCtx<(I, Ctx), Error = E>>(&self, offset: &mut I) -> result::Result<N, E> {
+    fn gread_into<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> {
         let ctx = Ctx::default();
         self.gread(offset, ctx)
     }
@@ -59,7 +59,7 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(dead, 0xdeadu16);
     /// assert_eq!(*offset, 2);
     #[inline]
-    fn gread<N: TryFromCtx<(I, Ctx), Error = E>>(&self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
+    fn gread<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
         let o = *offset;
         let count = self.try_offset::<N>(o)?;
         let res = self.pread_unsafe(o, ctx);
@@ -92,9 +92,9 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// bytes_from.gread_inout(offset, &mut bytes).unwrap();
     /// assert_eq!(&bytes, &bytes_from);
     /// assert_eq!(*offset, 2);
-    fn gread_inout<N>(&self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
+    fn gread_inout<'a, N>(&'a self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
         where
-        N: TryFromCtx<(I, Ctx), Error = E>,
+        N: TryFromCtx<'a, (I, Ctx), Error = E>,
     {
         let len = inout.len();
         for i in 0..len {

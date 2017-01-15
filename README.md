@@ -31,6 +31,8 @@ scroll = "0.2.0"
 
 Scroll implements several traits for read/writing generic containers (byte buffers are currently implemented by default). Most familiar will likely be the `Pread` trait, which at its basic takes an immutable reference to self, an immutable offset to read at, (and a parsing context, more on that later), and then returns the deserialized value.
 
+Because self is immutable, _all reads can be performed in parallel_ and hence are trivially parallelizable.
+
 A simple example demonstrates its flexibility:
 
 ```rust
@@ -65,11 +67,45 @@ let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0, scroll::LEB128).unwr
 assert_eq!(uleb128, 0x01def96deu64);
 ```
 
-Because self is immutable, _all reads can be performed in parallel_ and hence are trivially parallelizable.
-
 # Advanced Uses
 
-Scroll is designed to be highly configurable - it allows you to implement various `Ctx` traits, which then grants the implementor _automatic_ uses of the `Pread`/`Gread` and/or `Pwrite`/`Gwrite` traits.
+Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread`/`Gread` and/or `Pwrite`/`Gwrite` traits.
+
+For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
+byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype.
+
+In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
+calling `pread::<YourDatatype>` on arrays of bytes.
+
+```rust
+use scroll::{self, ctx, Pread, BE};
+
+struct Data<'a> {
+  name: &'a str,
+  id: u32,
+}
+
+// we could use a `(usize, endian::Scroll)` if we wanted
+#[derive(Debug, Clone, Copy, Default)]
+struct DataCtx { pub size: usize, pub endian: scroll::Endian }
+
+// note the lifetime specified here
+impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
+  type Error = scroll::Error;
+  // and the lifetime annotation on `&'a [u8]` here
+  fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+    -> Result<Self, Self::Error> {
+    let name = src.pread_slice::<str>(offset, size)?;
+    let id = src.pread(offset+size, endian)?;
+    Ok(Data { name: name, id: id })
+  }
+}
+
+let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
+let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+assert_eq!(data.id, 0x01020304);
+assert_eq!(data.name.to_string(), "UserName".to_string());
+```
 
 Please see the official documentation, or a simple [example](examples/data_ctx.rs) for more.
 
