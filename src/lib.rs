@@ -349,7 +349,7 @@ mod tests {
     // begin gread
     //////////////////////////////////////////////////////////////
 
-    macro_rules! gread_test {
+    macro_rules! simple_gread_test {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
             fn $read() {
@@ -364,12 +364,12 @@ mod tests {
         }
     }
 
-    gread_test!(gread_f32, 0xb0e0e0f, f32);
-    gread_test!(gread_u16, 0xe0f, u16);
-    gread_test!(gread_u32, 0xb0e0e0f, u32);
-    gread_test!(gread_u64, 0xd0e0a0d0b0e0e0f, u64);
-    gread_test!(gread_i64, 940700423303335439, i64);
-    gread_test!(gread_f64, 0xd0e0a0d0b0e0e0fu64, f64);
+    simple_gread_test!(simple_gread_f32, 0xb0e0e0f, f32);
+    simple_gread_test!(simple_gread_u16, 0xe0f, u16);
+    simple_gread_test!(simple_gread_u32, 0xb0e0e0f, u32);
+    simple_gread_test!(simple_gread_u64, 0xd0e0a0d0b0e0e0f, u64);
+    simple_gread_test!(simple_gread_i64, 940700423303335439, i64);
+    simple_gread_test!(simple_gread_f64, 0xd0e0a0d0b0e0e0fu64, f64);
 
     // useful for ferreting out problems with impls
     #[test]
