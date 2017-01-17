@@ -186,7 +186,7 @@ macro_rules! signed_to_unsigned {
 macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => ({
         unsafe {
-            let bytes = transmute::<_, [u8; $size]>(if $endian.is_little() { $n.to_le() } else { $n.to_be() });
+            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() { $n.to_le() } else { $n.to_be() });
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
     });
@@ -197,7 +197,7 @@ macro_rules! into_ctx_impl {
         impl IntoCtx for $typ {
             #[inline]
             fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
-                write_into!(signed_to_unsigned!($typ), $size, self, dst, le);
+                write_into!($typ, $size, self, dst, le);
             }
         }
         impl TryIntoCtx<(usize, $ctx)> for $typ where $typ: IntoCtx<$ctx> {
@@ -291,8 +291,38 @@ ctx_impl!(u32, 4);
 ctx_impl!(i32, 4);
 ctx_impl!(u64, 8);
 ctx_impl!(i64, 8);
-ctx_impl!(f32, 4);
-ctx_impl!(f64, 8);
+
+macro_rules! from_ctx_float_impl {
+    ($typ:tt, $size:expr, $ctx:ty) => {
+        impl FromCtx<$ctx> for $typ {
+            #[inline]
+            fn from_ctx(src: &[u8], le: $ctx) -> Self {
+                let mut data: signed_to_unsigned!($typ) = 0;
+                unsafe {
+                    copy_nonoverlapping(
+                        src.as_ptr(),
+                        &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
+                        $size);
+                    transmute((if le.is_little() { data.to_le() } else { data.to_be() }))
+                }
+            }
+        }
+
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+            type Error = error::Error;
+            #[inline]
+            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
+                if offset + $size > src.len () {
+                    return Err(error::Error::BadOffset(format!("value size: {}, offset: {}, src len: {}", $size, offset, src.len())).into())
+                }
+                Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
+            }
+        }
+    }
+}
+
+from_ctx_float_impl!(f32, 4, super::Endian);
+from_ctx_float_impl!(f64, 8, super::Endian);
 
 into_ctx_impl!(u8,  1, super::Endian);
 into_ctx_impl!(i8,  1, super::Endian);
@@ -303,43 +333,27 @@ into_ctx_impl!(i32, 4, super::Endian);
 into_ctx_impl!(u64, 8, super::Endian);
 into_ctx_impl!(i64, 8, super::Endian);
 
-impl IntoCtx for f32 {
-    #[inline]
-    fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
-        write_into!(u32, 4, transmute::<f32, u32>(self), dst, le);
+macro_rules! into_ctx_float_impl {
+    ($typ:tt, $size:expr, $ctx:ty) => {
+        impl IntoCtx for $typ {
+            #[inline]
+            fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+                write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
+            }
+        }
+        impl TryIntoCtx<(usize, $ctx)> for $typ where $typ: IntoCtx<$ctx> {
+            type Error = error::Error;
+            #[inline]
+            fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
+                if offset + $size > dst.len () {
+                    return Err(error::Error::BadOffset(format!("size_of: {}, offset: {},  len: {}", $size, offset, dst.len())).into())
+                }
+                <$typ as IntoCtx<$ctx>>::into_ctx(self, &mut dst[offset..(offset+$size)], le);
+                Ok(())
+            }
+        }
     }
 }
 
-impl TryIntoCtx<(usize, super::Endian)> for f32 where f32: IntoCtx<super::Endian> {
-    type Error = error::Error;
-    #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], ctx: (usize, super::Endian)) -> error::Result<()> {
-        let offset = ctx.0;
-        let le = ctx.1;
-        if offset + 4 > dst.len () {
-            return Err(error::Error::BadOffset(format!("size_of: {}, offset: {},  len: {}", 4, offset, dst.len())).into())
-        }
-        <f32 as IntoCtx<super::Endian>>::into_ctx(self, &mut dst[offset..(offset+4)], le);
-        Ok(())
-    }
-}
-
-impl IntoCtx for f64 {
-    #[inline]
-    fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
-        write_into!(u64, 8, transmute::<f64, u64>(self), dst, le);
-    }
-}
-impl TryIntoCtx<(usize, super::Endian)> for f64 where f64: IntoCtx<super::Endian> {
-    type Error = error::Error;
-    #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], ctx: (usize, super::Endian)) -> error::Result<()> {
-        let offset = ctx.0;
-        let le = ctx.1;
-        if offset + 8 > dst.len () {
-            return Err(error::Error::BadOffset(format!("size_of: {}, offset: {},  len: {}", 8, offset, dst.len())).into())
-        }
-        <f64 as IntoCtx<super::Endian>>::into_ctx(self, &mut dst[offset..(offset+8)], le);
-        Ok(())
-    }
-}
+into_ctx_float_impl!(f32, 4, super::Endian);
+into_ctx_float_impl!(f64, 8, super::Endian);

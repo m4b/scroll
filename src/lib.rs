@@ -349,7 +349,7 @@ mod tests {
     // begin gread
     //////////////////////////////////////////////////////////////
 
-    macro_rules! simple_gread_test {
+    macro_rules! g_test {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
             fn $read() {
@@ -364,12 +364,65 @@ mod tests {
         }
     }
 
-    simple_gread_test!(simple_gread_f32, 0xb0e0e0f, f32);
-    simple_gread_test!(simple_gread_u16, 0xe0f, u16);
-    simple_gread_test!(simple_gread_u32, 0xb0e0e0f, u32);
-    simple_gread_test!(simple_gread_u64, 0xd0e0a0d0b0e0e0f, u64);
-    simple_gread_test!(simple_gread_i64, 940700423303335439, i64);
-    simple_gread_test!(simple_gread_f64, 0xd0e0a0d0b0e0e0fu64, f64);
+    g_test!(simple_gread_u16, 0xe0f, u16);
+    g_test!(simple_gread_u32, 0xb0e0e0f, u32);
+    g_test!(simple_gread_u64, 0xd0e0a0d0b0e0e0f, u64);
+    g_test!(simple_gread_i64, 940700423303335439, i64);
+
+    macro_rules! simple_float_test {
+        ($read:ident, $deadbeef:expr, $typ:ty) => {
+            #[test]
+            fn $read() {
+                use super::Gread;
+                let bytes: [u8; 8] = [0u8, 0, 0, 0, 0, 0, 224, 63];
+                let buffer = Buffer::new(bytes);
+                let mut offset = 0;
+                let deadbeef: $typ = buffer.gread(&mut offset, LE).unwrap();
+                assert_eq!(deadbeef, $deadbeef as $typ);
+                assert_eq!(offset, ::std::mem::size_of::<$typ>());
+            }
+        };
+    }
+
+    simple_float_test!(gread_f32, 0.0, f32);
+    simple_float_test!(gread_f64, 0.5, f64);
+
+    macro_rules! g_read_write_test {
+        ($read:ident, $val:expr, $typ:ty) => {
+            #[test]
+            fn $read() {
+                use super::{LE, BE, Gread, Gwrite};
+                let mut buffer = Buffer::with(0, 16);
+                let mut offset = &mut 0;
+                buffer.gwrite($val.clone(), offset, LE).unwrap();
+                let mut o2 = &mut 0;
+                let val: $typ = buffer.gread(o2, LE).unwrap();
+                assert_eq!(val, $val);
+                assert_eq!(*offset, ::std::mem::size_of::<$typ>());
+                assert_eq!(*o2, ::std::mem::size_of::<$typ>());
+                assert_eq!(*o2, *offset);
+                buffer.gwrite($val.clone(), offset, BE).unwrap();
+                let val: $typ = buffer.gread(o2, BE).unwrap();
+                assert_eq!(val, $val);
+            }
+        };
+    }
+
+    g_read_write_test!(gread_gwrite_f64_1, 0.25f64, f64);
+    g_read_write_test!(gread_gwrite_f64_2, 0.5f64, f64);
+    g_read_write_test!(gread_gwrite_f64_3, 0.064, f64);
+
+    g_read_write_test!(gread_gwrite_f32_1, 0.25f32, f32);
+    g_read_write_test!(gread_gwrite_f32_2, 0.5f32, f32);
+    g_read_write_test!(gread_gwrite_f32_3, 0.0f32, f32);
+
+    g_read_write_test!(gread_gwrite_i64_1, 0i64, i64);
+    g_read_write_test!(gread_gwrite_i64_2, -1213213211111i64, i64);
+    g_read_write_test!(gread_gwrite_i64_3, -3000i64, i64);
+
+    g_read_write_test!(gread_gwrite_i32_1, 0i32, i32);
+    g_read_write_test!(gread_gwrite_i32_2, -1213213232, i32);
+    g_read_write_test!(gread_gwrite_i32_3, -3000i32, i32);
 
     // useful for ferreting out problems with impls
     #[test]

@@ -102,6 +102,27 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
         }
         Ok(())
     }
+
+    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`
+    /// # Example
+    /// ```rust
+    /// use scroll::Gread;
+    /// let mut bytes: Vec<u8> = vec![0, 0];
+    /// let offset = &mut 0;
+    /// let bytes_from: [u8; 2] = [0x48, 0x49];
+    /// bytes_from.gread_inout(offset, &mut bytes).unwrap();
+    /// assert_eq!(&bytes, &bytes_from);
+    /// assert_eq!(*offset, 2);
+    fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
+        where
+        N: TryFromCtx<'a, (I, Ctx), Error = E>,
+    {
+        let len = inout.len();
+        for i in 0..len {
+            inout[i] = self.gread(offset, ctx)?;
+        }
+        Ok(())
+    }
 }
 
 impl TryOffset for [u8] {
