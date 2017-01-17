@@ -11,7 +11,6 @@ use std::error;
 pub enum Error {
     BadOffset(String),
     BadInput(String),
-    Custom(String),
     #[cfg(feature = "std")]
     IO(io::Error),
 }
@@ -22,7 +21,6 @@ impl error::Error for Error {
         match *self {
             Error::BadOffset(_) => { "BadOffset" }
             Error::BadInput(_) => { "BadInput" }
-            Error::Custom(_) => { "Custom" }
             Error::IO(_) => { "IO" }
         }
     }
@@ -31,7 +29,6 @@ impl error::Error for Error {
             Error::IO(ref io) => { io.cause() }
             Error::BadOffset(_) => { None }
             Error::BadInput(_) => { None }
-            Error::Custom(_) => { None }
         }
     }
 }
@@ -48,7 +45,6 @@ impl Display for Error {
         match *self {
             Error::BadOffset(ref msg) => { write! (fmt, "{}", msg) },
             Error::BadInput(ref msg) => { write! (fmt, "{}", msg) },
-            Error::Custom(ref msg) => { write! (fmt, "{}", msg) },
             #[cfg(feature = "std")]
             Error::IO(ref err) => { write!(fmt, "{}", err) },
         }
