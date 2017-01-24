@@ -382,6 +382,7 @@ fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delim: u8) -> usize {
     i
 }
 
+// TODO: do not use a raw u8 as the ctx, wrappify with a StrCtx and add convenience methods for generating + default to \0 delimiter
 impl<'a> TryFromCtx<'a, (usize, u8)> for &'a str {
     type Error = error::Error;
     #[inline]
