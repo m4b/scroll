@@ -144,7 +144,7 @@ impl<T> TryOffset for T where T: AsRef<[u8]> {
 }
 
 // this gets us Gread for Buffer, Vec<u8>, etc.
-impl<T> Gread for T where T: AsRef<[u8]> {}
+impl<E, Ctx, T> Gread<E, Ctx> for T where T: AsRef<[u8]> + TryOffset<E>, Ctx: Copy + Default + Debug, E: Debug {}
 
 // because Cursor doesn't impl AsRef<[u8]> and no specialization
 // impl<T> TryOffset for Cursor<T> where T: AsRef<[u8]> {

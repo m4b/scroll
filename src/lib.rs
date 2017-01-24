@@ -204,6 +204,16 @@ mod tests {
         }
     }
 
+    #[test]
+    fn pread_str() {
+        use super::{Pread};
+        let bytes: [u8; 2] = [0x2e, 0x0];
+        let b = &bytes[..];
+        let s: &str  = b.pread(0, 0).unwrap();
+        println!("str: {}", s);
+        assert_eq!(s.len(), bytes[..].len() - 1);
+    }
+
     use std::error;
     use std::fmt::{self, Display};
 

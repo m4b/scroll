@@ -357,3 +357,54 @@ macro_rules! into_ctx_float_impl {
 
 into_ctx_float_impl!(f32, 4, super::Endian);
 into_ctx_float_impl!(f64, 8, super::Endian);
+
+
+#[inline(always)]
+fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delim: u8) -> usize {
+    let mut i = idx;
+    let len = bytes.len();
+    if i >= len {
+        return 0;
+    }
+    let mut byte = bytes[i];
+    // TODO: this is still a hack and getting worse and worse - this hack has come from dryad -> goblin -> scroll :D
+    if byte == delim {
+        return 0;
+    }
+    while byte != delim && i < len {
+        byte = bytes[i];
+        i += 1;
+    }
+    // we drop the null terminator unless we're at the end and the byte isn't a null terminator
+    if i < len || bytes[i - 1] == delim {
+        i -= 1;
+    }
+    i
+}
+
+impl<'a> TryFromCtx<'a, (usize, u8)> for &'a str {
+    type Error = error::Error;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], (offset, delimiter): (usize, u8)) -> error::Result<Self> {
+        let count = get_str_delimiter_offset(src, offset, delimiter) - offset;
+        if count == 0 { return Ok("") }
+        if offset + count > src.len () {
+            Err(error::Error::BadOffset(format!("str len: {}, offset: {}, src len: {}", count, offset, src.len())).into())
+        } else {
+            let bytes = &src[offset..(offset+count)];
+            str::from_utf8(bytes).map_err(| err | {
+                let up_to = err.valid_up_to();
+                error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
+            })
+        }
+    }
+}
+
+impl<'a, T> TryFromCtx<'a, (usize, u8), T> for &'a str where T: AsRef<[u8]> {
+    type Error = error::Error;
+    #[inline]
+    fn try_from_ctx(src: &'a T, ctx: (usize, u8)) -> error::Result<Self> {
+        let src = src.as_ref();
+        TryFromCtx::try_from_ctx(src, ctx)
+    }
+}
