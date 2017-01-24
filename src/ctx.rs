@@ -386,6 +386,7 @@ fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delim: u8) -> usize {
 impl<'a> TryFromCtx<'a, (usize, u8)> for &'a str {
     type Error = error::Error;
     #[inline]
+    /// Read a `&str` from `src` using `delimiter`
     fn try_from_ctx(src: &'a [u8], (offset, delimiter): (usize, u8)) -> error::Result<Self> {
         let count = get_str_delimiter_offset(src, offset, delimiter) - offset;
         if count == 0 { return Ok("") }
