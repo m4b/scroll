@@ -65,27 +65,60 @@ use core::mem::transmute;
 use core::str;
 
 use error;
+use endian;
+
+/// The default parsing context; use this when the context isn't important for your datatype
+pub type DefaultCtx = endian::Endian;
+
+/// Convenience constant for the default parsing context
+pub const CTX: DefaultCtx = endian::NATIVE;
+
+/// The parsing context for converting byte sequence `&str`s
+///
+/// `StrCtx` specifies what byte delimiter to use, and defaults to C-style null terminators. Be careful.
+#[derive(Debug, Copy, Clone)]
+pub struct StrCtx {
+    pub delimiter: u8
+}
+
+/// A C-style, null terminator based delimiter for a `StrCtx`
+pub const NULL: StrCtx = StrCtx { delimiter: 0 };
+/// A space-based delimiter for a `StrCtx`
+pub const SPACE: StrCtx = StrCtx { delimiter: 0x20 };
+
+impl Default for StrCtx {
+    #[inline]
+    fn default() -> Self {
+        NULL
+    }
+}
+
+impl From<u8> for StrCtx {
+    fn from(delimiter: u8) -> Self {
+        StrCtx { delimiter: delimiter }
+    }
+}
 
 /// Reads `Self` from `This` using the context `Ctx`
-pub trait FromCtx<Ctx: Copy = super::Endian, This: ?Sized = [u8]> where Self: Sized {
+pub trait FromCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> where Self: Sized {
     #[inline]
     fn from_ctx(this: &This, ctx: Ctx) -> Self;
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<'a, Ctx: Copy = (usize, super::Endian), This: ?Sized = [u8]> where Self: 'a + Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = (usize, DefaultCtx), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     #[inline]
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<Self, Self::Error>;
 }
 
 /// Writes `Self` into `This` using the context `Ctx`
-pub trait IntoCtx<Ctx: Copy = super::Endian, This: ?Sized = [u8]>: Sized {
+pub trait IntoCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]>: Sized {
     fn into_ctx(self, &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
-pub trait TryIntoCtx<Ctx: Copy = (usize, super::Endian), This: ?Sized = [u8]>: Sized {
+pub trait TryIntoCtx<Ctx: Copy = (usize, DefaultCtx), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
 }
@@ -97,14 +130,14 @@ pub trait RefFrom<This: ?Sized = [u8], I = usize> {
 }
 
 /// Tries to read a reference to `Self` from `This` using the context `Ctx`
-pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized = [u8]> {
+pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [u8]> {
     type Error;
     #[inline]
     fn try_ref_from_ctx(from: &This, ctx: Ctx) -> Result<&Self, Self::Error>;
 }
 
 /// Tries to write a reference to `Self` into `This` using the context `Ctx`
-pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, super::Endian), This: ?Sized = [u8]>: Sized {
+pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_ref_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
 }
@@ -360,52 +393,53 @@ into_ctx_float_impl!(f64, 8, super::Endian);
 
 
 #[inline(always)]
-fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delim: u8) -> usize {
-    let mut i = idx;
+fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delimiter: u8) -> usize {
     let len = bytes.len();
-    if i >= len {
-        return 0;
-    }
+    let mut i = idx;
     let mut byte = bytes[i];
     // TODO: this is still a hack and getting worse and worse - this hack has come from dryad -> goblin -> scroll :D
-    if byte == delim {
-        return 0;
+    if byte == delimiter {
+        return i;
     }
-    while byte != delim && i < len {
+    while byte != delimiter && i < len {
         byte = bytes[i];
         i += 1;
     }
-    // we drop the null terminator unless we're at the end and the byte isn't a null terminator
-    if i < len || bytes[i - 1] == delim {
+    // we drop the terminator/delimiter unless we're at the end and the byte isn't the terminator
+    if i < len || bytes[i - 1] == delimiter {
         i -= 1;
     }
     i
 }
 
-// TODO: do not use a raw u8 as the ctx, wrappify with a StrCtx and add convenience methods for generating + default to \0 delimiter
-impl<'a> TryFromCtx<'a, (usize, u8)> for &'a str {
+impl<'a> TryFromCtx<'a, (usize, StrCtx)> for &'a str {
     type Error = error::Error;
     #[inline]
     /// Read a `&str` from `src` using `delimiter`
-    fn try_from_ctx(src: &'a [u8], (offset, delimiter): (usize, u8)) -> error::Result<Self> {
-        let count = get_str_delimiter_offset(src, offset, delimiter) - offset;
-        if count == 0 { return Ok("") }
-        if offset + count > src.len () {
-            Err(error::Error::BadOffset(format!("str len: {}, offset: {}, src len: {}", count, offset, src.len())).into())
-        } else {
-            let bytes = &src[offset..(offset+count)];
-            str::from_utf8(bytes).map_err(| err | {
-                let up_to = err.valid_up_to();
-                error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
-            })
+    fn try_from_ctx(src: &'a [u8], (offset, StrCtx {delimiter}): (usize, StrCtx)) -> error::Result<Self> {
+        let len = src.len();
+        if offset >= len {
+            return Err(error::Error::BadOffset(format!("offset: {} >= src len: {}", offset, len)).into())
         }
+        let delimiter_offset = get_str_delimiter_offset(src, offset, delimiter);
+        let count = delimiter_offset - offset;
+        if count == 0 { return Ok("") }
+        // we do not need to check if offset + count > len because get_str_delimiter_offset returns a valid index
+        // if offset + count > len {
+        //     return Err(error::Error::BadOffset(format!("str len: {}, offset: {}, src len: {}", count, offset, len)).into());
+        // }
+        let bytes = &src[offset..(offset+count)];
+        str::from_utf8(bytes).map_err(| err | {
+            let up_to = err.valid_up_to();
+            error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
+        })
     }
 }
 
-impl<'a, T> TryFromCtx<'a, (usize, u8), T> for &'a str where T: AsRef<[u8]> {
+impl<'a, T> TryFromCtx<'a, (usize, StrCtx), T> for &'a str where T: AsRef<[u8]> {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a T, ctx: (usize, u8)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a T, ctx: (usize, StrCtx)) -> error::Result<Self> {
         let src = src.as_ref();
         TryFromCtx::try_from_ctx(src, ctx)
     }

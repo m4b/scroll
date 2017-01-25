@@ -206,12 +206,42 @@ mod tests {
 
     #[test]
     fn pread_str() {
-        use super::{Pread};
+        use super::Pread;
+        use super::ctx::{NULL, SPACE};
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
-        let s: &str  = b.pread(0, 0).unwrap();
+        let s: &str  = b.pread_into(0).unwrap();
         println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
+        let bytes: &[u8] = b"hello, world!\0some_other_things";
+        let hello_world: &str = bytes.pread(0, NULL).unwrap();
+        println!("{:?}", &hello_world);
+        assert_eq!(hello_world.len(), 13);
+        let hello: &str = bytes.pread(0, SPACE).unwrap();
+        println!("{:?}", &hello);
+        assert_eq!(hello.len(), 6);
+        // this could result in underflow so we just try it
+        let _error = bytes.pread::<&str>(6, SPACE);
+        let error = bytes.pread::<&str>(7, SPACE);
+        println!("{:?}", &error);
+        assert!(error.is_ok());
+    }
+
+    #[test]
+    fn pread_str_weird() {
+        use super::Pread;
+        use super::ctx::{NULL, SPACE};
+        let bytes: &[u8] = b"";
+        let hello_world  = bytes.pread::<&str>(0, NULL);
+        println!("{:?}", &hello_world);
+        assert_eq!(hello_world.is_err(), true);
+        let error = bytes.pread::<&str>(7, SPACE);
+        println!("{:?}", &error);
+        assert!(error.is_err());
+        let bytes: &[u8] = b"\0";
+        let null  = bytes.pread_into::<&str>(0).unwrap();
+        println!("{:?}", &null);
+        assert_eq!(null.len(), 0);
     }
 
     use std::error;
