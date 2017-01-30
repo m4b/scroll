@@ -90,7 +90,7 @@ use endian::Endian;
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
 
-pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
+pub trait Pread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
  where E: Debug,
        Ctx: Copy + Default + Debug,
        I: Copy + Debug,
@@ -134,7 +134,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     fn pread_slice<'a, N: ?Sized + TryRefFromCtx<SliceCtx, Error = E>>(&'a self, offset: I, count: I) -> result::Result<&'a N, E>;
 }
 
-impl<E, Ctx> Pread<E, Ctx> for [u8]
+impl<Ctx, E> Pread<Ctx, E> for [u8]
     where
     E: Debug,
     Ctx: Debug + Copy + Default {
@@ -152,14 +152,14 @@ impl<E, Ctx> Pread<E, Ctx> for [u8]
     }
 }
 
-impl<E, Ctx, T> Pread<E, Ctx> for T
+impl<Ctx, E, T> Pread<Ctx, E> for T
     where
     E: Debug,
     Ctx: Debug + Copy + Default,
     T: AsRef<[u8]> {
     #[inline]
     fn pread_unsafe<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> N {
-        <[u8] as Pread<E, Ctx>>::pread_unsafe::<N>(self.as_ref(), offset, le)
+        <[u8] as Pread<Ctx, E>>::pread_unsafe::<N>(self.as_ref(), offset, le)
     }
     #[inline]
     fn pread_with<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
@@ -167,6 +167,6 @@ impl<E, Ctx, T> Pread<E, Ctx> for T
     }
     #[inline]
     fn pread_slice<N: ?Sized + TryRefFromCtx<(usize, usize, Ctx), Error = E>>(&self, offset: usize, count: usize) -> result::Result<&N, E> {
-        <[u8] as Pread<E, Ctx>>::pread_slice::<N>(self.as_ref(), offset, count)
+        <[u8] as Pread<Ctx, E>>::pread_slice::<N>(self.as_ref(), offset, count)
     }
 }

@@ -120,8 +120,8 @@ mod buffer;
 mod error;
 mod endian;
 mod leb128;
-#[cfg(feature = "std")]
-mod lesser;
+//#[cfg(feature = "std")]
+//mod lesser;
 
 pub use measure::Measure;
 pub use endian::*;
@@ -131,8 +131,8 @@ pub use greater::*;
 pub use buffer::*;
 pub use error::*;
 pub use leb128::*;
-#[cfg(feature = "std")]
-pub use lesser::*;
+//#[cfg(feature = "std")]
+//pub use lesser::*;
 
 #[cfg(test)]
 mod tests {
@@ -337,6 +337,7 @@ mod tests {
     /// This ensures the raw byte reading api works
     fn p_bytes_api () {
         use super::{Pread, Pwrite, LE, BE};
+        use super::ctx;
         let mut bytes: [u8; 4] = [0xde, 0xaf, 0, 0];
         {
             let b = &bytes[..];
@@ -348,7 +349,7 @@ mod tests {
             }
             let res = _pread_with_api(&b).unwrap();
             assert_eq!(res, 0xafde);
-            fn _pread_with_api_external<S: super::Pread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
+            fn _pread_with_api_external<S: super::Pread<ctx::DefaultCtx, ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
                 let b = [0, 0];
                 let b = &b[..];
                 let _: u16 = b.pread(0)?;
@@ -361,7 +362,7 @@ mod tests {
             let mut b = &mut bytes[..];
             let () = b.pwrite_with::<u16>(0xdeadu16, 2, BE).unwrap();
             assert_eq!(0xdead, b.pread_with::<u16>(2, BE).unwrap());
-            fn _pwrite_api<S: ?Sized + super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
+            fn _pwrite_api<S: ?Sized + super::Pwrite<ctx::DefaultCtx, ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
                 bytes.pwrite_with(Foo(0x7f), 1, super::LE)
             }
             let ()  = _pwrite_api(b).unwrap();
@@ -372,22 +373,23 @@ mod tests {
     #[test]
     /// This ensures the buffer reading api works
     fn p_buffer_api() {
+        use super::ctx;
         let bytes: [u8; 4] = [0, 0, 0xde | 128, 1];
         let mut b = Buffer::new(&bytes[..]);
         //let mut b = &bytes[..];
         // parses using multiple pread_with contexts
-        fn _pread_with_api<S: super::Pread + super::Pread<super::Error, super::Leb128>>(bytes: &S) -> Result<u16, super::Error> {
+        fn _pread_with_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
             let _res: u32 = bytes.pread(0)?;
             let _slice: &[u8] = bytes.pread_slice(0, 4)?;
             let _unwrapped: u8 = bytes.pread_unsafe(0, super::LE);
-            let _uleb: super::Uleb128 = bytes.pread_with(2, super::LEB128).unwrap();
+            let _uleb: super::Uleb128 = bytes.pread(2).unwrap();
             bytes.pread_with(0, super::LE)
         }
         fn _pwrite_api<S: super::Pwrite>(bytes: &mut S) -> Result<(), super::Error> {
             bytes.pwrite_with(42u8, 0, super::LE)
         }
 //        fn _pwrite_api2<S: super::Pwrite + super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), super::Error<ExternalError>> {
-        fn _pwrite_api2<S: super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
+        fn _pwrite_api2<S: super::Pwrite<ctx::DefaultCtx, ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
             
             bytes.pwrite_with(Foo(0x7f), 1, super::LE)
         }
@@ -398,7 +400,7 @@ mod tests {
         let ()  = _pwrite_api2(&mut b).unwrap();
         let res = <[u8] as super::Pread>::pread::<u8>(&b, 1).unwrap();
         assert_eq!(res, 0x7f);
-        let res = <[u8] as super::Pwrite<ExternalError>>::pwrite_with(&mut b, Foo(0x7f), 3, super::LE);
+        let res = <[u8] as super::Pwrite<ctx::DefaultCtx, ExternalError>>::pwrite_with(&mut b, Foo(0x7f), 3, super::LE);
         assert!(res.is_err());
     }
 

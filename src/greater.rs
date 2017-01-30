@@ -25,8 +25,8 @@ pub trait TryOffset<E = error::Error, I = usize> {
 /// If you are writing a custom `Gread` interface,
 /// you should only need to implement `Pread` for a particular
 /// `Ctx`, `Error`, `Index` target, _and_ implement `TryOffset` to explain to the trait how it should increment the mutable offset,
-/// and then a simple blanket `impl Gread<E, I, Ctx> for YourType`, etc.
-pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)> : Pread<E, Ctx, I> + TryOffset<E, I>
+/// and then a simple blanket `impl Gread<I, E, Ctx> for YourType`, etc.
+pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)> : Pread<Ctx, E, I> + TryOffset<E, I>
     where Ctx: Copy + Default + Debug,
           I: AddAssign + Copy + Add + Default + Debug,
           E: Debug,
@@ -149,7 +149,10 @@ impl<T> TryOffset for T where T: AsRef<[u8]> {
 }
 
 // this gets us Gread for Buffer, Vec<u8>, etc.
-impl<E, Ctx, T> Gread<E, Ctx> for T where T: AsRef<[u8]> + TryOffset<E>, Ctx: Copy + Default + Debug, E: Debug {}
+impl<Ctx, E, T> Gread<Ctx, E> for T where
+    T: AsRef<[u8]> + TryOffset<E>,
+    Ctx: Copy + Default + Debug,
+    E: Debug {}
 
 // because Cursor doesn't impl AsRef<[u8]> and no specialization
 // impl<T> TryOffset for Cursor<T> where T: AsRef<[u8]> {
@@ -160,7 +163,7 @@ impl<E, Ctx, T> Gread<E, Ctx> for T where T: AsRef<[u8]> + TryOffset<E>, Ctx: Co
 // }
 
 /// The Greater Write (`Gwrite`) writes a value into its mutable insides, at a mutable offset
-pub trait Gwrite<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)>: Pwrite<E, Ctx, I> + TryOffset<E, I>
+pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)>: Pwrite<Ctx, E, I> + TryOffset<E, I>
  where E: Debug,
        Ctx: Copy + Default + Debug,
        I: AddAssign + Copy + Add + Default + Debug,
@@ -187,4 +190,8 @@ pub trait Gwrite<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), S
     }
 }
 
-impl<T> Gwrite for T where T: AsRef<[u8]> + AsMut<[u8]> {}
+impl<Ctx, E, T> Gwrite<Ctx, E> for T where
+    T: AsRef<[u8]> + AsMut<[u8]> + TryOffset<E>,
+    Ctx: Copy + Default + Debug,
+    E: Debug {}
+

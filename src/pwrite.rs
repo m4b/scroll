@@ -14,12 +14,12 @@ use endian::Endian;
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
 ///
-/// // this will use the default `Ctx = scroll::Endian` and `I = usize`...
+/// // this will use the default `DefaultCtx = scroll::Endian` and `I = usize`...
 /// impl ctx::TryIntoCtx for Foo {
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
 ///     // you can write using your own context too... see `leb128.rs`
-///     fn try_into_ctx(self, this: &mut [u8], ctx: (usize, scroll::Endian)) -> Result<(), Self::Error> {
+///     fn try_into_ctx(self, this: &mut [u8], ctx: (usize, scroll::ctx::DefaultCtx)) -> Result<(), Self::Error> {
 ///         use scroll::Pwrite;
 ///         let offset = ctx.0;
 ///         let le = ctx.1;
@@ -33,7 +33,7 @@ use endian::Endian;
 /// let mut bytes: [u8; 4] = [0, 0, 0, 0];
 /// bytes.pwrite_with(Foo(0x7f), 1, scroll::LE).unwrap();
 ///
-pub trait Pwrite<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
+pub trait Pwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
  where E: Debug,
        Ctx: Copy + Default + Debug,
        I: Copy + Debug,
@@ -57,7 +57,7 @@ pub trait Pwrite<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), S
     //fn pwrite_slice<N: ?Sized + TrySliceFromCtx<SliceCtx, Error = E>>(&self, offset: I, count: I) -> result::Result<&N, E>;
 }
 
-impl<E, Ctx> Pwrite<E, Ctx> for [u8]
+impl<Ctx, E> Pwrite<Ctx, E> for [u8]
     where
     E: Debug,
     Ctx: Copy + Default + Debug
@@ -70,12 +70,12 @@ impl<E, Ctx> Pwrite<E, Ctx> for [u8]
     }
 }
 
-impl<T, E, Ctx> Pwrite<E, Ctx> for T where
+impl<T, Ctx, E> Pwrite<Ctx, E> for T where
     T: AsMut<[u8]>,
     E: Debug,
     Ctx: Copy + Debug + Default,
 {
     fn pwrite_with<N: TryIntoCtx<(usize, Ctx), Error = E>>(&mut self, n: N, offset: usize, ctx: Ctx) -> result::Result<(), E> {
-        <[u8] as Pwrite<E, Ctx>>::pwrite_with(self.as_mut(), n, offset, ctx)
+        <[u8] as Pwrite<Ctx, E>>::pwrite_with(self.as_mut(), n, offset, ctx)
     }
 }
