@@ -28,17 +28,17 @@
 //! let b = &bytes[..];
 //!
 //! // reads a u32 out of `b` with Big Endian byte order, at offset 0
-//! let i: u32 = b.pread(0, scroll::BE).unwrap();
+//! let i: u32 = b.pread_with(0, scroll::BE).unwrap();
 //! // or a u16 - specify the type either on the variable or with the beloved turbofish
-//! let i2 = b.pread::<u16>(2, scroll::BE).unwrap();
+//! let i2 = b.pread_with::<u16>(2, scroll::BE).unwrap();
 //!
-//! // We can also skip the ctx by calling `pread_into`.
+//! // We can also skip the ctx by calling `pread`.
 //! // for the primitive numbers, this will default to the host machine endianness (technically it is whatever default `Ctx` the target type is impl'd for)
-//! let byte: u8 = b.pread_into(0).unwrap();
-//! let i3: u32 = b.pread_into(0).unwrap();
+//! let byte: u8 = b.pread(0).unwrap();
+//! let i3: u32 = b.pread(0).unwrap();
 //!
 //! // this will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
-//! let byte: scroll::Result<i64> = b.pread_into(0);
+//! let byte: scroll::Result<i64> = b.pread(0);
 //!
 //! // we can also get str and byte references from the underlying buffer/bytes using `pread_slice`
 //! let slice = b.pread_slice::<str>(0, 2).unwrap();
@@ -47,7 +47,7 @@
 //! // finally, we can also parse out custom datatypes if they implement the conversion trait `TryFromCtx`
 //! let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
 //! // parses a uleb128 (variable length encoded integer) from the above bytes
-//! let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0, scroll::LEB128).unwrap().into();
+//! let uleb128: u64 = leb128_bytes.pread_with::<scroll::Uleb128>(0, scroll::LEB128).unwrap().into();
 //! assert_eq!(uleb128, 0x01def96deu64);
 //! ```
 //!
@@ -59,7 +59,7 @@
 //! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype.
 //! 
 //! In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
-//! calling `pread::<YourDatatype>` on arrays of bytes.
+//! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //! 
 //! ```rust
 //! use scroll::{self, ctx, Pread, BE};
@@ -80,13 +80,13 @@
 //!   fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
 //!     -> Result<Self, Self::Error> {
 //!     let name = src.pread_slice::<str>(offset, size)?;
-//!     let id = src.pread(offset+size, endian)?;
+//!     let id = src.pread_with(offset+size, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
 //! 
 //! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
-//! let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+//! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
 //! ```
@@ -144,7 +144,7 @@ mod tests {
     }
 
     //////////////////////////////////////////////////////////////
-    // begin pread
+    // begin pread_with
     //////////////////////////////////////////////////////////////
 
     macro_rules! pwrite_test {
@@ -154,10 +154,10 @@ mod tests {
                 use super::{Pwrite, Pread, BE};
                 let bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
                 let mut b = Buffer::new(&bytes[..]);
-                b.pwrite::<$read>($deadbeef, 0, LE).unwrap();
-                assert_eq!(b.pread::<$read>(0, LE).unwrap(), $deadbeef);
-                b.pwrite::<$read>($deadbeef, 0, BE).unwrap();
-                assert_eq!(b.pread::<$read>(0, BE).unwrap(), $deadbeef);
+                b.pwrite_with::<$read>($deadbeef, 0, LE).unwrap();
+                assert_eq!(b.pread_with::<$read>(0, LE).unwrap(), $deadbeef);
+                b.pwrite_with::<$read>($deadbeef, 0, BE).unwrap();
+                assert_eq!(b.pread_with::<$read>(0, BE).unwrap(), $deadbeef);
             }
         }
     }
@@ -170,23 +170,23 @@ mod tests {
     pwrite_test!(p_i64, i64, 0x7eefbeef7eef7eef);
 
     #[test]
-    fn pread_be() {
+    fn pread_with_be() {
         use super::{Pread};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let byte: u16 = <[u8] as Pread>::pread(b, 0, super::BE).unwrap();
+        let byte: u16 = <[u8] as Pread>::pread_with(b, 0, super::BE).unwrap();
         assert_eq!(0x7eef, byte);
         let bytes: [u8; 2] = [0xde, 0xad];
-        let dead: u16 = bytes.pread(0, super::BE).unwrap();
+        let dead: u16 = bytes.pread_with(0, super::BE).unwrap();
         assert_eq!(0xdead, dead);
     }
 
     #[test]
-    fn pread_into() {
+    fn pread() {
         use super::{Pread};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let byte: u16 = b.pread_into(0).unwrap();
+        let byte: u16 = b.pread(0).unwrap();
         assert_eq!(0xef7e, byte);
     }
 
@@ -210,19 +210,19 @@ mod tests {
         use super::ctx::{NULL, SPACE};
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
-        let s: &str  = b.pread_into(0).unwrap();
+        let s: &str  = b.pread(0).unwrap();
         println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
-        let hello_world: &str = bytes.pread(0, NULL).unwrap();
+        let hello_world: &str = bytes.pread_with(0, NULL).unwrap();
         println!("{:?}", &hello_world);
         assert_eq!(hello_world.len(), 13);
-        let hello: &str = bytes.pread(0, SPACE).unwrap();
+        let hello: &str = bytes.pread_with(0, SPACE).unwrap();
         println!("{:?}", &hello);
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
-        let _error = bytes.pread::<&str>(6, SPACE);
-        let error = bytes.pread::<&str>(7, SPACE);
+        let _error = bytes.pread_with::<&str>(6, SPACE);
+        let error = bytes.pread_with::<&str>(7, SPACE);
         println!("{:?}", &error);
         assert!(error.is_ok());
     }
@@ -232,14 +232,14 @@ mod tests {
         use super::Pread;
         use super::ctx::{NULL, SPACE};
         let bytes: &[u8] = b"";
-        let hello_world  = bytes.pread::<&str>(0, NULL);
+        let hello_world  = bytes.pread_with::<&str>(0, NULL);
         println!("{:?}", &hello_world);
         assert_eq!(hello_world.is_err(), true);
-        let error = bytes.pread::<&str>(7, SPACE);
+        let error = bytes.pread_with::<&str>(7, SPACE);
         println!("{:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
-        let null  = bytes.pread_into::<&str>(0).unwrap();
+        let null  = bytes.pread::<&str>(0).unwrap();
         println!("{:?}", &null);
         assert_eq!(null.len(), 0);
     }
@@ -282,7 +282,7 @@ mod tests {
             let offset = ctx.0;
             let le = ctx.1;
             if offset > 2 { return Err((ExternalError {}).into()) }
-            this.pwrite(self.0, offset, le)?;
+            this.pwrite_with(self.0, offset, le)?;
             Ok(())
         }
     }
@@ -294,7 +294,7 @@ mod tests {
             let offset = ctx.0;
             let le = ctx.1;
             if offset > 2 { return Err((ExternalError {}).into()) }
-            let n = this.pread(offset, le)?;
+            let n = this.pread_with(offset, le)?;
             Ok(Foo(n))
         }
     }
@@ -306,29 +306,29 @@ mod tests {
         let mut bytes: [u8; 4] = [0xde, 0xaf, 0, 0];
         {
             let b = &bytes[..];
-            let res = b.pread::<u16>(0, LE).unwrap();
+            let res = b.pread_with::<u16>(0, LE).unwrap();
             assert_eq!(0xafde, res);
-            assert_eq!(0xdeaf, b.pread::<u16>(0, BE).unwrap());
-            fn _pread_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
-                bytes.pread(0, super::LE)
+            assert_eq!(0xdeaf, b.pread_with::<u16>(0, BE).unwrap());
+            fn _pread_with_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
+                bytes.pread_with(0, super::LE)
             }
-            let res = _pread_api(&b).unwrap();
+            let res = _pread_with_api(&b).unwrap();
             assert_eq!(res, 0xafde);
-            fn _pread_api_external<S: super::Pread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
+            fn _pread_with_api_external<S: super::Pread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
                 let b = [0, 0];
                 let b = &b[..];
-                let _: u16 = b.pread_into(0)?;
-                bytes.pread(0, super::LE)
+                let _: u16 = b.pread(0)?;
+                bytes.pread_with(0, super::LE)
             }
-            let foo = _pread_api_external(&b).unwrap();
+            let foo = _pread_with_api_external(&b).unwrap();
             assert_eq!(Foo(45022), foo);
         }
         {
             let mut b = &mut bytes[..];
-            let () = b.pwrite::<u16>(0xdeadu16, 2, BE).unwrap();
-            assert_eq!(0xdead, b.pread::<u16>(2, BE).unwrap());
+            let () = b.pwrite_with::<u16>(0xdeadu16, 2, BE).unwrap();
+            assert_eq!(0xdead, b.pread_with::<u16>(2, BE).unwrap());
             fn _pwrite_api<S: ?Sized + super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
-                bytes.pwrite(Foo(0x7f), 1, super::LE)
+                bytes.pwrite_with(Foo(0x7f), 1, super::LE)
             }
             let ()  = _pwrite_api(b).unwrap();
             assert_eq!(b[1], 0x7f);
@@ -341,52 +341,52 @@ mod tests {
         let bytes: [u8; 4] = [0, 0, 0xde | 128, 1];
         let mut b = Buffer::new(&bytes[..]);
         //let mut b = &bytes[..];
-        // parses using multiple pread contexts
-        fn _pread_api<S: super::Pread + super::Pread<super::Error, super::Leb128>>(bytes: &S) -> Result<u16, super::Error> {
-            let _res: u32 = bytes.pread_into(0)?;
+        // parses using multiple pread_with contexts
+        fn _pread_with_api<S: super::Pread + super::Pread<super::Error, super::Leb128>>(bytes: &S) -> Result<u16, super::Error> {
+            let _res: u32 = bytes.pread(0)?;
             let _slice: &[u8] = bytes.pread_slice(0, 4)?;
             let _unwrapped: u8 = bytes.pread_unsafe(0, super::LE);
-            let _uleb: super::Uleb128 = bytes.pread(2, super::LEB128).unwrap();
-            bytes.pread(0, super::LE)
+            let _uleb: super::Uleb128 = bytes.pread_with(2, super::LEB128).unwrap();
+            bytes.pread_with(0, super::LE)
         }
         fn _pwrite_api<S: super::Pwrite>(bytes: &mut S) -> Result<(), super::Error> {
-            bytes.pwrite(42u8, 0, super::LE)
+            bytes.pwrite_with(42u8, 0, super::LE)
         }
 //        fn _pwrite_api2<S: super::Pwrite + super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), super::Error<ExternalError>> {
         fn _pwrite_api2<S: super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
             
-            bytes.pwrite(Foo(0x7f), 1, super::LE)
+            bytes.pwrite_with(Foo(0x7f), 1, super::LE)
         }
         let ()  = _pwrite_api(&mut b).unwrap();
         assert_eq!(b[0], 42);
-        let res = _pread_api(&b).unwrap();
+        let res = _pread_with_api(&b).unwrap();
         assert_eq!(res, 42);
         let ()  = _pwrite_api2(&mut b).unwrap();
-        let res = <[u8] as super::Pread>::pread_into::<u8>(&b, 1).unwrap();
+        let res = <[u8] as super::Pread>::pread::<u8>(&b, 1).unwrap();
         assert_eq!(res, 0x7f);
-        let res = <[u8] as super::Pwrite<ExternalError>>::pwrite(&mut b, Foo(0x7f), 3, super::LE);
+        let res = <[u8] as super::Pwrite<ExternalError>>::pwrite_with(&mut b, Foo(0x7f), 3, super::LE);
         assert!(res.is_err());
     }
 
     #[test]
-    fn pread_iter_bytes() {
+    fn pread_with_iter_bytes() {
         use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let mut bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
         for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.pread_into(i).unwrap();
+            bytes_to[i] = bytes_from.pread(i).unwrap();
         }
         assert_eq!(bytes_to, bytes_from);
     }
 
     //////////////////////////////////////////////////////////////
-    // end pread
+    // end pread_with
     //////////////////////////////////////////////////////////////
 
     //////////////////////////////////////////////////////////////
-    // begin gread
+    // begin gread_with
     //////////////////////////////////////////////////////////////
 
     macro_rules! g_test {
@@ -397,7 +397,7 @@ mod tests {
                 let bytes: [u8; 8] = [0xf, 0xe, 0xe, 0xb, 0xd, 0xa, 0xe, 0xd];
                 let buffer = Buffer::new(bytes);
                 let mut offset = 0;
-                let deadbeef: $typ = buffer.gread(&mut offset, LE).unwrap();
+                let deadbeef: $typ = buffer.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
                 assert_eq!(offset, ::std::mem::size_of::<$typ>());
             }
@@ -417,7 +417,7 @@ mod tests {
                 let bytes: [u8; 8] = [0u8, 0, 0, 0, 0, 0, 224, 63];
                 let buffer = Buffer::new(bytes);
                 let mut offset = 0;
-                let deadbeef: $typ = buffer.gread(&mut offset, LE).unwrap();
+                let deadbeef: $typ = buffer.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
                 assert_eq!(offset, ::std::mem::size_of::<$typ>());
             }
@@ -434,15 +434,15 @@ mod tests {
                 use super::{LE, BE, Gread, Gwrite};
                 let mut buffer = Buffer::with(0, 16);
                 let mut offset = &mut 0;
-                buffer.gwrite($val.clone(), offset, LE).unwrap();
+                buffer.gwrite_with($val.clone(), offset, LE).unwrap();
                 let mut o2 = &mut 0;
-                let val: $typ = buffer.gread(o2, LE).unwrap();
+                let val: $typ = buffer.gread_with(o2, LE).unwrap();
                 assert_eq!(val, $val);
                 assert_eq!(*offset, ::std::mem::size_of::<$typ>());
                 assert_eq!(*o2, ::std::mem::size_of::<$typ>());
                 assert_eq!(*o2, *offset);
-                buffer.gwrite($val.clone(), offset, BE).unwrap();
-                let val: $typ = buffer.gread(o2, BE).unwrap();
+                buffer.gwrite_with($val.clone(), offset, BE).unwrap();
+                let val: $typ = buffer.gread_with(o2, BE).unwrap();
                 assert_eq!(val, $val);
             }
         };
@@ -466,7 +466,7 @@ mod tests {
 
     // useful for ferreting out problems with impls
     #[test]
-    fn gread_iter_bytes() {
+    fn gread_with_iter_bytes() {
         use super::{Gread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -474,7 +474,7 @@ mod tests {
         let bytes_from = &bytes_from[..];
         let mut offset = &mut 0;
         for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.gread_into(&mut offset).unwrap();
+            bytes_to[i] = bytes_from.gread(&mut offset).unwrap();
         }
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
@@ -493,12 +493,12 @@ mod tests {
     }
 
     #[test]
-    fn gread_byte() {
+    fn gread_with_byte() {
         use super::{Gread};
         let bytes: [u8; 1] = [0x7f];
         let b = Buffer::new(&bytes[..]);
         let mut offset = &mut 0;
-        let byte: u8 = b.gread_into(offset).unwrap();
+        let byte: u8 = b.gread(offset).unwrap();
         assert_eq!(0x7f, byte);
         assert_eq!(*offset, 1);
     }
@@ -531,30 +531,30 @@ mod tests {
         let bytes: [u8; 4] = [0xde, 0xaf, 0, 0];
         {
             let b = &bytes[..];
-            let res = b.gread::<u16>(&mut 0, LE).unwrap();
+            let res = b.gread_with::<u16>(&mut 0, LE).unwrap();
             assert_eq!(0xafde, res);
-            assert_eq!(0xdeaf, b.gread::<u16>(&mut 0, BE).unwrap());
-            fn _gread_api<S: super::Gread>(bytes: &S) -> Result<u16, super::Error> {
+            assert_eq!(0xdeaf, b.gread_with::<u16>(&mut 0, BE).unwrap());
+            fn _gread_with_api<S: super::Gread>(bytes: &S) -> Result<u16, super::Error> {
                 // we just check if these actually work inside a generic parameter
-                let _res: u32 = bytes.gread_into(&mut 0)?;
+                let _res: u32 = bytes.gread(&mut 0)?;
                 let _slice: &[u8] = bytes.gread_slice(&mut 0, 4)?;
                 let _unwrapped: u8 = bytes.gread_unsafe(&mut 0, super::LE);
-                bytes.gread(&mut 0, super::LE)
+                bytes.gread_with(&mut 0, super::LE)
             }
-            let res = _gread_api(&b).unwrap();
+            let res = _gread_with_api(&b).unwrap();
             assert_eq!(res, 0xafde);
-            // fn _gread_api_external<S: super::Gread + super::Gread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
+            // fn _gread_with_api_external<S: super::Gread + super::Gread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
             //     let b = [0, 0];
             //     let b = &b[..];
-            //     let _: u16 = b.gread_into(&mut 0)?;
-            //     bytes.gread(&mut 0, super::LE)?
+            //     let _: u16 = b.gread(&mut 0)?;
+            //     bytes.gread_with(&mut 0, super::LE)?
             // }
-            // let foo = _gread_api_external(&b).unwrap();
+            // let foo = _gread_with_api_external(&b).unwrap();
             // assert_eq!(Foo(45022), foo);
         }
     }
 
     /////////////////////////////////////////////////////////////////
-    // end gread
+    // end gread_with
     /////////////////////////////////////////////////////////////////
 }

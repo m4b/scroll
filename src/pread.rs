@@ -6,6 +6,7 @@ use error;
 use endian::Endian;
 
 /// A very generic, contextual pread interface in Rust. Allows completely parallelized reads, as `Self` is immutable
+///
 /// Don't be scared! The `Pread` definition _is_ terrifying, but it is definitely tractable. Essentially, `E` is the error, `Ctx` the parsing context, `I` is the indexing type, `TryCtx` is the "offset + ctx" Context given to the `TryFromCtx` trait bounds, and `SliceCtx` is the "offset + size + ctx" context given to the `TryRefFromCtx` trait bound.
 ///
 /// They all have reasonable defaults, so if you're just using this trait, you can usually get away with `fn <T: scroll::Pread>(bytes: &T) -> yourResultWhichConvertsScrollErrors`
@@ -25,7 +26,7 @@ use endian::Endian;
 ///          let offset = ctx.0;
 ///          let le = ctx.1;
 ///          if offset > 2 { return Err((scroll::Error::BadOffset("whatever".to_string())).into()) }
-///          let n = this.pread(offset, le)?;
+///          let n = this.pread_with(offset, le)?;
 ///          Ok(Foo(n))
 ///      }
 ///  }
@@ -33,9 +34,9 @@ use endian::Endian;
 /// use scroll::Pread;
 /// // you can now read `Foo`'s out of a &[u8] buffer for free, with `Pread` and `Gread` without doing _anything_ else!
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
-/// let foo = bytes.pread_into::<Foo>(0).unwrap();
+/// let foo = bytes.pread::<Foo>(0).unwrap();
 /// assert_eq!(Foo(0xadde), foo);
-/// let foo2 = bytes.pread::<Foo>(0, scroll::BE).unwrap();
+/// let foo2 = bytes.pread_with::<Foo>(0, scroll::BE).unwrap();
 /// assert_eq!(Foo(0xdeadu16), foo2);
 /// ```
 ///
@@ -78,7 +79,7 @@ use endian::Endian;
 ///          let offset = ctx.0;
 ///          let le = ctx.1;
 ///          if offset > 2 { return Err((ExternalError {}).into()) }
-///          let n = this.pread(offset, le)?;
+///          let n = this.pread_with(offset, le)?;
 ///          Ok(Foo(n))
 ///      }
 ///  }
@@ -86,7 +87,7 @@ use endian::Endian;
 /// use scroll::Pread;
 /// // the only caveat is that you now need to specify the error type in fn generic params, e.g. `fn thingee<S: scroll::Pread<ExternalError>>`
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
-/// let foo: Result<Foo, ExternalError> = bytes.pread_into(0);
+/// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
 
 pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
@@ -99,7 +100,7 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     #[inline]
     /// Implement this if you need a faster version for use by `Gread`
     fn pread_unsafe<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> N {
-        self.pread(offset, ctx).unwrap()
+        self.pread_with(offset, ctx).unwrap()
     }
     #[inline]
     /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness.
@@ -107,9 +108,9 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// ```rust
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
-    /// let byte = bytes.pread_into::<u8>(0).unwrap();
-    fn pread_into<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I) -> result::Result<N, E> {
-        self.pread(offset, Ctx::default())
+    /// let byte = bytes.pread::<u8>(0).unwrap();
+    fn pread<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I) -> result::Result<N, E> {
+        self.pread_with(offset, Ctx::default())
     }
     #[inline]
     /// Reads a value from `self` at `offset` with the given `ctx`
@@ -117,9 +118,9 @@ pub trait Pread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     /// ```rust
     /// use scroll::Pread;
     /// let bytes: [u8; 2] = [0xde, 0xad];
-    /// let dead: u16 = bytes.pread(0, scroll::BE).unwrap();
+    /// let dead: u16 = bytes.pread_with(0, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
-    fn pread<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E>;
+    fn pread_with<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E>;
     /// Slices an `N` from `self` at `offset` up to `count` times
     #[inline]
     /// # Example
@@ -142,7 +143,7 @@ impl<E, Ctx> Pread<E, Ctx> for [u8]
         TryFromCtx::try_from_ctx(self, (offset, le)).unwrap()
     }
     #[inline]
-    fn pread<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
+    fn pread_with<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
         TryFromCtx::try_from_ctx(self, (offset, le))
     }
     #[inline]
@@ -161,7 +162,7 @@ impl<E, Ctx, T> Pread<E, Ctx> for T
         <[u8] as Pread<E, Ctx>>::pread_unsafe::<N>(self.as_ref(), offset, le)
     }
     #[inline]
-    fn pread<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
+    fn pread_with<'a, N: TryFromCtx<'a, (usize, Ctx), Error = E>>(&'a self, offset: usize, le: Ctx) -> result::Result<N, E> {
         TryFromCtx::try_from_ctx(self.as_ref(), (offset, le))
     }
     #[inline]

@@ -12,6 +12,7 @@ use pwrite::Pwrite;
 use endian::Endian;
 
 /// Attempt to add an offset for a given `N`'s size, used to compute error values in `Gread`, _or_ return the `N`'s size in units the same as the offset
+///
 /// NB: this trait's name is likely to be changed, tweaked slightly, if you are implementing an entire `Pread` stack, beware this could change
 pub trait TryOffset<E = error::Error, I = usize> {
     /// Given the `offset`, see if a size + offset can safely be performed on `Self`, and return the resulting computed size
@@ -19,6 +20,7 @@ pub trait TryOffset<E = error::Error, I = usize> {
 }
 
 /// The Greater Read (`Gread`) reads a value at a mutable offset, and increments the offset by the size of the interpreted value.
+///
 /// `Gread` implements an immutable `Self`, `mutable` reference offset incrementor which uses `Pread` as its base.
 /// If you are writing a custom `Gread` interface,
 /// you should only need to implement `Pread` for a particular
@@ -39,33 +41,36 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
         self.pread_unsafe(o, ctx)
     }
     #[inline]
+    /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness. Updates the offset
     /// # Example
     /// ```rust
     /// use scroll::Gread;
     /// let offset = &mut 0;
     /// let bytes = [0x7fu8; 0x01];
-    /// let byte = bytes.gread_into::<u8>(offset).unwrap();
+    /// let byte = bytes.gread::<u8>(offset).unwrap();
     /// assert_eq!(*offset, 1);
-    fn gread_into<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> {
+    fn gread<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> {
         let ctx = Ctx::default();
-        self.gread(offset, ctx)
+        self.gread_with(offset, ctx)
     }
+    /// Reads a value from `self` at `offset` with the given `ctx`, and updates the offset.
     /// # Example
     /// ```rust
     /// use scroll::Gread;
     /// let offset = &mut 0;
     /// let bytes: [u8; 2] = [0xde, 0xad];
-    /// let dead: u16 = bytes.gread(offset, scroll::BE).unwrap();
+    /// let dead: u16 = bytes.gread_with(offset, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
     /// assert_eq!(*offset, 2);
     #[inline]
-    fn gread<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
+    fn gread_with<'a, N: TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
         let o = *offset;
         let count = self.try_offset::<N>(o)?;
         let res = self.pread_unsafe(o, ctx);
         *offset += count;
         Ok(res)
     }
+    /// Slices an `N` from `self` at `offset` up to `count` times, and updates the offset.
     /// # Example
     /// ```rust
     /// use scroll::Gread;
@@ -82,7 +87,7 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
         if res.is_ok() { *offset += count;}
         res
     }
-    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`
+    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`, and updates the offset.
     /// # Example
     /// ```rust
     /// use scroll::Gread;
@@ -98,19 +103,19 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     {
         let len = inout.len();
         for i in 0..len {
-            inout[i] = self.gread_into(offset)?;
+            inout[i] = self.gread(offset)?;
         }
         Ok(())
     }
 
-    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`
+    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the context `ctx`
     /// # Example
     /// ```rust
-    /// use scroll::Gread;
+    /// use scroll::{ctx, Gread};
     /// let mut bytes: Vec<u8> = vec![0, 0];
     /// let offset = &mut 0;
     /// let bytes_from: [u8; 2] = [0x48, 0x49];
-    /// bytes_from.gread_inout(offset, &mut bytes).unwrap();
+    /// bytes_from.gread_inout_with(offset, &mut bytes, ctx::CTX).unwrap();
     /// assert_eq!(&bytes, &bytes_from);
     /// assert_eq!(*offset, 2);
     fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
@@ -119,7 +124,7 @@ pub trait Gread<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), Sl
     {
         let len = inout.len();
         for i in 0..len {
-            inout[i] = self.gread(offset, ctx)?;
+            inout[i] = self.gread_with(offset, ctx)?;
         }
         Ok(())
     }
@@ -169,11 +174,11 @@ pub trait Gwrite<E = error::Error, Ctx = Endian, I = usize, TryCtx = (I, Ctx), S
         *offset += count;
         self.pwrite_unsafe(n, o, ctx)
     }
-    fn gwrite_into<N: TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I) -> result::Result<(), E> {
+    fn gwrite<N: TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I) -> result::Result<(), E> {
         let ctx = Ctx::default();
-        self.gwrite(n, offset, ctx)
+        self.gwrite_with(n, offset, ctx)
     }
-    fn gwrite<N: TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
+    fn gwrite_with<N: TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
    let o = *offset;
         let count = self.try_offset::<N>(o)?;
         *offset += count;

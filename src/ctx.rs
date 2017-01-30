@@ -21,16 +21,16 @@
 //! (the parsing `Ctx`, akin to a "contextual continuation"), which is typically sufficient to model a large amount of data constructs using this single conversion trait, but with different `Ctx` implementations.
 //! In particular, parsing a u64, a leb128, a byte, a custom datatype, can all be modelled using a single trait - `TryFromCtx<Ctx, This, Error = E>`. What this enables is a _single method_ for parsing disparate datatypes out of a given type, with a given context - **without** re-implementing the reader functions, and all done at compile time, without runtime dispatch!
 //!
-//! Consequently, instead of "hand specializing" function traits by appending `pread_<type>`,
+//! Consequently, instead of "hand specializing" function traits by appending `pread_with_<type>`,
 //! almost all of the complexity of `Pread` and its sister trait `Gread` can be collapsed
-//! into two methods (`pread` and `pread_slice`).
+//! into two methods (`pread_with` and `pread_slice`).
 //!
 //! # Example
 //!
 //! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
 //! do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
-//! calling `pread::<YourDatatype>` on arrays of bytes.
+//! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //!
 //! ```rust
 //! use scroll::{self, ctx, Pread, BE};
@@ -48,13 +48,13 @@
 //!   fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
 //!     -> Result<Self, Self::Error> {
 //!     let name = src.pread_slice::<str>(offset, size)?;
-//!     let id = src.pread(offset+size, endian)?;
+//!     let id = src.pread_with(offset+size, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
 //!
 //! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
-//! let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+//! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
 //!

@@ -109,9 +109,9 @@ impl<E: ::std::error::Error> Pwrite<E> for Buffer {
     //     (**self).pwrite_unsafe(n, offset, le)
     // }
     #[inline]
-    fn pwrite<N: TryIntoCtx<(usize, super::Endian), Error = error::Error<E>>>(&mut self, n: N, offset: usize, le: Endian) -> ::core::result::Result<(), error::Error<E>> {
-//    fn pwrite<N: TryIntoCtx>(&mut self, n: N, offset: usize, le: Endian) -> error::Result<()> {
-        <[u8] as Pwrite<E>>::pwrite(self, n, offset, le)
+    fn pwrite_with<N: TryIntoCtx<(usize, super::Endian), Error = error::Error<E>>>(&mut self, n: N, offset: usize, le: Endian) -> ::core::result::Result<(), error::Error<E>> {
+//    fn pwrite_with<N: TryIntoCtx>(&mut self, n: N, offset: usize, le: Endian) -> error::Result<()> {
+        <[u8] as Pwrite<E>>::pwrite_with(self, n, offset, le)
     }
 }
 */

@@ -19,14 +19,14 @@ impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
     fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
                      -> Result<Self, Self::Error> {
         let name = src.pread_slice::<str>(offset, size)?;
-        let id = src.pread(offset+size, endian)?;
+        let id = src.pread_with(offset+size, endian)?;
         Ok(Data { name: name, id: id })
     }
 }
 
 fn main() {
     let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
-    let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+    let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
     assert_eq!(data.id, 0x01020304);
     assert_eq!(data.name.to_string(), "UserName".to_string());
     println!("Data: {:?}", &data);

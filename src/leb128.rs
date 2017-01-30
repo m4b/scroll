@@ -112,7 +112,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
         let mut shift = 0;
         let mut count = 0;
         loop {
-            let byte: u8 = src.pread_into(offset + count)?;
+            let byte: u8 = src.pread(offset + count)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x01 {
                 return Err(error::Error::BadInput(format!("Failed to parse uleb128 from: {:?}", &src[offset..(offset+count)])));
@@ -142,7 +142,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
         let size = 64;
         let mut byte: u8;
         loop {
-            byte = src.gread_into(offset)?;
+            byte = src.gread(offset)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x7f {
                 return Err(error::Error::BadInput(format!("Failed to parse sleb128 from: {:?}", &src[o..*offset])));
@@ -180,9 +180,9 @@ mod tests {
         use super::super::Pread;
         let buf = [2u8 | CONTINUATION_BIT, 1];
         let bytes = &buf[..];
-        let num = bytes.pread_into::<Uleb128>(0).expect("Should read Uleb128");
+        let num = bytes.pread::<Uleb128>(0).expect("Should read Uleb128");
         assert_eq!(130u64, num.into());
-        assert_eq!(386, bytes.pread::<u16>(0, LE).expect("Should read number"));
+        assert_eq!(386, bytes.pread_with::<u16>(0, LE).expect("Should read number"));
     }
 
     #[test]
@@ -200,14 +200,14 @@ mod tests {
                    2 | CONTINUATION_BIT,
                    1];
         let bytes = &buf[..];
-        assert!(bytes.pread::<Uleb128>(0, LEB128).is_err());
+        assert!(bytes.pread_with::<Uleb128>(0, LEB128).is_err());
     }
 
     #[test]
     fn sleb128() {
         use super::super::Pread;
         let bytes = [0x7fu8 | CONTINUATION_BIT, 0x7e];
-        let num: i64 = bytes.pread_into::<Sleb128>(0).expect("Should read Sleb128").into();
+        let num: i64 = bytes.pread::<Sleb128>(0).expect("Should read Sleb128").into();
         assert_eq!(-129, num);
     }
 }
