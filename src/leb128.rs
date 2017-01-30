@@ -1,21 +1,17 @@
 use core::u8;
 use core::convert::{From, AsRef};
 
-use ctx::TryFromCtx;
+use ctx::{self, TryFromCtx};
 use measure;
 use error;
-//use endian;
 
-#[derive(Debug, Copy, Clone, Default)]
-/// A variable length integer parsing `Ctx`
-// TODO: I think the way to go is just type alias this to endian::Endian, set the const to NATIVE, drop the u64 ctx impl, and allow it to be used alongside endian ctxs, e.g.:
-//pub type Leb128 = endian::Endian;
-// ...tested and it works
-pub struct Leb128 {}
+/// A variable length integer parsing `Ctx`, compatible with the standard integer endian-aware parsing context
+pub type Leb128 = ctx::DefaultCtx;
 
-/// This context instructs the underlying Scroll (Buffer, Readable) to parse as a variable length integer
-pub const LEB128: Leb128 = Leb128 {};
-//pub const LEB128: Leb128 = endian::NATIVE;
+/// This context instructs the underlying `Pread` implementor to parse as a variable length integer.
+///
+/// It currently is just the default ctx.
+pub const LEB128: Leb128 = ctx::CTX;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An unsigned leb128 integer
