@@ -257,6 +257,27 @@ mod tests {
         assert_eq!(null.len(), 0);
     }
 
+    #[test]
+    fn pwrite_str_and_bytes() {
+        use super::{Pread, Pwrite};
+        use super::ctx::{self, SPACE};
+        let astring: &str = "lol hello_world lal\0ala imabytes";
+        let mut buffer = Buffer::with(0, astring.len());
+        buffer.pwrite(astring, 0).unwrap();
+        {
+            let hello_world = buffer.pread_with::<&str>(4, SPACE).unwrap();
+            assert_eq!(hello_world, "hello_world");
+        }
+        let bytes: &[u8] = b"more\0bytes";
+        buffer.pwrite(bytes, 0).unwrap();
+        let bytes2 = bytes.pread_slice::<[u8]>(0, bytes.len()).unwrap();
+        assert_eq!(bytes2.len(), bytes.len());
+        let more = bytes.pread_with::<&str>(0, ctx::NULL).unwrap();
+        assert_eq!(more, "more");
+        let bytes = bytes.pread_with::<&str>(more.len() + 1, ctx::NULL).unwrap();
+        assert_eq!(bytes, "bytes");
+    }
+
     use std::error;
     use std::fmt::{self, Display};
 
