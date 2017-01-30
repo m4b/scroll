@@ -4,7 +4,20 @@ use core::ops::{Deref, DerefMut};
 #[cfg(feature = "std")]
 use std::io::{self, Read, Write};
 
-/// A Buffer which is versed in both the Greater and Lesser arts
+/// A byte buffer which is versed in both the Greater and Lesser arts
+///
+/// Convenient for grabbing all the data from a file, and then using `Pread`/`Pwrite`, etc., on it.
+///
+/// # Example
+/// ```rust
+/// use scroll::{ctx, Pread, Pwrite, Buffer};
+/// let hello_world: &str = "hello world";
+/// let mut buffer = Buffer::with(0x0u8, hello_world.len());
+/// buffer.pwrite(hello_world, 0).unwrap();
+/// let hello = buffer.pread_with::<&str>(0, ctx::SPACE).unwrap();
+/// assert_eq!(hello, "hello");
+/// ```
+
 #[derive(Default)]
 pub struct Buffer {
     inner: Vec<u8>
@@ -20,6 +33,11 @@ impl Buffer {
     pub fn new<T: AsRef<[u8]>> (bytes: T) -> Self {
         Buffer { inner: Vec::from(bytes.as_ref()) }
     }
+    /// Initializes a new buffer with `seed`, `size` times
+    /// # Example
+    /// ```rust
+    /// use scroll::Buffer;
+    /// let buffer = Buffer::with(0x0u8, 10);
     pub fn with (seed: u8, size: usize) -> Self {
         Buffer { inner: vec![seed; size] }
     }
@@ -83,7 +101,7 @@ impl DerefMut for Buffer {
     }
 }
 
-// this gets us Lread
+// this (will) gets us Lread
 #[cfg(feature = "std")]
 impl Read for Buffer {
     fn read (&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -101,17 +119,3 @@ impl Write for Buffer {
         Write::flush(&mut self.inner.as_mut_slice())
     }
 }
-
-/*
-impl<E: ::std::error::Error> Pwrite<E> for Buffer {
-    // #[inline]
-    // fn pwrite_unsafe<N: IntoCtx>(&mut self, n: N, offset: usize, le: bool) {
-    //     (**self).pwrite_unsafe(n, offset, le)
-    // }
-    #[inline]
-    fn pwrite_with<N: TryIntoCtx<(usize, super::Endian), Error = error::Error<E>>>(&mut self, n: N, offset: usize, le: Endian) -> ::core::result::Result<(), error::Error<E>> {
-//    fn pwrite_with<N: TryIntoCtx>(&mut self, n: N, offset: usize, le: Endian) -> error::Result<()> {
-        <[u8] as Pwrite<E>>::pwrite_with(self, n, offset, le)
-    }
-}
-*/

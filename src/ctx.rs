@@ -21,7 +21,7 @@
 //! (the parsing `Ctx`, akin to a "contextual continuation"), which is typically sufficient to model a large amount of data constructs using this single conversion trait, but with different `Ctx` implementations.
 //! In particular, parsing a u64, a leb128, a byte, a custom datatype, can all be modelled using a single trait - `TryFromCtx<Ctx, This, Error = E>`. What this enables is a _single method_ for parsing disparate datatypes out of a given type, with a given context - **without** re-implementing the reader functions, and all done at compile time, without runtime dispatch!
 //!
-//! Consequently, instead of "hand specializing" function traits by appending `pread_with_<type>`,
+//! Consequently, instead of "hand specializing" function traits by appending `pread_<type>`,
 //! almost all of the complexity of `Pread` and its sister trait `Gread` can be collapsed
 //! into two methods (`pread_with` and `pread_slice`).
 //!
@@ -73,7 +73,7 @@ pub type DefaultCtx = endian::Endian;
 /// Convenience constant for the default parsing context
 pub const CTX: DefaultCtx = endian::NATIVE;
 
-/// The parsing context for converting byte sequence `&str`s
+/// The parsing context for converting a byte sequence to a `&str`
 ///
 /// `StrCtx` specifies what byte delimiter to use, and defaults to C-style null terminators. Be careful.
 #[derive(Debug, Copy, Clone)]
@@ -442,5 +442,27 @@ impl<'a, T> TryFromCtx<'a, (usize, StrCtx), T> for &'a str where T: AsRef<[u8]> 
     fn try_from_ctx(src: &'a T, ctx: (usize, StrCtx)) -> error::Result<Self> {
         let src = src.as_ref();
         TryFromCtx::try_from_ctx(src, ctx)
+    }
+}
+
+impl<'a> TryIntoCtx<(usize, DefaultCtx)> for &'a [u8] {
+    type Error = error::Error;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], (offset, _): (usize, DefaultCtx)) -> error::Result<()> {
+        let size = self.len();
+        if offset + size > dst.len () {
+            return Err(error::Error::BadOffset(format!("requested: {:?}, dst len: {}", (offset..offset+size), dst.len())).into())
+        }
+        unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr(), size) };
+        Ok(())
+    }
+}
+
+impl<'a> TryIntoCtx<(usize, StrCtx)> for &'a str {
+    type Error = error::Error;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], (offset, _): (usize, StrCtx)) -> error::Result<()> {
+        let bytes = self.as_bytes();
+        TryIntoCtx::try_into_ctx(bytes, dst, (offset, CTX))
     }
 }
