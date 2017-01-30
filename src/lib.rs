@@ -20,7 +20,7 @@
 //! A simple example demonstrates its flexibility:
 //!
 //! ```rust
-//! use scroll::Pread;
+//! use scroll::{ctx, Pread};
 //! let bytes: [u8; 4] = [0xde, 0xad, 0xbe, 0xef];
 //!
 //! // we can use the Buffer type that scroll provides, or use it on regular byte slices (or anything that impl's `AsRef<[u8]>`)
@@ -44,11 +44,24 @@
 //! let slice = b.pread_slice::<str>(0, 2).unwrap();
 //! let byte_slice: &[u8] = b.pread_slice(0, 2).unwrap();
 //!
-//! // finally, we can also parse out custom datatypes if they implement the conversion trait `TryFromCtx`
+//! // here is an example of parsing a uleb128 custom datatype, which
+//! // uses the `ctx::DefaultCtx`
 //! let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
 //! // parses a uleb128 (variable length encoded integer) from the above bytes
-//! let uleb128: u64 = leb128_bytes.pread_with::<scroll::Uleb128>(0, scroll::LEB128).unwrap().into();
+//! let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0).unwrap().into();
 //! assert_eq!(uleb128, 0x01def96deu64);
+//!
+//! // finally, we can also parse out custom datatypes, or types with lifetimes
+//! // if they implement the conversion trait `TryFromCtx`; here we parse a C-style \0 delimited &str (safely)
+//! let hello: &[u8] = b"hello_world\0more words";
+//! let hello_world: &str = hello.pread(0).unwrap();
+//! assert_eq!("hello_world", hello_world);
+//!
+//! // ... and this parses the string if its space separated!
+//! let spaces: &[u8] = b"hello world some junk";
+//! let world: &str = spaces.pread_with(6, ctx::SPACE).unwrap();
+//! assert_eq!("world", world);
+//!
 //! ```
 //!
 //! # Advanced Uses
