@@ -15,12 +15,11 @@
 
 ### Documentation
 
-(not published on crates.io yet, sorry, very soon I promise)
 https://docs.rs/scroll
 
 ### Usage
 
-Add to your `Cargo.toml` (not on crates.io yet, sorry)
+Add to your `Cargo.toml`
 
 ```toml
 [dependencies]
