@@ -85,7 +85,7 @@ use endian::Endian;
 ///  }
 ///
 /// use scroll::Pread;
-/// // the only caveat is that you now need to specify the error type in fn generic params, e.g. `fn thingee<S: scroll::Pread<ExternalError>>`
+/// // the only caveat is that you now need to specify the error type in fn generic params, e.g. `fn thingee<S: scroll::Pread<YourCtx, ExternalError>>`
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
