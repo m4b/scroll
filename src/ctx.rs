@@ -85,6 +85,10 @@ pub struct StrCtx {
 pub const NULL: StrCtx = StrCtx { delimiter: 0 };
 /// A space-based delimiter for a `StrCtx`
 pub const SPACE: StrCtx = StrCtx { delimiter: 0x20 };
+/// A newline-based delimiter for a `StrCtx`
+pub const RET: StrCtx = StrCtx { delimiter: 0x0a };
+/// A tab-based delimiter for a `StrCtx`
+pub const TAB: StrCtx = StrCtx { delimiter: 0x09 };
 
 impl Default for StrCtx {
     #[inline]
