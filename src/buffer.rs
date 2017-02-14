@@ -18,7 +18,7 @@ use std::io::{self, Read, Write};
 /// assert_eq!(hello, "hello");
 /// ```
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Buffer {
     inner: Vec<u8>
 }
