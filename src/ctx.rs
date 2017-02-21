@@ -62,6 +62,7 @@
 
 use core::ptr::copy_nonoverlapping;
 use core::mem::transmute;
+use core::mem::size_of;
 use core::str;
 
 use error;
@@ -470,3 +471,33 @@ impl<'a> TryIntoCtx<(usize, StrCtx)> for &'a str {
         TryIntoCtx::try_into_ctx(bytes, dst, (offset, CTX))
     }
 }
+
+/// Gets the size of `Self` with a `Ctx`, and in `Self::Units`
+pub trait SizeWith<Ctx = DefaultCtx> {
+    type Units;
+    #[inline]
+    fn size_with(ctx: &Ctx) -> Self::Units;
+}
+
+macro_rules! sizeof_impl {
+    ($ty:ty) => {
+        impl SizeWith for $ty {
+            type Units = usize;
+            #[inline]
+            fn size_with(_ctx: &DefaultCtx) -> usize {
+                size_of::<$ty>()
+            }
+        }
+    }
+}
+
+sizeof_impl!(u8);
+sizeof_impl!(i8);
+sizeof_impl!(u16);
+sizeof_impl!(i16);
+sizeof_impl!(u32);
+sizeof_impl!(i32);
+sizeof_impl!(u64);
+sizeof_impl!(i64);
+sizeof_impl!(f32);
+sizeof_impl!(f64);

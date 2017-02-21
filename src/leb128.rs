@@ -2,7 +2,6 @@ use core::u8;
 use core::convert::{From, AsRef};
 
 use ctx::{self, TryFromCtx};
-use measure;
 use error;
 
 /// A variable length integer parsing `Ctx`, compatible with the standard integer endian-aware parsing context
@@ -40,14 +39,6 @@ impl From<Uleb128> for u64 {
     }
 }
 
-impl measure::Measure for Uleb128 {
-    type Units = usize;
-    #[inline]
-    fn measure (&self) -> usize {
-        self.count
-    }
-}
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An signed leb128 integer
 pub struct Sleb128 {
@@ -72,14 +63,6 @@ impl From<Sleb128> for i64 {
     #[inline]
     fn from(sleb128: Sleb128) -> i64 {
         sleb128.value
-    }
-}
-
-impl measure::Measure for Sleb128 {
-    type Units = usize;
-    #[inline]
-    fn measure (&self) -> usize {
-        self.count
     }
 }
 

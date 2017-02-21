@@ -112,7 +112,6 @@
 extern crate core;
 
 pub mod ctx;
-mod measure;
 mod pread;
 mod pwrite;
 mod greater;
@@ -123,7 +122,6 @@ mod leb128;
 //#[cfg(feature = "std")]
 //mod lesser;
 
-pub use measure::Measure;
 pub use endian::*;
 pub use pread::*;
 pub use pwrite::*;
@@ -151,9 +149,8 @@ mod tests {
 
     #[test]
     fn test_measurable() {
-        use super::Measure;
-        let bytes: [u8; 4] = [0xef, 0xbe, 0xad, 0xde];
-        assert_eq!(bytes.measure(), 4);
+        use super::ctx::{CTX, SizeWith};
+        assert_eq!(8, u64::size_with(&CTX));
     }
 
     //////////////////////////////////////////////////////////////
