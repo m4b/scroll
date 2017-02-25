@@ -454,11 +454,16 @@ impl<'a> TryIntoCtx<(usize, DefaultCtx)> for &'a [u8] {
     type Error = error::Error;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], (offset, _): (usize, DefaultCtx)) -> error::Result<()> {
-        let size = self.len();
-        if offset + size > dst.len () {
-            return Err(error::Error::BadOffset(format!("requested: {:?}, dst len: {}", (offset..offset+size), dst.len())).into())
+        let src_len = self.len() as isize;
+        let dst_len = dst.len() as isize;
+        let offset = offset as isize;
+        if src_len < 0 || dst_len < 0 || offset < 0 {
+            return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
         }
-        unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr(), size) };
+        if offset + src_len > dst_len {
+            return Err(error::Error::BadOffset(format!("requested: {:?}, dst len: {}", (offset..offset+src_len), dst_len)).into())
+        }
+        unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr().offset(offset as isize), src_len as usize) };
         Ok(())
     }
 }
