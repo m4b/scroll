@@ -25,7 +25,7 @@ use endian::Endian;
 ///          use scroll::Pread;
 ///          let offset = ctx.0;
 ///          let le = ctx.1;
-///          if offset > 2 { return Err((scroll::Error::BadOffset("whatever".to_string())).into()) }
+///          if offset > 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
 ///          let n = this.pread_with(offset, le)?;
 ///          Ok(Foo(n))
 ///      }

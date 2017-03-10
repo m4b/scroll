@@ -546,8 +546,12 @@ mod tests {
         assert!(res.is_err());
         *offset = 0;
         let astring: [u8; 3] = [0x45, 042, 0x44];
-        let string: &str = astring.gread_slice(offset, 2).unwrap();
-        assert_eq!(string, "E*");
+        let string = astring.gread_slice::<str>(offset, 2);
+        match &string {
+            &Ok(_) => {},
+            &Err(ref err) => {println!("{}", &err); panic!();}
+        }
+        assert_eq!(string.unwrap(), "E*");
         *offset = 0;
         let bytes2: &[u8]  = b.gread_slice(offset, 2).unwrap();
         assert_eq!(*offset, 2);

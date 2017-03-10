@@ -84,9 +84,8 @@ fn mask_continuation_u64(val: u64) -> u8 {
 impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], ctx: (usize, Leb128)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], (offset, _ctx): (usize, Leb128)) -> error::Result<Self> {
         use pread::Pread;
-        let offset = ctx.0;
         let mut result = 0;
         let mut shift = 0;
         let mut count = 0;
@@ -94,7 +93,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
             let byte: u8 = src.pread(offset + count)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x01 {
-                return Err(error::Error::BadInput(format!("Failed to parse uleb128 from: {:?}", &src[offset..(offset+count)])));
+                return Err(error::Error::BadInput((offset..offset+count), src.len(), "failed to parse"))
             }
 
             let low_bits = mask_continuation(byte) as u64;
@@ -124,7 +123,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
             byte = src.gread(offset)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x7f {
-                return Err(error::Error::BadInput(format!("Failed to parse sleb128 from: {:?}", &src[o..*offset])));
+                return Err(error::Error::BadInput((o..*offset), src.len(), "failed to parse"))
             }
 
             let low_bits = mask_continuation(byte) as i64;

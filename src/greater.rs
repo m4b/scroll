@@ -134,7 +134,7 @@ impl<Ctx> TryOffsetWith<Ctx> for [u8] {
     fn try_offset<N: SizeWith<Ctx, Units = usize>>(&self, offset: usize, ctx: &Ctx) -> Result<usize> {
         let size = N::size_with(ctx);
         if offset + size > self.len() {
-            Err(Error::BadOffset(format!("offset: {} size: {} len: {}", offset, size, self.len())).into())
+            Err(error::Error::BadRange((offset..offset+size), self.len()))
         } else {
             Ok(size)
         }
@@ -193,4 +193,3 @@ impl<Ctx, E, T> Gwrite<Ctx, E> for T where
     T: AsRef<[u8]> + AsMut<[u8]> + TryOffsetWith<Ctx, E>,
     Ctx: Copy + Default + Debug,
     E: Debug {}
-

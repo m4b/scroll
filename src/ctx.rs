@@ -150,25 +150,22 @@ pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [
 impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for [u8] where T: AsRef<[u8]> {
     type Error = error::Error;
     #[inline]
-    fn try_ref_from_ctx(b: &T, ctx: (usize, usize, super::Endian)) -> error::Result<&[u8]> {
-       let (offset, count) = (ctx.0, ctx.1);
+    fn try_ref_from_ctx(b: &T, (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&[u8]> {
         let b = b.as_ref();
         if offset + count > b.len () {
-            Err(error::Error::BadOffset(format!("count: {}, offset: {},  len: {}", count, offset, b.len())).into())
+            Err(error::Error::BadRange((offset..offset+count), b.len()))
         } else {
             Ok(&b[offset..(offset+count)])
         }
     }
 }
 
-// uses the default generics
 impl TryRefFromCtx for [u8] {
     type Error = error::Error;
     #[inline]
-    fn try_ref_from_ctx(b: &[u8], ctx: (usize, usize, super::Endian)) -> error::Result<&[u8]> {
-        let (offset, count) = (ctx.0, ctx.1);
+    fn try_ref_from_ctx(b: &[u8], (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&[u8]> {
         if offset + count > b.len () {
-            Err(error::Error::BadOffset(format!("count: {}, offset: {},  len: {}", count, offset, b.len())).into())
+            Err(error::Error::BadRange((offset..offset+count), b.len()))
         } else {
             Ok(&b[offset..(offset+count)])
         }
@@ -180,12 +177,11 @@ impl TryRefFromCtx for str {
     #[inline]
     fn try_ref_from_ctx(b: &[u8], (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&str> {
         if offset + count > b.len () {
-            Err(error::Error::BadOffset(format!("count: {}, offset: {},  len: {}", count, offset, b.len())).into())
+            Err(error::Error::BadRange((offset..offset+count), b.len()))
         } else {
             let bytes = &b[offset..(offset+count)];
-            str::from_utf8(bytes).map_err(| err | {
-                let up_to = err.valid_up_to();
-                error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
+            str::from_utf8(bytes).map_err(| _err | {
+                error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
             })
         }
     }
@@ -197,12 +193,11 @@ impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for str where T: AsRef<[
     fn try_ref_from_ctx(b: &T, (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&str> {
         let b = b.as_ref();
         if offset + count > b.len () {
-            Err(error::Error::BadOffset(format!("count: {}, offset: {},  len: {}", count, offset, b.len())).into())
+            Err(error::Error::BadRange((offset..offset+count), b.len()))
         } else {
             let bytes = &b[offset..(offset+count)];
-            str::from_utf8(bytes).map_err(| err | {
-                let up_to = err.valid_up_to();
-                error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
+            str::from_utf8(bytes).map_err(| _err | {
+                error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
             })
         }
     }
@@ -241,11 +236,9 @@ macro_rules! into_ctx_impl {
         impl TryIntoCtx<(usize, $ctx)> for $typ where $typ: IntoCtx<$ctx> {
             type Error = error::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], ctx: (usize, super::Endian)) -> error::Result<()> {
-                let offset = ctx.0;
-                let le = ctx.1;
+            fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
                 if offset + $size > dst.len () {
-                    return Err(error::Error::BadOffset(format!("size_of: {}, offset: {},  len: {}", $size, offset, dst.len())).into())
+                    return Err(error::Error::BadRange((offset..offset+$size), dst.len()))
                 }
                 <$typ as IntoCtx<$ctx>>::into_ctx(self, &mut dst[offset..(offset+$size)], le);
                 Ok(())
@@ -273,11 +266,9 @@ macro_rules! from_ctx_impl {
         impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], ctx: (usize, $ctx)) -> error::Result<Self> {
-                let offset = ctx.0;
-                let le = ctx.1;
+            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
                 if offset + $size > src.len () {
-                    return Err(error::Error::BadOffset(format!("value size: {}, offset: {}, src len: {}", $size, offset, src.len())).into())
+                    return Err(error::Error::BadRange((offset..offset+$size), src.len()))
                 }
                 Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
             }
@@ -301,12 +292,10 @@ macro_rules! from_ctx_impl {
         impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a T, ctx: (usize, $ctx)) -> error::Result<Self> {
+            fn try_from_ctx(src: &'a T, (offset, le): (usize, $ctx)) -> error::Result<Self> {
                 let src = src.as_ref();
-                let offset = ctx.0;
-                let le = ctx.1;
                 if offset + $size > src.len () {
-                    return Err(error::Error::BadOffset(format!("value size: {}, offset: {}, src len: {}", $size, offset, src.len())).into())
+                    return Err(error::Error::BadRange((offset..offset+$size), src.len()))
                 }
                 Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
             }
@@ -351,7 +340,7 @@ macro_rules! from_ctx_float_impl {
             #[inline]
             fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
                 if offset + $size > src.len () {
-                    return Err(error::Error::BadOffset(format!("value size: {}, offset: {}, src len: {}", $size, offset, src.len())).into())
+                    return Err(error::Error::BadRange((offset..offset+$size), src.len()))
                 }
                 Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
             }
@@ -384,7 +373,7 @@ macro_rules! into_ctx_float_impl {
             #[inline]
             fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
                 if offset + $size > dst.len () {
-                    return Err(error::Error::BadOffset(format!("size_of: {}, offset: {},  len: {}", $size, offset, dst.len())).into())
+                    return Err(error::Error::BadRange((offset..offset+$size), dst.len()))
                 }
                 <$typ as IntoCtx<$ctx>>::into_ctx(self, &mut dst[offset..(offset+$size)], le);
                 Ok(())
@@ -424,19 +413,14 @@ impl<'a> TryFromCtx<'a, (usize, StrCtx)> for &'a str {
     fn try_from_ctx(src: &'a [u8], (offset, StrCtx {delimiter}): (usize, StrCtx)) -> error::Result<Self> {
         let len = src.len();
         if offset >= len {
-            return Err(error::Error::BadOffset(format!("offset: {} >= src len: {}", offset, len)).into())
+            return Err(error::Error::BadOffset(offset))
         }
         let delimiter_offset = get_str_delimiter_offset(src, offset, delimiter);
         let count = delimiter_offset - offset;
         if count == 0 { return Ok("") }
-        // we do not need to check if offset + count > len because get_str_delimiter_offset returns a valid index
-        // if offset + count > len {
-        //     return Err(error::Error::BadOffset(format!("str len: {}, offset: {}, src len: {}", count, offset, len)).into());
-        // }
         let bytes = &src[offset..(offset+count)];
-        str::from_utf8(bytes).map_err(| err | {
-            let up_to = err.valid_up_to();
-            error::Error::BadInput(format!("invalid utf8: requested: {:?} valid len: {:?} remaining: {:?}", offset..(offset+count), offset..(offset+up_to), (offset+up_to)..(offset+count)))
+        str::from_utf8(bytes).map_err(| _err | {
+            error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
         })
     }
 }
@@ -453,15 +437,15 @@ impl<'a, T> TryFromCtx<'a, (usize, StrCtx), T> for &'a str where T: AsRef<[u8]> 
 impl<'a> TryIntoCtx<(usize, DefaultCtx)> for &'a [u8] {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], (offset, _): (usize, DefaultCtx)) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], (uoffset, _): (usize, DefaultCtx)) -> error::Result<()> {
         let src_len = self.len() as isize;
         let dst_len = dst.len() as isize;
-        let offset = offset as isize;
-        if src_len < 0 || dst_len < 0 || offset < 0 {
-            return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
-        }
+        let offset = uoffset as isize;
+        // if src_len < 0 || dst_len < 0 || offset < 0 {
+        //     return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
+        // }
         if offset + src_len > dst_len {
-            return Err(error::Error::BadOffset(format!("requested: {:?}, dst len: {}", (offset..offset+src_len), dst_len)).into())
+            return Err(error::Error::BadRange((uoffset..uoffset+self.len()), dst.len()))
         }
         unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr().offset(offset as isize), src_len as usize) };
         Ok(())
