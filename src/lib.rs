@@ -115,10 +115,11 @@ pub mod ctx;
 mod pread;
 mod pwrite;
 mod greater;
-mod buffer;
 mod error;
 mod endian;
 mod leb128;
+#[cfg(feature = "std")]
+mod buffer;
 //#[cfg(feature = "std")]
 //mod lesser;
 
@@ -126,9 +127,10 @@ pub use endian::*;
 pub use pread::*;
 pub use pwrite::*;
 pub use greater::*;
-pub use buffer::*;
 pub use error::*;
 pub use leb128::*;
+#[cfg(feature = "std")]
+pub use buffer::*;
 //#[cfg(feature = "std")]
 //pub use lesser::*;
 

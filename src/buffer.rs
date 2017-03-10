@@ -1,12 +1,11 @@
 use core::convert::From;
 use core::ops::{Deref, DerefMut};
 
-#[cfg(feature = "std")]
 use std::io::{self, Read, Write};
 
 /// A byte buffer which is versed in both the Greater and Lesser arts
 ///
-/// Convenient for grabbing all the data from a file, and then using `Pread`/`Pwrite`, etc., on it.
+/// Convenient for grabbing all the data from a file, and then using `Pread`/`Pwrite`, etc., on it. Only present when `std` feature is used (the default).
 ///
 /// # Example
 /// ```rust
@@ -42,7 +41,6 @@ impl Buffer {
         Buffer { inner: vec![seed; size] }
     }
     /// Tries to suck the bytes out from `R` and create a new `Buffer` from it.
-    /// **NB** only present if `std` cfg is used
     /// # Example
     /// ```rust
     /// use scroll::Buffer;
@@ -51,7 +49,6 @@ impl Buffer {
     /// // this could be a `File` also
     /// let cursor = Cursor::new(bytes);
     /// let buffer = Buffer::try_from(cursor).unwrap();
-    #[cfg(feature = "std")]
     pub fn try_from<R: Read> (mut file: R) -> io::Result<Buffer> {
         let mut inner = Vec::new();
         file.read_to_end(&mut inner)?;
@@ -102,7 +99,6 @@ impl DerefMut for Buffer {
 }
 
 // this (will) gets us Lread
-#[cfg(feature = "std")]
 impl Read for Buffer {
     fn read (&mut self, buf: &mut [u8]) -> io::Result<usize> {
         Read::read(&mut self.inner.as_slice(), buf)
@@ -110,7 +106,6 @@ impl Read for Buffer {
 }
 
 // this gets us Lwrite
-#[cfg(feature = "std")]
 impl Write for Buffer {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         Write::write(&mut self.inner.as_mut_slice(), buf)
