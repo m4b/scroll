@@ -461,7 +461,12 @@ impl<'a> TryIntoCtx<(usize, StrCtx)> for &'a str {
     }
 }
 
-/// Gets the size of `Self` with a `Ctx`, and in `Self::Units`
+/// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
+///
+/// The rationale behind this trait is to:
+///
+/// 1. Prevent `gread` from being used, and the offset being modified based on simply the sizeof the value, which can be a misnomer, e.g., for Leb128, etc.
+/// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
 pub trait SizeWith<Ctx = DefaultCtx> {
     type Units;
     #[inline]
