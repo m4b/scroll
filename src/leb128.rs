@@ -75,11 +75,11 @@ fn mask_continuation(byte: u8) -> u8 {
     byte & !CONTINUATION_BIT
 }
 
-#[inline]
-fn mask_continuation_u64(val: u64) -> u8 {
-    let byte = val & (u8::MAX as u64);
-    mask_continuation(byte as u8)
-}
+// #[inline]
+// fn mask_continuation_u64(val: u64) -> u8 {
+//     let byte = val & (u8::MAX as u64);
+//     mask_continuation(byte as u8)
+// }
 
 impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
     type Error = error::Error;
@@ -99,11 +99,12 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
             let low_bits = mask_continuation(byte) as u64;
             result |= low_bits << shift;
 
+            count += 1;
+            shift += 7;
+
             if byte & CONTINUATION_BIT == 0 {
                 return Ok(Uleb128 { value: result, count: count });
             }
-            count += 1;
-            shift += 7;
         }
     }
 }
@@ -152,6 +153,31 @@ mod tests {
     const CONTINUATION_BIT: u8 = 1 << 7;
     #[doc(hidden)]
     const SIGN_BIT: u8 = 1 << 6;
+
+    #[test]
+    fn uleb_size() {
+        use super::super::Pread;
+        let buf = [2u8 | CONTINUATION_BIT, 1];
+        let bytes = &buf[..];
+        let num = bytes.pread::<Uleb128>(0).unwrap();
+        println!("num: {:?}", &num);
+        assert_eq!(130u64, num.into());
+        assert_eq!(num.size(), 2);
+
+        let buf = [0x00,0x01];
+        let bytes = &buf[..];
+        let num = bytes.pread::<Uleb128>(0).unwrap();
+        println!("num: {:?}", &num);
+        assert_eq!(0u64, num.into());
+        assert_eq!(num.size(), 1);
+
+        let buf = [0x21];
+        let bytes = &buf[..];
+        let num = bytes.pread::<Uleb128>(0).unwrap();
+        println!("num: {:?}", &num);
+        assert_eq!(0x21u64, num.into());
+        assert_eq!(num.size(), 1);
+    }
 
     #[test]
     fn uleb128() {

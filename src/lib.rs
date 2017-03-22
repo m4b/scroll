@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! # Scroll
 //!
 //! ```text, no_run
