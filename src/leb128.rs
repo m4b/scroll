@@ -21,8 +21,17 @@ pub struct Uleb128 {
 
 impl Uleb128 {
     #[inline]
+    /// Return how many bytes this Uleb128 takes up in memory
     pub fn size(&self) -> usize {
         self.count
+    }
+    #[inline]
+    /// Read a variable length u64 from `bytes` at `offset`
+    pub fn read<B: AsRef<[u8]>>(bytes: &B, offset: &mut usize) -> error::Result<u64> {
+        use Pread;
+        let tmp = bytes.pread::<Uleb128>(*offset)?;
+        *offset = *offset + tmp.size();
+        Ok(tmp.into())
     }
 }
 
@@ -48,8 +57,17 @@ pub struct Sleb128 {
 
 impl Sleb128 {
     #[inline]
+    /// Return how many bytes this Sleb128 takes up in memory
     pub fn size(&self) -> usize {
         self.count
+    }
+    #[inline]
+    /// Read a variable length i64 from `bytes` at `offset`
+    pub fn read<B: AsRef<[u8]>>(bytes: &B, offset: &mut usize) -> error::Result<i64> {
+        use Pread;
+        let tmp = bytes.pread::<Sleb128>(*offset)?;
+        *offset = *offset + tmp.size();
+        Ok(tmp.into())
     }
 }
 
