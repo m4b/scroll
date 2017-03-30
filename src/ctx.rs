@@ -105,9 +105,9 @@ impl From<u8> for StrCtx {
 }
 
 /// Reads `Self` from `This` using the context `Ctx`
-pub trait FromCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> where Self: Sized {
+pub trait FromCtx<'a, Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> where Self: 'a + Sized {
     #[inline]
-    fn from_ctx(this: &This, ctx: Ctx) -> Self;
+    fn from_ctx(this: &'a This, ctx: Ctx) -> Self;
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
@@ -249,9 +249,9 @@ macro_rules! into_ctx_impl {
 
 macro_rules! from_ctx_impl {
     ($typ:tt, $size:expr, $ctx:ty) => {
-        impl FromCtx<$ctx> for $typ {
+        impl<'a> FromCtx<'a, $ctx> for $typ {
             #[inline]
-            fn from_ctx(src: &[u8], le: $ctx) -> Self {
+            fn from_ctx(src: &'a [u8], le: $ctx) -> Self {
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
                     copy_nonoverlapping(
@@ -263,7 +263,7 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<'a, $ctx> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
@@ -274,7 +274,7 @@ macro_rules! from_ctx_impl {
             }
         }
         // as ref
-        impl<T> FromCtx<$ctx, T> for $typ where T: AsRef<[u8]> {
+        impl<'a, T> FromCtx<'a, $ctx, T> for $typ where T: AsRef<[u8]> {
             #[inline]
             fn from_ctx(src: &T, le: $ctx) -> Self {
                 let src = src.as_ref();
@@ -289,7 +289,7 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<'a, $ctx, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a T, (offset, le): (usize, $ctx)) -> error::Result<Self> {
@@ -321,7 +321,7 @@ ctx_impl!(i64, 8);
 
 macro_rules! from_ctx_float_impl {
     ($typ:tt, $size:expr, $ctx:ty) => {
-        impl FromCtx<$ctx> for $typ {
+        impl<'a> FromCtx<'a, $ctx> for $typ {
             #[inline]
             fn from_ctx(src: &[u8], le: $ctx) -> Self {
                 let mut data: signed_to_unsigned!($typ) = 0;
@@ -335,7 +335,7 @@ macro_rules! from_ctx_float_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<'a, $ctx> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
