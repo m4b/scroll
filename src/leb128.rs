@@ -167,10 +167,8 @@ mod tests {
     use super::{LEB128, Uleb128, Sleb128};
     use super::super::LE;
 
-    #[doc(hidden)]
     const CONTINUATION_BIT: u8 = 1 << 7;
-    #[doc(hidden)]
-    const SIGN_BIT: u8 = 1 << 6;
+    //const SIGN_BIT: u8 = 1 << 6;
 
     #[test]
     fn uleb_size() {

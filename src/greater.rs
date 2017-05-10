@@ -25,15 +25,15 @@ pub trait TryOffsetWith<Ctx = ctx::DefaultCtx, E = error::Error, I = usize> {
 /// you should only need to implement `Pread` for a particular
 /// `Ctx`, `Error`, `Index` target, _and_ implement `TryOffsetWith` to explain to the trait how it should increment the mutable offset,
 /// and then a simple blanket `impl Gread<I, E, Ctx> for YourType`, etc.
-pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)> : Pread<Ctx, E, I> + TryOffsetWith<Ctx, E, I>
+pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)> : Pread<Ctx, E, I, TryCtx, SliceCtx> + TryOffsetWith<Ctx, E, I>
     where Ctx: Copy + Default + Debug,
           I: AddAssign + Copy + Add + Default + Debug,
           E: Debug,
-          TryCtx: Copy + Debug,
+          TryCtx: Copy + Default + Debug,
           SliceCtx: Copy + Default + Debug,
 {
     #[inline]
-    fn gread_unsafe<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> N {
+    fn gread_unsafe<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> N {
         let o = *offset;
         let count = self.try_offset::<N>(o, &ctx).unwrap();
         *offset += count;
@@ -48,7 +48,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.gread::<u8>(offset).unwrap();
     /// assert_eq!(*offset, 1);
-    fn gread<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> {
+    fn gread<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> {
         let ctx = Ctx::default();
         self.gread_with(offset, ctx)
     }
@@ -62,7 +62,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(dead, 0xdeadu16);
     /// assert_eq!(*offset, 2);
     #[inline]
-    fn gread_with<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, (I, Ctx), Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
+    fn gread_with<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> {
         let o = *offset;
         let count = self.try_offset::<N>(o, &ctx)?;
         let res = self.pread_unsafe(o, ctx);
@@ -80,7 +80,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(*offset, 2);
     #[inline]
     fn gread_slice<N: ?Sized>(&self, offset: &mut I, count: I) -> result::Result<&N, E>
-        where N: TryRefFromCtx<(I, I, Ctx), Error = E> {
+        where N: TryRefFromCtx<SliceCtx, Error = E> {
         let o = *offset;
         let res = self.pread_slice::<N>(o, count);
         if res.is_ok() { *offset += count;}
@@ -98,7 +98,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(*offset, 2);
     fn gread_inout<'a, N>(&'a self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
         where
-        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, (I, Ctx), Error = E>,
+        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>,
     {
         let len = inout.len();
         for i in 0..len {
@@ -119,7 +119,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// assert_eq!(*offset, 2);
     fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
         where
-        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, (I, Ctx), Error = E>,
+        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>,
     {
         let len = inout.len();
         for i in 0..len {
@@ -146,6 +146,12 @@ impl<Ctx, T> TryOffsetWith<Ctx> for T where T: AsRef<[u8]> {
         <[u8] as TryOffsetWith<Ctx>>::try_offset::<N>(self.as_ref(), offset, ctx)
     }
 }
+
+// without this we get obscure lifetime errors from upstream clients
+impl<Ctx, E> Gread<Ctx, E> for [u8] where
+    [u8]: TryOffsetWith<Ctx, E>,
+    Ctx: Copy + Default + Debug,
+    E: Debug {}
 
 // this gets us Gread for Buffer, Vec<u8>, etc.
 impl<Ctx, E, T> Gread<Ctx, E> for T where
@@ -191,5 +197,10 @@ pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), S
 
 impl<Ctx, E, T> Gwrite<Ctx, E> for T where
     T: AsRef<[u8]> + AsMut<[u8]> + TryOffsetWith<Ctx, E>,
+    Ctx: Copy + Default + Debug,
+    E: Debug {}
+
+impl<Ctx, E> Gwrite<Ctx, E> for [u8] where
+    [u8]: TryOffsetWith<Ctx, E>,
     Ctx: Copy + Default + Debug,
     E: Debug {}
