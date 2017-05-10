@@ -33,6 +33,8 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
           SliceCtx: Copy + Default + Debug,
 {
     #[inline]
+    /// Reads _and_ unwraps a value from `self` at `offset` with the given `ctx`. **NB**: this can panic if the offset is bad, or whatever error this operates on is "thrown".
+    /// For the primitive numeric values, this will read at the machine's endianness. Updates the offset
     fn gread_unsafe<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> N {
         let o = *offset;
         let count = self.try_offset::<N>(o, &ctx).unwrap();
@@ -96,6 +98,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// bytes_from.gread_inout(offset, &mut bytes).unwrap();
     /// assert_eq!(&bytes, &bytes_from);
     /// assert_eq!(*offset, 2);
+    #[inline]
     fn gread_inout<'a, N>(&'a self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
         where
         N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>,
@@ -117,6 +120,7 @@ pub trait Gread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
     /// bytes_from.gread_inout_with(offset, &mut bytes, ctx::CTX).unwrap();
     /// assert_eq!(&bytes, &bytes_from);
     /// assert_eq!(*offset, 2);
+    #[inline]
     fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
         where
         N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, TryCtx, Error = E>,
@@ -142,6 +146,7 @@ impl<Ctx> TryOffsetWith<Ctx> for [u8] {
 }
 
 impl<Ctx, T> TryOffsetWith<Ctx> for T where T: AsRef<[u8]> {
+    #[inline]
     fn try_offset<N: SizeWith<Ctx, Units = usize>>(&self, offset: usize, ctx: &Ctx) -> Result<usize> {
         <[u8] as TryOffsetWith<Ctx>>::try_offset::<N>(self.as_ref(), offset, ctx)
     }
@@ -168,7 +173,7 @@ impl<Ctx, E, T> Gread<Ctx, E> for T where
 // }
 
 /// The Greater Write (`Gwrite`) writes a value into its mutable insides, at a mutable offset
-pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)>: Pwrite<Ctx, E, I> + TryOffsetWith<Ctx, E, I>
+pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx)>: Pwrite<Ctx, E, I, TryCtx, SliceCtx> + TryOffsetWith<Ctx, E, I>
  where E: Debug,
        Ctx: Copy + Default + Debug,
        I: AddAssign + Copy + Add + Default + Debug,
@@ -176,17 +181,21 @@ pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), S
        SliceCtx: Copy + Default + Debug,
 {
     #[inline]
-    fn gwrite_unsafe<N: SizeWith<Ctx, Units = I> + TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) {
+    fn gwrite_unsafe<N: SizeWith<Ctx, Units = I> + TryIntoCtx<TryCtx, Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) {
         let o = *offset;
         let count = self.try_offset::<N>(o, &ctx).unwrap();
         *offset += count;
         self.pwrite_unsafe(n, o, ctx)
     }
-    fn gwrite<N: SizeWith<Ctx, Units = I> + TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I) -> result::Result<(), E> {
+    /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
+    #[inline]
+    fn gwrite<N: SizeWith<Ctx, Units = I> + TryIntoCtx<TryCtx, Error = E>>(&mut self, n: N, offset: &mut I) -> result::Result<(), E> {
         let ctx = Ctx::default();
         self.gwrite_with(n, offset, ctx)
     }
-    fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<(I, Ctx), Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
+    /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
+    #[inline]
+    fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<TryCtx, Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
    let o = *offset;
         let count = self.try_offset::<N>(o, &ctx)?;
         *offset += count;
