@@ -1,0 +1,166 @@
+// this exists primarily to test various API usages of scroll; e.g., must compile
+
+extern crate scroll;
+
+#[macro_use] extern crate scroll_derive;
+
+use std::ops::{Deref,  DerefMut};
+use scroll::{ctx, Result, Pread, Gread};
+use scroll::ctx::SizeWith;
+
+pub struct Section<'a> {
+    pub sectname:  [u8; 16],
+    pub segname:   [u8; 16],
+    pub addr:      u64,
+    pub size:      u64,
+    pub offset:    u32,
+    pub align:     u32,
+    pub reloff:    u32,
+    pub nreloc:    u32,
+    pub flags:     u32,
+    pub data:      &'a [u8],
+}
+
+impl<'a> Section<'a> {
+    pub fn name(&self) -> Result<&str> {
+        self.sectname.pread::<&str>(0)
+    }
+    pub fn segname(&self) -> Result<&str> {
+        self.segname.pread::<&str>(0)
+    }
+}
+
+impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Section<'a> {
+    type Units = usize;
+    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+        4
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pread, Pwrite)]
+pub struct Section32 {
+    pub sectname:  [u8; 16],
+    pub segname:   [u8; 16],
+    pub addr:      u32,
+    pub size:      u32,
+    pub offset:    u32,
+    pub align:     u32,
+    pub reloff:    u32,
+    pub nreloc:    u32,
+    pub flags:     u32,
+    pub reserved1: u32,
+    pub reserved2: u32,
+}
+
+impl<'a> ctx::TryFromCtx<'a, (usize, ctx::DefaultCtx)> for Section<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(_bytes: &'a [u8], (_offset, _ctx): (usize, ctx::DefaultCtx)) -> ::std::result::Result<Self, Self::Error> {
+        //let section = Section::from_ctx(bytes, bytes.pread_with::<Section32>(offset, ctx)?);
+        let section = unsafe { ::std::mem::uninitialized::<Section>()};
+        Ok(section)
+    }
+}
+
+pub struct Segment<'a> {
+    pub cmd:      u32,
+    pub cmdsize:  u32,
+    pub segname:  [u8; 16],
+    pub vmaddr:   u64,
+    pub vmsize:   u64,
+    pub fileoff:  u64,
+    pub filesize: u64,
+    pub maxprot:  u32,
+    pub initprot: u32,
+    pub nsects:   u32,
+    pub flags:    u32,
+    pub data:     &'a [u8],
+    offset:       usize,
+    raw_data:     &'a [u8],
+}
+
+impl<'a> Segment<'a> {
+    pub fn name(&self) -> Result<&str> {
+        Ok(self.segname.pread::<&str>(0)?)
+    }
+    pub fn sections(&self) -> Result<Vec<Section<'a>>> {
+        let nsects = self.nsects as usize;
+        let mut sections = Vec::with_capacity(nsects);
+        let offset = &mut (self.offset + Self::size_with(&ctx::CTX));
+        let _size = Section::size_with(&ctx::CTX);
+        let raw_data: &'a [u8] = self.raw_data;
+        for _ in 0..nsects {
+            let section = raw_data.gread_with::<Section<'a>>(offset, ctx::CTX)?;
+            sections.push(section);
+            //offset += size;
+        }
+        Ok(sections)
+    }
+}
+
+impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Segment<'a> {
+    type Units = usize;
+    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+        4
+    }
+}
+
+pub struct Segments<'a> {
+    pub segments: Vec<Segment<'a>>,
+}
+
+impl<'a> Deref for Segments<'a> {
+    type Target = Vec<Segment<'a>>;
+    fn deref(&self) -> &Self::Target {
+        &self.segments
+    }
+}
+
+impl<'a> DerefMut for Segments<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.segments
+    }
+}
+
+impl<'a> Segments<'a> {
+    pub fn new() -> Self {
+        Segments {
+            segments: Vec::new(),
+        }
+    }
+    pub fn sections(&self) -> Result<Vec<Vec<Section<'a>>>> {
+        let mut sections = Vec::new();
+        for segment in &self.segments {
+            sections.push(segment.sections()?);
+        }
+        Ok(sections)
+    }
+}
+
+fn lifetime_passthrough_<'a>(segments: &Segments<'a>, section_name: &str) -> Option<&'a [u8]> {
+    let segment_name = "__TEXT";
+    for segment in &segments.segments {
+        if let Ok(name) = segment.name() {
+            println!("segment.name: {}", name);
+            if name == segment_name {
+                if let Ok(sections) = segment.sections() {
+                    for section in sections {
+                        let sname = section.name().unwrap();
+                        println!("section.name: {}", sname);
+                        if section_name == sname {
+                            return Some(section.data);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+#[test]
+fn lifetime_passthrough() {
+    let segments = Segments::new();
+    let _res = lifetime_passthrough_(&segments, "__text");
+    assert!(true)
+}
