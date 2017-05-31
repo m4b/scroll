@@ -23,7 +23,7 @@ Add to your `Cargo.toml`
 
 ```toml
 [dependencies]
-scroll = "0.2.0"
+scroll = "0.5.0"
 ```
 
 ### Overview
