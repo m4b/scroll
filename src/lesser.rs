@@ -3,16 +3,15 @@ use std::io::{Result, Read, Write};
 use ctx::{FromCtx, IntoCtx, SizeWith};
 use error::{self};
 
-/// An extension trait to `std::io::Read`; this only deserializes simple objects, like u8, u32, f32, usize, etc.
+/// An extension trait to `std::io::Read` streams; this only deserializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
 ///
-/// If you implement `FromCtx` for your type, you can then `lread::<YourType>()` on a `Read`.  Note: `FromCtx` is only meant for very simple types, and should _never_ fail.
+/// If you implement [`FromCtx`](trait.FromCtx.html) and [`SizeWith`](ctx/trait.SizeWith.html) for your type, you can then `lread::<YourType>()` on a `Read`.  Note: [`FromCtx`](trait.FromCtx.html) is only meant for very simple types, and should _never_ fail.
+///
+/// **NB** You should probably add `repr(packed)` or `repr(C)` and be very careful how you implement [`SizeWith`](ctx/trait.SizeWith.html), otherwise you
+/// will get IO errors failing to fill entire buffer (the size you specified in `SizeWith`), or out of bound errors (depending on your impl) in `from_ctx`
 ///
 /// # Example
-///
-/// **NB** You should probably add `repr(packed)` or `repr(C)` and be very careful how you implement `SizeWith`, otherwise you
-/// will get IO errors failing to fill entire buffer (the size you specified in SizeWith)
-///
-///```rust
+/// ```rust
 /// use std::io::Cursor;
 /// use scroll::{self, ctx, Pread, Lread};
 ///
@@ -48,7 +47,8 @@ use error::{self};
 /// let foo_ = bytes.lread::<Foo>().unwrap();
 /// assert_eq!(foo_.foo, foo);
 /// assert_eq!(foo_.bar, bar);
-///```
+/// ```
+///
 pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
  where
     Ctx: Copy + Default + Debug,
@@ -106,6 +106,9 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
 /// for free.
 impl<R: Read + ?Sized> Lread for R {}
 
+/// An extension trait to `std::io::Write` streams; this only serializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
+///
+/// To write custom types with a single `lwrite::<YourType>` call, implement [`IntoCtx`](trait.IntoCtx.html) and [`SizeWith`](ctx/trait.SizeWith.html) for `YourType`.
 pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
     where
           Ctx: Copy + Default + Debug,
