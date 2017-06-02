@@ -98,7 +98,7 @@ pub trait Pread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), Sl
        SliceCtx: Copy + Default + Debug,
 {
     #[inline]
-    /// Implement this if you need a faster version for use by `Gread`
+    /// Reads a value at `offset` with `ctx` - or those times when you _know_ your deserialization can't fail.
     fn pread_unsafe<'a, N: TryFromCtx<'a, TryCtx, Error = E>>(&'a self, offset: I, ctx: Ctx) -> N {
         self.pread_with(offset, ctx).unwrap()
     }
