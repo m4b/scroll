@@ -104,10 +104,10 @@ impl From<u8> for StrCtx {
     }
 }
 
-/// Reads `Self` from `This` using the context `Ctx`
-pub trait FromCtx<'a, Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> where Self: 'a + Sized {
+/// Reads `Self` from `This` using the context `Ctx`; must _not_ fail
+pub trait FromCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> {
     #[inline]
-    fn from_ctx(this: &'a This, ctx: Ctx) -> Self;
+    fn from_ctx(this: &This, ctx: Ctx) -> Self;
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
@@ -145,6 +145,18 @@ pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [
 pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_ref_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
+}
+
+/// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
+///
+/// The rationale behind this trait is to:
+///
+/// 1. Prevent `gread` from being used, and the offset being modified based on simply the sizeof the value, which can be a misnomer, e.g., for Leb128, etc.
+/// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
+pub trait SizeWith<Ctx = DefaultCtx> {
+    type Units;
+    #[inline]
+    fn size_with(ctx: &Ctx) -> Self::Units;
 }
 
 impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for [u8] where T: AsRef<[u8]> {
@@ -219,6 +231,7 @@ macro_rules! signed_to_unsigned {
 macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => ({
         unsafe {
+            assert!($dst.len() >= $size);
             let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() { $n.to_le() } else { $n.to_be() });
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
@@ -230,6 +243,7 @@ macro_rules! into_ctx_impl {
         impl IntoCtx for $typ {
             #[inline]
             fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+                assert!(dst.len() >= $size);
                 write_into!($typ, $size, self, dst, le);
             }
         }
@@ -249,9 +263,10 @@ macro_rules! into_ctx_impl {
 
 macro_rules! from_ctx_impl {
     ($typ:tt, $size:expr, $ctx:ty) => {
-        impl<'a> FromCtx<'a, $ctx> for $typ {
+        impl<'a> FromCtx<$ctx> for $typ {
             #[inline]
-            fn from_ctx(src: &'a [u8], le: $ctx) -> Self {
+            fn from_ctx(src: &[u8], le: $ctx) -> Self {
+                assert!(src.len() >= $size);
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
                     copy_nonoverlapping(
@@ -263,7 +278,7 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<'a, $ctx> {
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
@@ -274,10 +289,11 @@ macro_rules! from_ctx_impl {
             }
         }
         // as ref
-        impl<'a, T> FromCtx<'a, $ctx, T> for $typ where T: AsRef<[u8]> {
+        impl<'a, T> FromCtx<$ctx, T> for $typ where T: AsRef<[u8]> {
             #[inline]
             fn from_ctx(src: &T, le: $ctx) -> Self {
                 let src = src.as_ref();
+                assert!(src.len() >= $size);
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
                     copy_nonoverlapping(
@@ -289,7 +305,7 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<'a, $ctx, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a T, (offset, le): (usize, $ctx)) -> error::Result<Self> {
@@ -321,9 +337,10 @@ ctx_impl!(i64, 8);
 
 macro_rules! from_ctx_float_impl {
     ($typ:tt, $size:expr, $ctx:ty) => {
-        impl<'a> FromCtx<'a, $ctx> for $typ {
+        impl<'a> FromCtx<$ctx> for $typ {
             #[inline]
             fn from_ctx(src: &[u8], le: $ctx) -> Self {
+                assert!(src.len() >= ::core::mem::size_of::<Self>());
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
                     copy_nonoverlapping(
@@ -335,7 +352,7 @@ macro_rules! from_ctx_float_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<'a, $ctx> {
+        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
@@ -365,6 +382,7 @@ macro_rules! into_ctx_float_impl {
         impl IntoCtx for $typ {
             #[inline]
             fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+                assert!(dst.len() >= $size);
                 write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
             }
         }
@@ -384,7 +402,6 @@ macro_rules! into_ctx_float_impl {
 
 into_ctx_float_impl!(f32, 4, super::Endian);
 into_ctx_float_impl!(f64, 8, super::Endian);
-
 
 #[inline(always)]
 fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delimiter: u8) -> usize {
@@ -461,18 +478,7 @@ impl<'a> TryIntoCtx<(usize, StrCtx)> for &'a str {
     }
 }
 
-/// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
-///
-/// The rationale behind this trait is to:
-///
-/// 1. Prevent `gread` from being used, and the offset being modified based on simply the sizeof the value, which can be a misnomer, e.g., for Leb128, etc.
-/// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
-pub trait SizeWith<Ctx = DefaultCtx> {
-    type Units;
-    #[inline]
-    fn size_with(ctx: &Ctx) -> Self::Units;
-}
-
+// TODO: we can make this compile time without size_of call, but compiler probably does that anyway
 macro_rules! sizeof_impl {
     ($ty:ty) => {
         impl SizeWith for $ty {
@@ -495,3 +501,71 @@ sizeof_impl!(u64);
 sizeof_impl!(i64);
 sizeof_impl!(f32);
 sizeof_impl!(f64);
+sizeof_impl!(usize);
+sizeof_impl!(isize);
+
+impl FromCtx for usize {
+    #[inline]
+    fn from_ctx(src: &[u8], le: super::Endian) -> Self {
+        let size = ::core::mem::size_of::<Self>();
+        assert!(src.len() >= size);
+        let mut data: usize = 0;
+        unsafe {
+            copy_nonoverlapping(
+                src.as_ptr(),
+                &mut data as *mut usize as *mut u8,
+                size);
+            transmute((if le.is_little() { data.to_le() } else { data.to_be() }))
+        }
+    }
+}
+
+impl<'a> TryFromCtx<'a, (usize, super::Endian)> for usize where usize: FromCtx<super::Endian> {
+    type Error = error::Error;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], (offset, le): (usize, super::Endian)) -> error::Result<Self> {
+        let size = ::core::mem::size_of::<usize>();
+        if offset + size > src.len () {
+            return Err(error::Error::BadRange((offset..offset+size), src.len()))
+        }
+        Ok(FromCtx::from_ctx(&src[offset..(offset + size)], le))
+    }
+}
+
+impl IntoCtx for usize {
+    #[inline]
+    fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+        let size = ::core::mem::size_of::<Self>();
+        assert!(dst.len() >= size);
+        let mut data = if le.is_little() { self.to_le() } else { self.to_be() };
+        let data = &mut data as *mut usize as *mut u8;
+        unsafe {
+            copy_nonoverlapping(data, dst.as_mut_ptr(), size);
+        }
+    }
+}
+
+impl TryIntoCtx<(usize, super::Endian)> for usize where usize: IntoCtx<super::Endian> {
+    type Error = error::Error;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
+        let size = ::core::mem::size_of::<usize>();
+        if offset + size > dst.len() {
+            return Err(error::Error::BadRange((offset..offset+size), dst.len()))
+        }
+        <usize as IntoCtx<super::Endian>>::into_ctx(self, &mut dst[offset..(offset+size)], le);
+        Ok(())
+    }
+}
+
+// example of marshalling to bytes, let's wait until const is an option
+// impl FromCtx for [u8; 10] {
+//     fn from_ctx(bytes: &[u8], _ctx: super::Endian) -> Self {
+//         let mut dst: Self = [0; 10];
+//         assert!(bytes.len() >= dst.len());
+//         unsafe {
+//             copy_nonoverlapping(bytes.as_ptr(), dst.as_mut_ptr(), dst.len());
+//         }
+//         dst
+//     }
+// }
