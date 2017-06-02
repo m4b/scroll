@@ -119,8 +119,8 @@ mod endian;
 mod leb128;
 #[cfg(feature = "std")]
 mod buffer;
-//#[cfg(feature = "std")]
-//mod lesser;
+#[cfg(feature = "std")]
+mod lesser;
 
 pub use endian::*;
 pub use pread::*;
@@ -130,8 +130,8 @@ pub use error::*;
 pub use leb128::*;
 #[cfg(feature = "std")]
 pub use buffer::*;
-//#[cfg(feature = "std")]
-//pub use lesser::*;
+#[cfg(feature = "std")]
+pub use lesser::*;
 
 #[cfg(test)]
 mod tests {

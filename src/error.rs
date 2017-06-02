@@ -11,7 +11,9 @@ use std::error;
 /// A custom Scroll error
 pub enum Error {
     BadOffset(usize),
+    // todo: change to inline record
     BadRange(Range<usize>, usize),
+    // todo: change to inline record
     BadInput(Range<usize>, usize, &'static str),
     #[cfg(feature = "std")]
     Custom(String),

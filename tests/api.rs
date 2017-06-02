@@ -164,3 +164,41 @@ fn lifetime_passthrough() {
     let _res = lifetime_passthrough_(&segments, "__text");
     assert!(true)
 }
+
+#[derive(Default)]
+#[repr(packed)]
+struct Foo {
+    foo: usize,
+    bar: u32,
+}
+
+impl scroll::ctx::FromCtx for Foo {
+    fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
+        Foo { foo: bytes.pread_unsafe::<usize>(0, ctx), bar: bytes.pread_unsafe::<u32>(8, ctx) }
+    }
+}
+
+impl scroll::ctx::SizeWith for Foo {
+    type Units = usize;
+    fn size_with(_: &scroll::Endian) -> Self::Units {
+        ::std::mem::size_of::<Foo>()
+    }
+}
+
+#[test]
+fn lread_api() {
+    use std::io::Cursor;
+    use scroll::Lread;
+    let bytes_ = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
+    let mut bytes = Cursor::new(bytes_);
+    let foo = bytes.lread::<usize>().unwrap();
+    let bar = bytes.lread::<u32>().unwrap();
+    assert_eq!(foo, 1);
+    assert_eq!(bar, 0xbeef);
+    let error = bytes.lread::<f64>();
+    assert!(error.is_err());
+    let mut bytes = Cursor::new(bytes_);
+    let foo_ = bytes.lread::<Foo>().unwrap();
+    assert_eq!(foo_.foo, foo);
+    assert_eq!(foo_.bar, bar);
+}
