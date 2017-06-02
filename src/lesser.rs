@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::io::{Result, Read, Write};
-use ctx::{FromCtx, SizeWith};
+use ctx::{FromCtx, IntoCtx, SizeWith};
 use error::{self};
 
 /// An extension trait to `std::io::Read`; this only deserializes simple objects, like u8, u32, f32, usize, etc.
@@ -50,10 +50,11 @@ use error::{self};
 /// assert_eq!(foo_.bar, bar);
 ///```
 pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
- where E: Debug,
-       Ctx: Copy + Default + Debug,
+ where
+    Ctx: Copy + Default + Debug,
+    E: Debug,
 {
-    /// Reads `N` from `Self`, with a default parsing context.
+    /// Reads the type `N` from `Self`, with a default parsing context.
     /// For the primitive numeric types, this will be at the host machine's endianness.
     ///
     /// # Example
@@ -64,13 +65,15 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
     /// let mut bytes = Cursor::new(&bytes[..]);
     /// let beef = bytes.lread::<u16>().unwrap();
     /// assert_eq!(0xbeef, beef);
+    /// ```
+    #[inline]
     fn lread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> Result<N> {
         let ctx = Ctx::default();
         self.lread_with(ctx)
     }
 
-    /// Reads `N` from `Self`, with the parsing context `ctx`.
-    /// NB: this will panic if the type you're reading has a size greater than 256. Plans are to have this allocate in larger cases.
+    /// Reads the type `N` from `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're reading has a size greater than 256. Plans are to have this allocate in larger cases.
     ///
     /// For the primitive numeric types, this will be at the host machine's endianness.
     ///
@@ -88,6 +91,8 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
     /// assert_eq!(0xb0, b0);
     /// let feeddead = bytes.lread_with::<u32>(BE).unwrap();
     /// assert_eq!(0xfeeddead, feeddead);
+    /// ```
+    #[inline]
     fn lread_with<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self, ctx: Ctx) -> Result<N> {
         let mut scratch = [0u8; 256];
         let size = N::size_with(&ctx);
@@ -97,9 +102,61 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
     }
 }
 
+/// Types that implement `Read` get methods defined in `Lread`
+/// for free.
 impl<R: Read + ?Sized> Lread for R {}
 
-trait Lwrite : Write {
+pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
+    where
+          Ctx: Copy + Default + Debug,
+          E: Debug,
+{
+    /// Writes the type `N` into `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
+    ///
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::Lwrite;
+    /// use std::io::Cursor;
+    ///
+    /// let mut bytes = [0x0u8; 4];
+    /// let mut bytes = Cursor::new(&mut bytes[..]);
+    /// bytes.lwrite(0xdeadbeef as u32).unwrap();
+    /// assert_eq!(bytes.into_inner(), [0xef, 0xbe, 0xad, 0xde,]);
+    /// ```
+    #[inline]
+    fn lwrite<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N) -> Result<()> {
+        let ctx = Ctx::default();
+        self.lwrite_with(n, ctx)
+    }
+
+    /// Writes the type `N` into `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
+    ///
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::{Lwrite, LE, BE};
+    /// use std::io::{Write, Cursor};
+    ///
+    /// let mut bytes = [0x0u8; 10];
+    /// let mut cursor = Cursor::new(&mut bytes[..]);
+    /// cursor.write_all(b"hell").unwrap();
+    /// cursor.lwrite_with(0xdeadbeef as u32, BE).unwrap();
+    /// assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0xde, 0xad, 0xbe, 0xef, 0x0, 0x0]);
+    /// ```
+    #[inline]
+    fn lwrite_with<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N, ctx: Ctx) -> Result<()> {
+        let mut buf = [0u8; 256];
+        let size = N::size_with(&ctx);
+        let mut buf = &mut buf[0..size];
+        n.into_ctx(buf, ctx);
+        self.write_all(buf)?;
+        Ok(())
+    }
 }
 
 /// Types that implement `Write` get methods defined in `Lwrite`
