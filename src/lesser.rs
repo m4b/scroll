@@ -147,9 +147,9 @@ pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
     ///
     /// let mut bytes = [0x0u8; 10];
     /// let mut cursor = Cursor::new(&mut bytes[..]);
-    /// cursor.write_all(b"hell").unwrap();
+    /// cursor.write_all(b"hello").unwrap();
     /// cursor.lwrite_with(0xdeadbeef as u32, BE).unwrap();
-    /// assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0xde, 0xad, 0xbe, 0xef, 0x0, 0x0]);
+    /// assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
     /// ```
     #[inline]
     fn lwrite_with<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N, ctx: Ctx) -> Result<()> {

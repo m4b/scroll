@@ -9,10 +9,8 @@ use endian::Endian;
 ///
 /// Don't be scared! The `Pread` definition _is_ terrifying, but it is definitely tractable. Essentially, `E` is the error, `Ctx` the parsing context, `I` is the indexing type, `TryCtx` is the "offset + ctx" Context given to the `TryFromCtx` trait bounds, and `SliceCtx` is the "offset + size + ctx" context given to the `TryRefFromCtx` trait bound.
 ///
-/// They all have reasonable defaults, so if you're just using this trait, you can usually get away with `fn <T: scroll::Pread>(bytes: &T) -> yourResultWhichConvertsScrollErrors`
-///
 /// # Implementing Your Own Reader
-/// If you want to implement your own reader for a type `Foo` from some kind of buffer (say `[u8]`), then you need to implement `TryFromCtx`
+/// If you want to implement your own reader for a type `Foo` from some kind of buffer (say `[u8]`), then you need to implement [TryFromCtx](trait.TryFromCtx.html)
 ///
 /// ```rust
 /// use scroll::{self, ctx};
@@ -85,7 +83,6 @@ use endian::Endian;
 ///  }
 ///
 /// use scroll::Pread;
-/// // the only caveat is that you now need to specify the error type in fn generic params, e.g. `fn thingee<S: scroll::Pread<YourCtx, ExternalError>>`
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
