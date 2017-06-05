@@ -138,7 +138,7 @@ impl<Ctx> TryOffsetWith<Ctx> for [u8] {
     fn try_offset<N: SizeWith<Ctx, Units = usize>>(&self, offset: usize, ctx: &Ctx) -> Result<usize> {
         let size = N::size_with(ctx);
         if offset + size > self.len() {
-            Err(error::Error::BadRange((offset..offset+size), self.len()))
+            Err(error::Error::BadRange{range: offset..offset+size, size: self.len()})
         } else {
             Ok(size)
         }
