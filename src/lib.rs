@@ -12,45 +12,61 @@
 //!
 //! ```
 //!
-//! Scroll implements several traits for read/writing generic containers (byte buffers are currently implemented by default). Most familiar will likely be the `Pread` trait, which at its basic takes an immutable reference to self, an immutable offset to read at, (and a parsing context, more on that later), and then returns the deserialized value.
+//! Scroll is a library for efficiently and easily reading/writing types from byte arrays. All the builtin types are supported, e.g., `u32`, `i8`, etc., where the type is specified as a type parameter, or type inferred when possible. In addition, it supports zero-copy reading of string slices, or any other kind of slice.  The library can be used in a no_std context as well; the [Error](enum.Error.html) type only has the `IO` and `String` variants if the default features are used, and is `no_std` safe when compiled without default features.
+//!
+//! There are 3 traits that you can import:
+//!
+//! 1. [Pread](trait.Pread.html), for reading (immutable) data at an offset;
+//! 2. [Gread](trait.Gread.html), for reading data at an offset which automatically gets incremented by the size;
+//! 3. [Lread](trait.Lread.html), for reading data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
+//!
+//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Gwrite](trait.Gwrite.html), and [Lwrite](trait.Lwrite.html).
+//!
+//! Most familiar will likely be the `Pread` trait (inspired from the C function), which takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
 //!
 //! Because self is immutable, _**all** reads can be performed in parallel_ and hence are trivially parallelizable.
+//!
+//! # Example
 //!
 //! A simple example demonstrates its flexibility:
 //!
 //! ```rust
-//! use scroll::{ctx, Pread};
+//! use scroll::{ctx, Pread, LE};
 //! let bytes: [u8; 4] = [0xde, 0xad, 0xbe, 0xef];
 //!
-//! // we can use the Buffer type that scroll provides, or use it on regular byte slices (or anything that impl's `AsRef<[u8]>`)
-//! //let buffer = scroll::Buffer::new(bytes);
-//! let b = &bytes[..];
+//! // reads a u32 out of `b` with the endianness of the host machine, at offset 0, turbofish-style
+//! let number: u32 = bytes.pread::<u32>(0).unwrap();
+//! // ...or a byte, with type ascription on the binding.
+//! let byte: u8 = bytes.pread(0).unwrap();
 //!
-//! // reads a u32 out of `b` with Big Endian byte order, at offset 0
-//! let i: u32 = b.pread_with(0, scroll::BE).unwrap();
+//! //If the type is known another way by the compiler, say reading into a struct field, we can omit the turbofish, and type ascription altogether!
+//!
+//! // If we want, we can explicitly add a endianness to read with by calling `pread_with`.
+//! // The following reads a u32 out of `b` with Big Endian byte order, at offset 0
+//! let be_number: u32 = bytes.pread_with(0, scroll::BE).unwrap();
 //! // or a u16 - specify the type either on the variable or with the beloved turbofish
-//! let i2 = b.pread_with::<u16>(2, scroll::BE).unwrap();
+//! let be_number2 = bytes.pread_with::<u16>(2, scroll::BE).unwrap();
 //!
-//! // We can also skip the ctx by calling `pread`.
-//! // for the primitive numbers, this will default to the host machine endianness (technically it is whatever default `Ctx` the target type is impl'd for)
-//! let byte: u8 = b.pread(0).unwrap();
-//! let i3: u32 = b.pread(0).unwrap();
+//! // Scroll has core friendly errors (no allocation). This will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
+//! let byte: scroll::Result<i64> = bytes.pread(0);
 //!
-//! // this will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
-//! let byte: scroll::Result<i64> = b.pread(0);
+//! //If you know the operation can't fail, you can also use the `pread_unsafe` api:
+//! let byte: u8 = bytes.pread_unsafe(0, LE);
 //!
-//! // we can also get str and byte references from the underlying buffer/bytes using `pread_slice`
-//! let slice = b.pread_slice::<str>(0, 2).unwrap();
-//! let byte_slice: &[u8] = b.pread_slice(0, 2).unwrap();
+//! // we can also get _zero copy_ str and byte references from the underlying buffer/bytes using `pread_slice`
+//! let slice = bytes.pread_slice::<str>(0, 2).unwrap();
+//! let byte_slice: &[u8] = bytes.pread_slice(0, 2).unwrap();
 //!
-//! // here is an example of parsing a uleb128 custom datatype, which
-//! // uses the `ctx::DefaultCtx`
+//! // Here is an example of parsing a variable length uleb128 custom datatype
+//!
 //! let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
 //! // parses a uleb128 (variable length encoded integer) from the above bytes
 //! let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0).unwrap().into();
 //! assert_eq!(uleb128, 0x01def96deu64);
 //!
-//! // finally, we can also parse out custom datatypes, or types with lifetimes
+//! // Scroll is extensible: as long as the type implements `TryWithCtx`, then you can read your type out of the byte array!
+//!
+//! // We can parse out custom datatypes, or types with lifetimes
 //! // if they implement the conversion trait `TryFromCtx`; here we parse a C-style \0 delimited &str (safely)
 //! let hello: &[u8] = b"hello_world\0more words";
 //! let hello_world: &str = hello.pread(0).unwrap();
