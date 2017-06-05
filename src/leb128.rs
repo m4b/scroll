@@ -111,7 +111,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
             let byte: u8 = src.pread(offset + count)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x01 {
-                return Err(error::Error::BadInput((offset..offset+count), src.len(), "failed to parse"))
+                return Err(error::Error::BadInput{ range: offset..offset+count, size: src.len(), msg: "failed to parse"})
             }
 
             let low_bits = mask_continuation(byte) as u64;
@@ -142,7 +142,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
             byte = src.gread(offset)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x7f {
-                return Err(error::Error::BadInput((o..*offset), src.len(), "failed to parse"))
+                return Err(error::Error::BadInput{range: o..*offset, size: src.len(), msg: "failed to parse"})
             }
 
             let low_bits = mask_continuation(byte) as i64;

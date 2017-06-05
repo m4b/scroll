@@ -15,7 +15,7 @@ pub enum Error {
     /// The requested range to read/write at is invalid for the size of the provided object
     BadRange { range: Range<usize>, size: usize },
     /// The data at the given range is invalid
-    BadInput(Range<usize>, usize, &'static str),
+    BadInput { range: Range<usize>, size: usize, msg: &'static str },
     #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
     Custom(String),
@@ -30,7 +30,7 @@ impl error::Error for Error {
         match *self {
             Error::BadOffset(_) => { "BadOffset" }
             Error::BadRange{ .. } => { "BadRange" }
-            Error::BadInput(_, _, _msg) => { "BadInput" }
+            Error::BadInput{ .. } => { "BadInput" }
             Error::Custom(_) => { "Custom" }
             Error::IO(_) => { "IO" }
         }
@@ -39,7 +39,7 @@ impl error::Error for Error {
         match *self {
             Error::BadOffset(_) => { None }
             Error::BadRange{ .. } => { None }
-            Error::BadInput(_, _, _) => { None }
+            Error::BadInput{ .. }=> { None }
             Error::Custom(_) => { None }
             Error::IO(ref io) => { io.cause() }
         }
@@ -60,7 +60,7 @@ impl Display for Error {
             Error::BadRange{ ref range, ref size} => {
                 write!(fmt, "requested range [{}..{}) from object of len {}", range.start, range.end, size)
             },
-            Error::BadInput(ref range, ref size, msg) => {
+            Error::BadInput{ref range, ref size, msg} => {
                 write!(fmt, "{} - range [{}..{}), len {}", msg, range.start, range.end, size)
             },
             #[cfg(feature = "std")]

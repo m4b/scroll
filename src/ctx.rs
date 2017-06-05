@@ -193,7 +193,7 @@ impl TryRefFromCtx for str {
         } else {
             let bytes = &b[offset..(offset+count)];
             str::from_utf8(bytes).map_err(| _err | {
-                error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
+                error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
             })
         }
     }
@@ -209,7 +209,7 @@ impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for str where T: AsRef<[
         } else {
             let bytes = &b[offset..(offset+count)];
             str::from_utf8(bytes).map_err(| _err | {
-                error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
+                error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
             })
         }
     }
@@ -442,7 +442,7 @@ impl<'a> TryFromCtx<'a, (usize, StrCtx)> for &'a str {
         if count == 0 { return Ok("") }
         let bytes = &src[offset..(offset+count)];
         str::from_utf8(bytes).map_err(| _err | {
-            error::Error::BadInput((offset..offset+count), bytes.len(), "invalid utf8")
+            error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
         })
     }
 }
