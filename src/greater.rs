@@ -237,7 +237,6 @@ use core::ops::Index;
 ///     }
 /// }
 /// ```
-
 pub trait Cread<Ctx = super::Endian, I = usize> : Index<I> + Index<RangeFrom<I>>
  where
     Ctx: Copy + Default + Debug,

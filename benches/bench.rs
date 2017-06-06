@@ -8,6 +8,47 @@ extern crate rayon;
 use test::black_box;
 
 #[bench]
+fn bench_parallel_cread_with(b: &mut test::Bencher) {
+    use scroll::{Cread, LE};
+    use rayon::prelude::*;
+    let vec = vec![0u8; 1_000_000];
+    let nums = vec![0usize; 500_000];
+    b.iter(|| {
+        let data = black_box(&vec[..]);
+        nums.par_iter().for_each(| offset | {
+            let _: u16 = black_box(data.cread_with(*offset, LE));
+        });
+    });
+    b.bytes = vec.len() as u64;
+}
+
+#[bench]
+fn bench_cread_vec(b: &mut test::Bencher) {
+    use scroll::{Cread, LE};
+    let vec = vec![0u8; 1_000_000];
+    b.iter(|| {
+        let data = black_box(&vec[..]);
+        for val in data.chunks(2) {
+            let _: u16 = black_box(val.cread_with(0, LE));
+        }
+    });
+    b.bytes = vec.len() as u64;
+}
+
+#[bench]
+fn bench_cread(b: &mut test::Bencher) {
+    use scroll::{Cread};
+    const NITER: i32 = 100_000;
+    b.iter(|| {
+        for _ in 1..NITER {
+            let data = black_box([1, 2]);
+            let _: u16 = black_box(data.cread(0));
+        }
+    });
+    b.bytes = 2 * NITER as u64;
+}
+
+#[bench]
 fn bench_pread_ctx_vec(b: &mut test::Bencher) {
     use scroll::{Pread};
     let vec = vec![0u8; 1_000_000];
