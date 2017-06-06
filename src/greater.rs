@@ -3,7 +3,7 @@ use core::result;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign};
 
-use ctx::{self, TryFromCtx, TryRefFromCtx, TryIntoCtx, SizeWith};
+use ctx::{self, TryFromCtx, TryRefFromCtx, TryIntoCtx, FromCtx, SizeWith};
 use error::*;
 use error;
 use pread::Pread;
@@ -213,3 +213,26 @@ impl<Ctx, E> Gwrite<Ctx, E> for [u8] where
     [u8]: TryOffsetWith<Ctx, E>,
     Ctx: Copy + Default + Debug,
     E: Debug {}
+
+use core::ops::RangeFrom;
+use core::ops::Index;
+
+/// Core-read - core, no_std friendly trait for reading basic traits from byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
+pub trait Cread<Ctx = super::Endian, I = usize> : Index<I> + Index<RangeFrom<I>>
+ where
+    Ctx: Copy + Default + Debug,
+{
+    /// Reads a value at `offset` with `ctx` - or those times when you _know_ your deserialization can't fail.
+    #[inline]
+    fn cread_with<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I, ctx: Ctx) -> N {
+        N::from_ctx(&self[offset..], ctx)
+    }
+    /// Reads a value implementing `FromCtx` from `Self` at `Offset`
+    #[inline]
+    fn cread<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I) -> N {
+        let ctx = Ctx::default();
+        N::from_ctx(&self[offset..], ctx)
+    }
+}
+
+impl<Ctx: Copy + Default + Debug, R: ?Sized + Index<usize> + Index<RangeFrom<usize>>> Cread<Ctx> for R {}

@@ -86,7 +86,6 @@ use endian::Endian;
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
-
 pub trait Pread<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), SliceCtx = (I, I, Ctx) >
  where E: Debug,
        Ctx: Copy + Default + Debug,

@@ -202,3 +202,35 @@ fn lread_api() {
     assert_eq!(foo_.foo, foo);
     assert_eq!(foo_.bar, bar);
 }
+
+#[repr(packed)]
+struct Bar {
+    foo: i32,
+    bar: u32,
+}
+
+impl scroll::ctx::FromCtx for Bar {
+    fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
+        use scroll::Cread;
+        Bar { foo: bytes.cread_with(0, ctx), bar: bytes.cread_with(4, ctx) }
+    }
+}
+
+#[test]
+fn cread_api() {
+    use scroll::Cread;
+    let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
+    let foo = bytes.cread::<usize>(0);
+    let bar = bytes.cread::<u32>(8);
+    assert_eq!(foo, 1);
+    assert_eq!(bar, 0xbeef);
+}
+
+#[test]
+fn cread_api_customtype() {
+    use scroll::Cread;
+    let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
+    let bar = bytes.cread::<Bar>(0);
+    assert_eq!(bar.foo, -1);
+    assert_eq!(bar.bar, 0xdeadbeef);
+}
