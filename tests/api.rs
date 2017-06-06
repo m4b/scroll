@@ -230,7 +230,15 @@ fn cread_api() {
 fn cread_api_customtype() {
     use scroll::Cread;
     let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
-    let bar = bytes.cread::<Bar>(0);
+    let bar = &bytes[..].cread::<Bar>(0);
     assert_eq!(bar.foo, -1);
     assert_eq!(bar.bar, 0xdeadbeef);
+}
+
+#[test]
+#[should_panic]
+fn cread_api_badindex() {
+    use scroll::Cread;
+    let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0xad,0xde,];
+    let _foo = bytes.cread::<i64>(1_000_000);
 }
