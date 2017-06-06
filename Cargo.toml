@@ -7,7 +7,7 @@ keywords = ["bytes", "endian", "immutable", "pread", "pwrite"]
 repository = "https://github.com/m4b/scroll"
 license = "MIT"
 documentation = "https://docs.rs/scroll"
-description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits and contextual conversion traits"
+description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 
 [features]
 default = ["std"]
