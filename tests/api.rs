@@ -253,3 +253,22 @@ fn cwrite_api() {
     assert_eq!(bytes.cread::<usize>(0), 42);
     assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
 }
+
+impl scroll::ctx::IntoCtx for Bar {
+    fn into_ctx(self, bytes: &mut [u8], ctx: scroll::Endian) {
+        use scroll::Cwrite;
+        bytes.cwrite_with(self.foo, 0, ctx);
+        bytes.cwrite_with(self.bar, 4, ctx);
+    }
+}
+
+#[test]
+fn cwrite_api_customtype() {
+    use scroll::{Cwrite, Cread};
+    let bar = Bar { foo: -1, bar: 0xdeadbeef };
+    let mut bytes = [0x0; 0x10];
+    &bytes[..].cwrite::<Bar>(bar, 0);
+    let bar = bytes.cread::<Bar>(0);
+    assert_eq!(bar.foo, -1);
+    assert_eq!(bar.bar, 0xdeadbeef);
+}
