@@ -242,3 +242,14 @@ fn cread_api_badindex() {
     let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0xad,0xde,];
     let _foo = bytes.cread::<i64>(1_000_000);
 }
+
+#[test]
+fn cwrite_api() {
+    use scroll::Cwrite;
+    use scroll::Cread;
+    let mut bytes = [0x0; 0x10];
+    bytes.cwrite::<usize>(42, 0);
+    bytes.cwrite::<u32>(0xdeadbeef, 8);
+    assert_eq!(bytes.cread::<usize>(0), 42);
+    assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
+}

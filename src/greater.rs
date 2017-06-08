@@ -2,8 +2,9 @@ use core::convert::{AsRef, AsMut};
 use core::result;
 use core::fmt::Debug;
 use core::ops::{Add, AddAssign};
+use core::ops::{Index, IndexMut, RangeFrom};
 
-use ctx::{self, TryFromCtx, TryRefFromCtx, TryIntoCtx, FromCtx, SizeWith};
+use ctx::{self, TryFromCtx, TryRefFromCtx, TryIntoCtx, FromCtx, IntoCtx, SizeWith};
 use error::*;
 use error;
 use pread::Pread;
@@ -196,7 +197,7 @@ pub trait Gwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), S
     /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
     #[inline]
     fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<TryCtx, Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
-   let o = *offset;
+        let o = *offset;
         let count = self.try_offset::<N>(o, &ctx)?;
         *offset += count;
         self.pwrite_unsafe(n, o, ctx);
@@ -213,9 +214,6 @@ impl<Ctx, E> Gwrite<Ctx, E> for [u8] where
     [u8]: TryOffsetWith<Ctx, E>,
     Ctx: Copy + Default + Debug,
     E: Debug {}
-
-use core::ops::RangeFrom;
-use core::ops::Index;
 
 /// Core-read - core, no_std friendly trait for reading basic traits from byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
 ///
@@ -281,3 +279,43 @@ pub trait Cread<Ctx = super::Endian, I = usize> : Index<I> + Index<RangeFrom<I>>
 }
 
 impl<Ctx: Copy + Default + Debug, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for R {}
+
+/// Core-write - core, no_std friendly trait for writing basic types into byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
+///
+pub trait Cwrite<Ctx = super::Endian, I = usize>: Index<I> + IndexMut<RangeFrom<I>>
+ where
+    Ctx: Copy + Default + Debug {
+    /// Writes `n` into `Self` at `offset`; uses default context.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scroll::{Cwrite, Cread};
+    /// let mut bytes = [0x0; 0x10];
+    /// bytes.cwrite::<usize>(42, 0);
+    /// bytes.cwrite::<u32>(0xdeadbeef, 8);
+    /// assert_eq!(bytes.cread::<usize>(0), 42);
+    /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
+    #[inline]
+    fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) {
+        let ctx = Ctx::default();
+        n.into_ctx(self.index_mut(offset..), ctx)
+    }
+    /// Writes `n` into `Self` at `offset` with `ctx`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scroll::{Cwrite, Cread, LE, BE};
+    /// let mut bytes = [0x0; 0x10];
+    /// bytes.cwrite_with::<usize>(42, 0, LE);
+    /// bytes.cwrite_with::<u32>(0xdeadbeef, 8, BE);
+    /// assert_eq!(bytes.cread::<usize>(0), 42);
+    /// assert_eq!(bytes.cread::<u32>(8), 0xefbeadde);
+    #[inline]
+    fn cwrite_with<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I, ctx: Ctx) {
+        n.into_ctx(self.index_mut(offset..), ctx)
+    }
+}
+
+impl<Ctx: Copy + Default + Debug, I, W: ?Sized + Index<I> + IndexMut<RangeFrom<I>>> Cwrite<Ctx, I> for W {}
