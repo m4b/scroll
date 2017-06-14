@@ -49,7 +49,7 @@ pub trait Pwrite<Ctx = Endian, E = error::Error, I = usize, TryCtx = (I, Ctx), S
     /// Write `N` at offset `I` with context `Ctx`
     /// # Example
     /// ```
-    /// use scroll::{Buffer, Pwrite, Pread, LE};
+    /// use scroll::{Pwrite, Pread, LE};
     /// let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
     /// bytes.pwrite_with::<u32>(0xbeefbeef, 0, LE).unwrap();
     /// assert_eq!(bytes.pread_with::<u32>(0, LE).unwrap(), 0xbeefbeef);

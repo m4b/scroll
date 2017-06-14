@@ -53,7 +53,7 @@
 //!   }
 //! }
 //!
-//! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
+//! let bytes = b"UserName\x01\x02\x03\x04";
 //! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());

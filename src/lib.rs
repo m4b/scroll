@@ -142,7 +142,7 @@
 //!   }
 //! }
 //! 
-//! let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
+//! let bytes = b"UserName\x01\x02\x03\x04";
 //! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
@@ -163,8 +163,6 @@ mod error;
 mod endian;
 mod leb128;
 #[cfg(feature = "std")]
-mod buffer;
-#[cfg(feature = "std")]
 mod lesser;
 
 pub use endian::*;
@@ -174,14 +172,12 @@ pub use greater::*;
 pub use error::*;
 pub use leb128::*;
 #[cfg(feature = "std")]
-pub use buffer::*;
-#[cfg(feature = "std")]
 pub use lesser::*;
 
 #[cfg(test)]
 mod tests {
     #[allow(overflowing_literals)]
-    use super::{LE, Buffer};
+    use super::{LE};
 
     // cursor needs to implement AsRef<[u8]>
     // #[test]
@@ -208,8 +204,8 @@ mod tests {
             #[test]
             fn $write() {
                 use super::{Pwrite, Pread, BE};
-                let bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-                let mut b = Buffer::new(&bytes[..]);
+                let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+                let mut b = &mut bytes[..];
                 b.pwrite_with::<$read>($deadbeef, 0, LE).unwrap();
                 assert_eq!(b.pread_with::<$read>(0, LE).unwrap(), $deadbeef);
                 b.pwrite_with::<$read>($deadbeef, 0, BE).unwrap();
@@ -305,7 +301,7 @@ mod tests {
         use super::{Pread, Pwrite};
         use super::ctx::{self, SPACE};
         let astring: &str = "lol hello_world lal\0ala imabytes";
-        let mut buffer = Buffer::with(0, astring.len());
+        let mut buffer = [0u8; 33];
         buffer.pwrite(astring, 0).unwrap();
         {
             let hello_world = buffer.pread_with::<&str>(4, SPACE).unwrap();
@@ -417,8 +413,8 @@ mod tests {
     /// This ensures the buffer reading api works
     fn p_buffer_api() {
         use super::ctx;
-        let bytes: [u8; 4] = [0, 0, 0xde | 128, 1];
-        let mut b = Buffer::new(&bytes[..]);
+        let mut bytes: [u8; 4] = [0, 0, 0xde | 128, 1];
+        let mut b = &mut bytes[..];
         //let mut b = &bytes[..];
         // parses using multiple pread_with contexts
         fn _pread_with_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
@@ -474,9 +470,8 @@ mod tests {
             fn $read() {
                 use super::Gread;
                 let bytes: [u8; 8] = [0xf, 0xe, 0xe, 0xb, 0xd, 0xa, 0xe, 0xd];
-                let buffer = Buffer::new(bytes);
                 let mut offset = 0;
-                let deadbeef: $typ = buffer.gread_with(&mut offset, LE).unwrap();
+                let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
                 assert_eq!(offset, ::std::mem::size_of::<$typ>());
             }
@@ -494,9 +489,8 @@ mod tests {
             fn $read() {
                 use super::Gread;
                 let bytes: [u8; 8] = [0u8, 0, 0, 0, 0, 0, 224, 63];
-                let buffer = Buffer::new(bytes);
                 let mut offset = 0;
-                let deadbeef: $typ = buffer.gread_with(&mut offset, LE).unwrap();
+                let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
                 assert_eq!(offset, ::std::mem::size_of::<$typ>());
             }
@@ -511,7 +505,7 @@ mod tests {
             #[test]
             fn $read() {
                 use super::{LE, BE, Gread, Gwrite};
-                let mut buffer = Buffer::with(0, 16);
+                let mut buffer = [0u8; 16];
                 let mut offset = &mut 0;
                 buffer.gwrite_with($val.clone(), offset, LE).unwrap();
                 let mut o2 = &mut 0;
@@ -575,7 +569,7 @@ mod tests {
     fn gread_with_byte() {
         use super::{Gread};
         let bytes: [u8; 1] = [0x7f];
-        let b = Buffer::new(&bytes[..]);
+        let b = &bytes[..];
         let mut offset = &mut 0;
         let byte: u8 = b.gread(offset).unwrap();
         assert_eq!(0x7f, byte);
