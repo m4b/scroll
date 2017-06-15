@@ -108,31 +108,27 @@
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //! 
 //! ```rust
-//! use scroll::{self, ctx, Pread, BE};
+//! use scroll::{self, ctx, Pread, BE, Endian};
 //! 
 //! struct Data<'a> {
 //!   name: &'a str,
 //!   id: u32,
 //! }
 //! 
-//! // we could use a `(usize, endian::Scroll)` if we wanted
-//! #[derive(Debug, Clone, Copy, Default)]
-//! struct DataCtx { pub size: usize, pub endian: scroll::Endian }
-//! 
 //! // note the lifetime specified here
-//! impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
+//! impl<'a> ctx::TryFromCtx<'a, (usize, Endian)> for Data<'a> {
 //!   type Error = scroll::Error;
 //!   // and the lifetime annotation on `&'a [u8]` here
-//!   fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+//!   fn try_from_ctx (src: &'a [u8], (offset, endian): (usize, Endian))
 //!     -> Result<Self, Self::Error> {
-//!     let name = src.pread_slice::<str>(offset, size)?;
-//!     let id = src.pread_with(offset+size, endian)?;
+//!     let name = src.pread::<&str>(offset)?;
+//!     let id = src.pread_with(offset+name.len()+1, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
 //! 
-//! let bytes = b"UserName\x01\x02\x03\x04";
-//! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+//! let bytes = b"UserName\x00\x01\x02\x03\x04";
+//! let data = bytes.pread_with::<Data>(0, BE).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
 //! ```
