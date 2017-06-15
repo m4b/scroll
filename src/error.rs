@@ -9,7 +9,9 @@ use std::error;
 
 #[derive(Debug)]
 /// A custom Scroll error
-pub enum Error {
+pub enum Error<T = usize> {
+    /// The type you tried to read was too big
+    TooBig { size: T, len: T },
     /// The requested offset to read/write at is invalid
     BadOffset(usize),
     /// The requested range to read/write at is invalid for the size of the provided object
@@ -28,6 +30,7 @@ pub enum Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::TooBig{ .. } => { "TooBig" }
             Error::BadOffset(_) => { "BadOffset" }
             Error::BadRange{ .. } => { "BadRange" }
             Error::BadInput{ .. } => { "BadInput" }
@@ -37,6 +40,7 @@ impl error::Error for Error {
     }
     fn cause(&self) -> Option<&error::Error> {
         match *self {
+            Error::TooBig{ .. } => { None }
             Error::BadOffset(_) => { None }
             Error::BadRange{ .. } => { None }
             Error::BadInput{ .. }=> { None }
@@ -56,6 +60,7 @@ impl From<io::Error> for Error {
 impl Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Error::TooBig{ ref size, ref len } => { write! (fmt, "type is too big ({}) for {}", size, len) },
             Error::BadOffset(ref offset) => { write! (fmt, "bad offset {}", offset) },
             Error::BadRange{ ref range, ref size} => {
                 write!(fmt, "requested range [{}..{}) from object of len {}", range.start, range.end, size)

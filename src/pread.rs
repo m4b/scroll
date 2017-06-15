@@ -99,7 +99,7 @@ pub trait Pread<Ctx, E = error::Error, I = usize> : Index<I> + Index<RangeFrom<I
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.pread::<u8>(0).unwrap();
-    fn pread<'a, N: TryFromCtx<'a, (I, Ctx), <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
         self.pread_with(offset, Ctx::default())
     }
     #[inline]
@@ -110,13 +110,13 @@ pub trait Pread<Ctx, E = error::Error, I = usize> : Index<I> + Index<RangeFrom<I
     /// let bytes: [u8; 2] = [0xde, 0xad];
     /// let dead: u16 = bytes.pread_with(0, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
-    fn pread_with<'a, N: TryFromCtx<'a, (I, Ctx), <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
         let len = self.measure_with(&ctx);
         if offset >= len {
             // generic error here :/
             panic!("offset > len")
         }
-        N::try_from_ctx(&self[offset..], (offset, ctx))
+        N::try_from_ctx(&self[offset..], ctx)
     }
 }
 

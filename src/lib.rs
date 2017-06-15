@@ -116,13 +116,13 @@
 //! }
 //! 
 //! // note the lifetime specified here
-//! impl<'a> ctx::TryFromCtx<'a, (usize, Endian)> for Data<'a> {
+//! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
 //!   // and the lifetime annotation on `&'a [u8]` here
-//!   fn try_from_ctx (src: &'a [u8], (offset, endian): (usize, Endian))
+//!   fn try_from_ctx (src: &'a [u8], endian: Endian)
 //!     -> Result<Self, Self::Error> {
-//!     let name = src.pread::<&str>(offset)?;
-//!     let id = src.pread_with(offset+name.len()+1, endian)?;
+//!     let name = src.pread::<&str>(0)?;
+//!     let id = src.pread_with(name.len()+1, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
@@ -269,15 +269,15 @@ mod tests {
         use super::Pread;
         use super::ctx::{NULL, SPACE};
         let bytes: &[u8] = b"";
-        let hello_world  = bytes.pread_with::<&str>(0, NULL);
-        println!("{:?}", &hello_world);
+        let hello_world = bytes.pread_with::<&str>(0, NULL);
+        println!("1 {:?}", &hello_world);
         assert_eq!(hello_world.is_err(), true);
         let error = bytes.pread_with::<&str>(7, SPACE);
-        println!("{:?}", &error);
+        println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null  = bytes.pread::<&str>(0).unwrap();
-        println!("{:?}", &null);
+        println!("3 {:?}", &null);
         assert_eq!(null.len(), 0);
     }
 
@@ -345,12 +345,10 @@ mod tests {
 
     impl<'a> super::ctx::TryFromCtx<'a> for Foo {
         type Error = ExternalError;
-        fn try_from_ctx(this: &'a [u8], ctx: (usize, super::Endian)) -> Result<Self, Self::Error> {
+        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<Self, Self::Error> {
             use super::Pread;
-            let offset = ctx.0;
-            let le = ctx.1;
-            if offset > 2 { return Err((ExternalError {}).into()) }
-            let n = this.pread_with(offset, le)?;
+            if this.len() > 2 { return Err((ExternalError {}).into()) }
+            let n = this.pread_with(0, le)?;
             Ok(Foo(n))
         }
     }

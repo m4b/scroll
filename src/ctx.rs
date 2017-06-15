@@ -64,6 +64,7 @@ use core::ptr::copy_nonoverlapping;
 use core::mem::transmute;
 use core::mem::size_of;
 use core::str;
+use core::result;
 
 use error;
 use endian;
@@ -133,7 +134,7 @@ pub trait FromCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> {
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<'a, Ctx: Copy = (usize, DefaultCtx), This: ?Sized = [u8]> where Self: 'a + Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     #[inline]
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<Self, Self::Error>;
@@ -301,14 +302,14 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
-            type Error = error::Error;
+        impl<'a> TryFromCtx<'a, $ctx> for $typ where $typ: FromCtx<$ctx> {
+            type Error = error::Error<usize>;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
+            fn try_from_ctx(src: &'a [u8], le: $ctx) -> result::Result<Self, Self::Error> {
+                if $size > src.len () {
+                    Err(error::Error::TooBig{size: $size, len: src.len()})
                 } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
+                    Ok(FromCtx::from_ctx(&src, le))
                 }
             }
         }
@@ -329,16 +330,12 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, $ctx, T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a T, (offset, le): (usize, $ctx)) -> error::Result<Self> {
+            fn try_from_ctx(src: &'a T, le: $ctx) -> result::Result<Self, Self::Error> {
                 let src = src.as_ref();
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
-                } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
-                }
+                Self::try_from_ctx(src, le)
             }
         }
 
@@ -377,14 +374,14 @@ macro_rules! from_ctx_float_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+        impl<'a> TryFromCtx<'a, $ctx> for $typ where $typ: FromCtx<$ctx> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
+            fn try_from_ctx(src: &'a [u8], le: $ctx) -> result::Result<Self, Self::Error> {
+                if $size > src.len () {
+                    Err(error::Error::TooBig{size: $size, len: src.len()})
                 } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
+                    Ok(FromCtx::from_ctx(src, le))
                 }
             }
         }
@@ -450,29 +447,26 @@ fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delimiter: u8) -> usize {
     i
 }
 
-impl<'a> TryFromCtx<'a, (usize, StrCtx)> for &'a str {
+impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
     type Error = error::Error;
     #[inline]
     /// Read a `&str` from `src` using `delimiter`
-    fn try_from_ctx(src: &'a [u8], (offset, StrCtx {delimiter}): (usize, StrCtx)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], StrCtx {delimiter}: StrCtx) -> Result<Self, Self::Error> {
         let len = src.len();
-        if offset >= len {
-            return Err(error::Error::BadOffset(offset))
-        }
-        let delimiter_offset = get_str_delimiter_offset(src, offset, delimiter);
-        let count = delimiter_offset - offset;
+        let delimiter_offset = get_str_delimiter_offset(src, 0, delimiter);
+        let count = delimiter_offset;
         if count == 0 { return Ok("") }
-        let bytes = &src[offset..(offset+count)];
+        let bytes = &src[..count];
         str::from_utf8(bytes).map_err(| _err | {
-            error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
+            error::Error::TooBig{size: count, len: src.len()}
         })
     }
 }
 
-impl<'a, T> TryFromCtx<'a, (usize, StrCtx), T> for &'a str where T: AsRef<[u8]> {
+impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a T, ctx: (usize, StrCtx)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a T, ctx: StrCtx) -> result::Result<Self, Self::Error> {
         let src = src.as_ref();
         TryFromCtx::try_from_ctx(src, ctx)
     }
@@ -548,15 +542,15 @@ impl FromCtx for usize {
     }
 }
 
-impl<'a> TryFromCtx<'a, (usize, super::Endian)> for usize where usize: FromCtx<super::Endian> {
+impl<'a> TryFromCtx<'a, super::Endian> for usize where usize: FromCtx<super::Endian> {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], (offset, le): (usize, super::Endian)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], le: super::Endian) -> error::Result<Self> {
         let size = ::core::mem::size_of::<usize>();
-        if offset + size > src.len () {
-            Err(error::Error::BadRange{range: offset..offset+size, size: src.len()})
+        if size > src.len () {
+            Err(error::Error::TooBig{size: size, len: src.len()})
         } else {
-            Ok(FromCtx::from_ctx(&src[offset..(offset + size)], le))
+            Ok(FromCtx::from_ctx(src, le))
         }
     }
 }
