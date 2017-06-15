@@ -143,19 +143,19 @@ extern crate core;
 pub mod ctx;
 mod pread;
 mod pwrite;
-mod greater;
+//mod greater;
 mod error;
 mod endian;
-mod leb128;
+//mod leb128;
 #[cfg(feature = "std")]
 mod lesser;
 
 pub use endian::*;
 pub use pread::*;
 pub use pwrite::*;
-pub use greater::*;
+//pub use greater::*;
 pub use error::*;
-pub use leb128::*;
+//pub use leb128::*;
 #[cfg(feature = "std")]
 pub use lesser::*;
 
@@ -211,7 +211,7 @@ mod tests {
         use super::{Pread};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let byte: u16 = <[u8] as Pread>::pread_with(b, 0, super::BE).unwrap();
+        let byte: u16 = b.pread_with(0, super::BE).unwrap();
         assert_eq!(0x7eef, byte);
         let bytes: [u8; 2] = [0xde, 0xad];
         let dead: u16 = bytes.pread_with(0, super::BE).unwrap();
@@ -227,19 +227,19 @@ mod tests {
         assert_eq!(0xef7e, byte);
     }
 
-    #[test]
-    fn pread_slice() {
-        use super::{Pread};
-        let bytes: [u8; 2] = [0x7e, 0xef];
-        let b = &bytes[..];
-        let _bytes2: Result<&str, _>  = b.pread_slice::<str>(0, 2);
-        let bytes2: &[u8]  = b.pread_slice(0, 2).unwrap();
-        //let bytes3: &[u8; 2]  = b.pread_slice(0, 2).unwrap();
-        assert_eq!(bytes2.len(), bytes[..].len());
-        for i in 0..bytes2.len() {
-            assert_eq!(bytes2[i], bytes[i])
-        }
-    }
+    // #[test]
+    // fn pread_slice() {
+    //     use super::{Pread};
+    //     let bytes: [u8; 2] = [0x7e, 0xef];
+    //     let b = &bytes[..];
+    //     let _bytes2: Result<&str, _>  = b.pread_slice::<str>(0, 2);
+    //     let bytes2: &[u8]  = b.pread_slice(0, 2).unwrap();
+    //     //let bytes3: &[u8; 2]  = b.pread_slice(0, 2).unwrap();
+    //     assert_eq!(bytes2.len(), bytes[..].len());
+    //     for i in 0..bytes2.len() {
+    //         assert_eq!(bytes2[i], bytes[i])
+    //     }
+    // }
 
     #[test]
     fn pread_str() {
@@ -294,8 +294,6 @@ mod tests {
         }
         let bytes: &[u8] = b"more\0bytes";
         buffer.pwrite(bytes, 0).unwrap();
-        let bytes2 = bytes.pread_slice::<[u8]>(0, bytes.len()).unwrap();
-        assert_eq!(bytes2.len(), bytes.len());
         let more = bytes.pread_with::<&str>(0, ctx::NULL).unwrap();
         assert_eq!(more, "more");
         let bytes = bytes.pread_with::<&str>(more.len() + 1, ctx::NULL).unwrap();
@@ -377,7 +375,7 @@ mod tests {
     //////////////////////////////////////////////////////////////
     // begin gread_with
     //////////////////////////////////////////////////////////////
-
+    /*
     macro_rules! g_test {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
@@ -514,7 +512,7 @@ mod tests {
             assert_eq!(bytes2[i], bytes[i])
         }
     }
-
+    */
     /////////////////////////////////////////////////////////////////
     // end gread_with
     /////////////////////////////////////////////////////////////////

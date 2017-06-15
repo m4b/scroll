@@ -68,6 +68,28 @@ use core::str;
 use error;
 use endian;
 
+pub trait MeasureWith<Ctx> {
+    type Units;
+    #[inline]
+    fn measure_with(&self, ctx: &Ctx) -> Self::Units;
+}
+
+impl<Ctx> MeasureWith<Ctx> for [u8] {
+    type Units = usize;
+    #[inline]
+    fn measure_with(&self, _ctx: &Ctx) -> Self::Units {
+        self.len()
+    }
+}
+
+impl<Ctx, T: AsRef<[u8]>> MeasureWith<Ctx> for T {
+    type Units = usize;
+    #[inline]
+    fn measure_with(&self, _ctx: &Ctx) -> Self::Units {
+        self.as_ref().len()
+    }
+}
+
 /// The default parsing context; use this when the context isn't important for your datatype
 pub type DefaultCtx = endian::Endian;
 
