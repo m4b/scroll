@@ -53,10 +53,6 @@
 //! //If you know the operation can't fail, you can also use the `pread_unsafe` api:
 //! let byte: u8 = bytes.pread_unsafe(0, LE);
 //!
-//! // we can also get _zero copy_ str and byte references from the underlying buffer/bytes using `pread_slice`
-//! let slice = bytes.pread_slice::<str>(0, 2).unwrap();
-//! let byte_slice: &[u8] = bytes.pread_slice(0, 2).unwrap();
-//!
 //! // Here is an example of parsing a variable length uleb128 custom datatype
 //!
 //! let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
