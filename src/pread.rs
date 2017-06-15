@@ -87,10 +87,11 @@ use endian::Endian;
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
-pub trait Pread<Ctx, E = error::Error, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
+pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
  where
        Ctx: Copy + Default + Debug,
        I: Add + Copy + PartialOrd,
+       E: From<error::Error<I>>,
 {
     #[inline]
     /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness.
@@ -113,15 +114,14 @@ pub trait Pread<Ctx, E = error::Error, I = usize> : Index<I> + Index<RangeFrom<I
     fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
         let len = self.measure_with(&ctx);
         if offset >= len {
-            // generic error here :/
-            panic!("offset > len")
+            return Err(error::Error::BadOffset(offset).into())
         }
         N::try_from_ctx(&self[offset..], ctx)
     }
 }
 
 impl<Ctx: Copy + Default + Debug,
-     E,
      I: Add + Copy + PartialOrd,
+     E: From<error::Error<I>>,
      R: ?Sized + Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
     Pread<Ctx, E, I> for R {}

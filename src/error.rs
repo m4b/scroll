@@ -13,7 +13,7 @@ pub enum Error<T = usize> {
     /// The type you tried to read was too big
     TooBig { size: T, len: T },
     /// The requested offset to read/write at is invalid
-    BadOffset(usize),
+    BadOffset(T),
     /// The requested range to read/write at is invalid for the size of the provided object
     BadRange { range: Range<usize>, size: usize },
     /// The data at the given range is invalid
