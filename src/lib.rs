@@ -53,13 +53,6 @@
 //! //If you know the operation can't fail, you can also use the `pread_unsafe` api:
 //! let byte: u8 = bytes.pread_unsafe(0, LE);
 //!
-//! // Here is an example of parsing a variable length uleb128 custom datatype
-//!
-//! let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
-//! // parses a uleb128 (variable length encoded integer) from the above bytes
-//! let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0).unwrap().into();
-//! assert_eq!(uleb128, 0x01def96deu64);
-//!
 //! // Scroll is extensible: as long as the type implements `TryWithCtx`, then you can read your type out of the byte array!
 //!
 //! // We can parse out custom datatypes, or types with lifetimes
