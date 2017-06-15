@@ -373,77 +373,6 @@ mod tests {
     }
 
     #[test]
-    /// This ensures the raw byte reading api works
-    fn p_bytes_api () {
-        use super::{Pread, Pwrite, LE, BE};
-        use super::ctx;
-        let mut bytes: [u8; 4] = [0xde, 0xaf, 0, 0];
-        {
-            let b = &bytes[..];
-            let res = b.pread_with::<u16>(0, LE).unwrap();
-            assert_eq!(0xafde, res);
-            assert_eq!(0xdeaf, b.pread_with::<u16>(0, BE).unwrap());
-            fn _pread_with_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
-                bytes.pread_with(0, super::LE)
-            }
-            let res = _pread_with_api(&b).unwrap();
-            assert_eq!(res, 0xafde);
-            fn _pread_with_api_external<S: super::Pread<ctx::DefaultCtx, ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
-                let b = [0, 0];
-                let b = &b[..];
-                let _: u16 = b.pread(0)?;
-                bytes.pread_with(0, super::LE)
-            }
-            let foo = _pread_with_api_external(&b).unwrap();
-            assert_eq!(Foo(45022), foo);
-        }
-        {
-            let mut b = &mut bytes[..];
-            let () = b.pwrite_with::<u16>(0xdeadu16, 2, BE).unwrap();
-            assert_eq!(0xdead, b.pread_with::<u16>(2, BE).unwrap());
-            fn _pwrite_api<S: ?Sized + super::Pwrite<ctx::DefaultCtx, ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
-                bytes.pwrite_with(Foo(0x7f), 1, super::LE)
-            }
-            let ()  = _pwrite_api(b).unwrap();
-            assert_eq!(b[1], 0x7f);
-        }
-    }
-
-    #[test]
-    /// This ensures the buffer reading api works
-    fn p_buffer_api() {
-        use super::ctx;
-        let mut bytes: [u8; 4] = [0, 0, 0xde | 128, 1];
-        let mut b = &mut bytes[..];
-        //let mut b = &bytes[..];
-        // parses using multiple pread_with contexts
-        fn _pread_with_api<S: super::Pread>(bytes: &S) -> Result<u16, super::Error> {
-            let _res: u32 = bytes.pread(0)?;
-            let _slice: &[u8] = bytes.pread_slice(0, 4)?;
-            let _unwrapped: u8 = bytes.pread_unsafe(0, super::LE);
-            let _uleb: super::Uleb128 = bytes.pread(2).unwrap();
-            bytes.pread_with(0, super::LE)
-        }
-        fn _pwrite_api<S: super::Pwrite>(bytes: &mut S) -> Result<(), super::Error> {
-            bytes.pwrite_with(42u8, 0, super::LE)
-        }
-//        fn _pwrite_api2<S: super::Pwrite + super::Pwrite<ExternalError>>(bytes: &mut S) -> Result<(), super::Error<ExternalError>> {
-        fn _pwrite_api2<S: super::Pwrite<ctx::DefaultCtx, ExternalError>>(bytes: &mut S) -> Result<(), ExternalError> {
-            
-            bytes.pwrite_with(Foo(0x7f), 1, super::LE)
-        }
-        let ()  = _pwrite_api(&mut b).unwrap();
-        assert_eq!(b[0], 42);
-        let res = _pread_with_api(&b).unwrap();
-        assert_eq!(res, 42);
-        let ()  = _pwrite_api2(&mut b).unwrap();
-        let res = <[u8] as super::Pread>::pread::<u8>(&b, 1).unwrap();
-        assert_eq!(res, 0x7f);
-        let res = <[u8] as super::Pwrite<ctx::DefaultCtx, ExternalError>>::pwrite_with(&mut b, Foo(0x7f), 3, super::LE);
-        assert!(res.is_err());
-    }
-
-    #[test]
     fn pread_with_iter_bytes() {
         use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -598,36 +527,6 @@ mod tests {
         assert_eq!(bytes2.len(), bytes[..].len());
         for i in 0..bytes2.len() {
             assert_eq!(bytes2[i], bytes[i])
-        }
-    }
-
-    #[test]
-    /// This ensures the raw byte g-reading api works
-    fn g_bytes_api () {
-        use super::{Gread, LE, BE};
-        let bytes: [u8; 4] = [0xde, 0xaf, 0, 0];
-        {
-            let b = &bytes[..];
-            let res = b.gread_with::<u16>(&mut 0, LE).unwrap();
-            assert_eq!(0xafde, res);
-            assert_eq!(0xdeaf, b.gread_with::<u16>(&mut 0, BE).unwrap());
-            fn _gread_with_api<S: super::Gread>(bytes: &S) -> Result<u16, super::Error> {
-                // we just check if these actually work inside a generic parameter
-                let _res: u32 = bytes.gread(&mut 0)?;
-                let _slice: &[u8] = bytes.gread_slice(&mut 0, 4)?;
-                let _unwrapped: u8 = bytes.gread_unsafe(&mut 0, super::LE);
-                bytes.gread_with(&mut 0, super::LE)
-            }
-            let res = _gread_with_api(&b).unwrap();
-            assert_eq!(res, 0xafde);
-            // fn _gread_with_api_external<S: super::Gread + super::Gread<ExternalError>>(bytes: &S) -> Result<Foo, ExternalError> {
-            //     let b = [0, 0];
-            //     let b = &b[..];
-            //     let _: u16 = b.gread(&mut 0)?;
-            //     bytes.gread_with(&mut 0, super::LE)?
-            // }
-            // let foo = _gread_with_api_external(&b).unwrap();
-            // assert_eq!(Foo(45022), foo);
         }
     }
 
