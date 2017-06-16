@@ -101,29 +101,25 @@ pub const CTX: DefaultCtx = endian::NATIVE;
 ///
 /// `StrCtx` specifies what byte delimiter to use, and defaults to C-style null terminators. Be careful.
 #[derive(Debug, Copy, Clone)]
-pub struct StrCtx {
-    pub delimiter: u8
+pub enum StrCtx {
+    Delimiter(u8),
+    DelimiterUntil(u8, usize),
+    Length(usize),
 }
 
 /// A C-style, null terminator based delimiter for a `StrCtx`
-pub const NULL: StrCtx = StrCtx { delimiter: 0 };
+pub const NULL: StrCtx = StrCtx::Delimiter(0);
 /// A space-based delimiter for a `StrCtx`
-pub const SPACE: StrCtx = StrCtx { delimiter: 0x20 };
+pub const SPACE: StrCtx = StrCtx::Delimiter(0x20);
 /// A newline-based delimiter for a `StrCtx`
-pub const RET: StrCtx = StrCtx { delimiter: 0x0a };
+pub const RET: StrCtx = StrCtx::Delimiter(0x0a);
 /// A tab-based delimiter for a `StrCtx`
-pub const TAB: StrCtx = StrCtx { delimiter: 0x09 };
+pub const TAB: StrCtx = StrCtx::Delimiter(0x09);
 
 impl Default for StrCtx {
     #[inline]
     fn default() -> Self {
         NULL
-    }
-}
-
-impl From<u8> for StrCtx {
-    fn from(delimiter: u8) -> Self {
-        StrCtx { delimiter: delimiter }
     }
 }
 
@@ -349,39 +345,29 @@ macro_rules! into_ctx_float_impl {
 into_ctx_float_impl!(f32, 4, super::Endian);
 into_ctx_float_impl!(f64, 8, super::Endian);
 
-#[inline(always)]
-fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delimiter: u8) -> usize {
-    let len = bytes.len();
-    let mut i = idx;
-    let mut byte = bytes[i];
-    // TODO: this is still a hack and getting worse and worse - this hack has come from dryad -> goblin -> scroll :D
-    if byte == delimiter {
-        return i;
-    }
-    while byte != delimiter && i < len {
-        byte = bytes[i];
-        i += 1;
-    }
-    // we drop the terminator/delimiter unless we're at the end and the byte isn't the terminator
-    if i < len || bytes[i - 1] == delimiter {
-        i -= 1;
-    }
-    i
-}
-
 impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
     type Error = error::Error;
     #[inline]
     /// Read a `&str` from `src` using `delimiter`
-    fn try_from_ctx(src: &'a [u8], StrCtx {delimiter}: StrCtx) -> Result<Self, Self::Error> {
-        let _len = src.len();
-        let delimiter_offset = get_str_delimiter_offset(src, 0, delimiter);
-        let count = delimiter_offset;
-        if count == 0 { return Ok("") }
-        let bytes = &src[..count];
-        str::from_utf8(bytes).map_err(| _err | {
-            error::Error::TooBig{size: count, len: src.len()}
-        })
+    fn try_from_ctx(src: &'a [u8], ctx: StrCtx) -> Result<Self, Self::Error> {
+        let len = match ctx {
+            StrCtx::Delimiter(delimiter) => src.iter().take_while(|c| **c != delimiter).count(),
+            StrCtx::DelimiterUntil(delimiter, len) => {
+                src
+                    .iter()
+                    .take_while(|c| **c != delimiter)
+                    .take(len)
+                    .count()
+            }
+            StrCtx::Length(len) => len,
+        };
+
+        if len > src.len() {
+            return Err(error::Error::TooBig{size: len, len: src.len()});
+        };
+
+        str::from_utf8(&src[..len])
+            .map_err(|_| error::Error::Custom("utf8 error".to_owned()))
     }
 }
 
