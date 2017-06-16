@@ -224,19 +224,20 @@ mod tests {
         assert_eq!(0xef7e, byte);
     }
 
-    // #[test]
-    // fn pread_slice() {
-    //     use super::{Pread};
-    //     let bytes: [u8; 2] = [0x7e, 0xef];
-    //     let b = &bytes[..];
-    //     let _bytes2: Result<&str, _>  = b.pread_slice::<str>(0, 2);
-    //     let bytes2: &[u8]  = b.pread_slice(0, 2).unwrap();
-    //     //let bytes3: &[u8; 2]  = b.pread_slice(0, 2).unwrap();
-    //     assert_eq!(bytes2.len(), bytes[..].len());
-    //     for i in 0..bytes2.len() {
-    //         assert_eq!(bytes2[i], bytes[i])
-    //     }
-    // }
+    #[test]
+    fn pread_slice() {
+        use super::{Pread};
+        use super::ctx::StrCtx;
+        let bytes: [u8; 2] = [0x7e, 0xef];
+        let b = &bytes[..];
+        let iserr: Result<&str, _>  = b.pread_with(0, StrCtx::Length(3));
+        assert!(iserr.is_err());
+        // let bytes2: &[u8]  = b.pread_with(0, 2).unwrap();
+        // assert_eq!(bytes2.len(), bytes[..].len());
+        // for i in 0..bytes2.len() {
+        //     assert_eq!(bytes2[i], bytes[i])
+        // }
+    }
 
     #[test]
     fn pread_str() {
