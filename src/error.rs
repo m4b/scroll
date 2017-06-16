@@ -1,6 +1,5 @@
 use core::fmt::{self, Display};
 use core::result;
-use core::ops::Range;
 
 #[cfg(feature = "std")]
 use std::io;
@@ -14,10 +13,6 @@ pub enum Error<T = usize> {
     TooBig { size: T, len: T },
     /// The requested offset to read/write at is invalid
     BadOffset(T),
-    /// The requested range to read/write at is invalid for the size of the provided object
-    BadRange { range: Range<usize>, size: usize },
-    /// The data at the given range is invalid
-    BadInput { range: Range<usize>, size: usize, msg: &'static str },
     #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
     Custom(String),
@@ -32,8 +27,6 @@ impl error::Error for Error {
         match *self {
             Error::TooBig{ .. } => { "TooBig" }
             Error::BadOffset(_) => { "BadOffset" }
-            Error::BadRange{ .. } => { "BadRange" }
-            Error::BadInput{ .. } => { "BadInput" }
             Error::Custom(_) => { "Custom" }
             Error::IO(_) => { "IO" }
         }
@@ -42,8 +35,6 @@ impl error::Error for Error {
         match *self {
             Error::TooBig{ .. } => { None }
             Error::BadOffset(_) => { None }
-            Error::BadRange{ .. } => { None }
-            Error::BadInput{ .. }=> { None }
             Error::Custom(_) => { None }
             Error::IO(ref io) => { io.cause() }
         }
@@ -62,12 +53,6 @@ impl Display for Error {
         match *self {
             Error::TooBig{ ref size, ref len } => { write! (fmt, "type is too big ({}) for {}", size, len) },
             Error::BadOffset(ref offset) => { write! (fmt, "bad offset {}", offset) },
-            Error::BadRange{ ref range, ref size} => {
-                write!(fmt, "requested range [{}..{}) from object of len {}", range.start, range.end, size)
-            },
-            Error::BadInput{ref range, ref size, msg} => {
-                write!(fmt, "{} - range [{}..{}), len {}", msg, range.start, range.end, size)
-            },
             #[cfg(feature = "std")]
             Error::Custom(ref msg) => { write! (fmt, "{}", msg) },
             #[cfg(feature = "std")]
