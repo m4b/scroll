@@ -50,9 +50,6 @@
 //! // Scroll has core friendly errors (no allocation). This will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
 //! let byte: scroll::Result<i64> = bytes.pread(0);
 //!
-//! //If you know the operation can't fail, you can also use the `pread_unsafe` api:
-//! let byte: u8 = bytes.pread_unsafe(0, LE);
-//!
 //! // Scroll is extensible: as long as the type implements `TryWithCtx`, then you can read your type out of the byte array!
 //!
 //! // We can parse out custom datatypes, or types with lifetimes
@@ -199,12 +196,12 @@ mod tests {
         }
     }
 
-    pwrite_test!(p_u16, u16, 0xbeef);
-    pwrite_test!(p_i16, i16, 0x7eef);
-    pwrite_test!(p_u32, u32, 0xbeefbeef);
-    pwrite_test!(p_i32, i32, 0x7eefbeef);
-    pwrite_test!(p_u64, u64, 0xbeefbeef7eef7eef);
-    pwrite_test!(p_i64, i64, 0x7eefbeef7eef7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u16, u16, 0xbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i16, i16, 0x7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u32, u32, 0xbeefbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i32, i32, 0x7eefbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u64, u64, 0xbeefbeef7eef7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i64, i64, 0x7eefbeef7eef7eef);
 
     #[test]
     fn pread_with_be() {
@@ -332,13 +329,12 @@ mod tests {
     pub struct Foo(u16);
 
     impl super::ctx::TryIntoCtx for Foo {
+
         type Error = ExternalError;
-        fn try_into_ctx(self, this: &mut [u8], ctx: (usize, super::Endian)) -> Result<(), Self::Error> {
+        fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<(), Self::Error> {
             use super::Pwrite;
-            let offset = ctx.0;
-            let le = ctx.1;
-            if offset > 2 { return Err((ExternalError {}).into()) }
-            this.pwrite_with(self.0, offset, le)?;
+            if this.len() < 2 { return Err((ExternalError {}).into()) }
+            this.pwrite_with(self.0, 0, le)?;
             Ok(())
         }
     }

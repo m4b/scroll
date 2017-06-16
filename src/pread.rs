@@ -1,10 +1,9 @@
 use core::result;
 use core::fmt::Debug;
-use core::ops::{Index, IndexMut, RangeFrom, Add};
+use core::ops::{Index, RangeFrom, Add};
 
-use ctx::{TryFromCtx, TryRefFromCtx, MeasureWith};
+use ctx::{TryFromCtx, MeasureWith};
 use error;
-use endian::Endian;
 
 /// A very generic, contextual pread interface in Rust. Allows completely parallelized reads, as `Self` is immutable
 ///
@@ -14,24 +13,19 @@ use endian::Endian;
 /// If you want to implement your own reader for a type `Foo` from some kind of buffer (say `[u8]`), then you need to implement [TryFromCtx](trait.TryFromCtx.html)
 ///
 /// ```rust
-/// use scroll::{self, ctx};
-///  #[derive(Debug, PartialEq, Eq)]
-///  pub struct Foo(u16);
+/// use scroll::{self, ctx, Pread};
+/// #[derive(Debug, PartialEq, Eq)]
+/// pub struct Foo(u16);
 ///
-///  impl<'a> ctx::TryFromCtx<'a> for Foo {
+/// impl<'a> ctx::TryFromCtx<'a> for Foo {
 ///      type Error = scroll::Error;
-///      fn try_from_ctx(this: &'a [u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
-///          use scroll::Pread;
-///          let offset = ctx.0;
-///          let le = ctx.1;
-///          if offset > 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
-///          let n = this.pread_with(offset, le)?;
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
+///          if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
+///          let n = this.pread_with(0, le)?;
 ///          Ok(Foo(n))
 ///      }
-///  }
+/// }
 ///
-/// use scroll::Pread;
-/// // you can now read `Foo`'s out of a &[u8] buffer for free, with `Pread` and `Gread` without doing _anything_ else!
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo = bytes.pread::<Foo>(0).unwrap();
 /// assert_eq!(Foo(0xadde), foo);
@@ -73,12 +67,10 @@ use endian::Endian;
 ///
 ///  impl<'a> ctx::TryFromCtx<'a> for Foo {
 ///      type Error = ExternalError;
-///      fn try_from_ctx(this: &'a [u8], ctx: (usize, scroll::Endian)) -> Result<Self, Self::Error> {
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;
-///          let offset = ctx.0;
-///          let le = ctx.1;
-///          if offset > 2 { return Err((ExternalError {}).into()) }
-///          let n = this.pread_with(offset, le)?;
+///          if this.len() <= 2 { return Err((ExternalError {}).into()) }
+///          let n = this.pread_with(0, le)?;
 ///          Ok(Foo(n))
 ///      }
 ///  }

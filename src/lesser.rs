@@ -23,7 +23,7 @@ use error::{self};
 ///
 /// impl ctx::FromCtx for Foo {
 ///     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-///         Foo { foo: bytes.pread_unsafe::<usize>(0, ctx), bar: bytes.pread_unsafe::<u32>(8, ctx) }
+///         Foo { foo: bytes.pread_with::<usize>(0, ctx).unwrap(), bar: bytes.pread_with::<u32>(8, ctx).unwrap() }
 ///     }
 /// }
 ///
