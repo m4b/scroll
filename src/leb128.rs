@@ -2,15 +2,16 @@ use core::u8;
 use core::convert::{From, AsRef};
 
 use ctx::{self, TryFromCtx};
+use endian;
 use error;
 
 /// A variable length integer parsing `Ctx`, compatible with the standard integer endian-aware parsing context
-pub type Leb128 = ctx::DefaultCtx;
+pub type Leb128 = endian::Endian;
 
 /// This context instructs the underlying `Pread` implementor to parse as a variable length integer.
 ///
 /// It currently is just the default ctx.
-pub const LEB128: Leb128 = ctx::CTX;
+pub const LEB128: Leb128 = endian::NATIVE;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An unsigned leb128 integer

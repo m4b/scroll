@@ -15,7 +15,7 @@ use error;
 /// pub struct Foo(u16);
 ///
 /// // this will use the default `DefaultCtx = scroll::Endian` and `I = usize`...
-/// impl ctx::TryIntoCtx for Foo {
+/// impl ctx::TryIntoCtx<Endian> for Foo {
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
 ///     // you can write using your own context too... see `leb128.rs`
