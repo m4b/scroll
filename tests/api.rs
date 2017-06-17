@@ -30,9 +30,9 @@ impl<'a> Section<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Section<'a> {
+impl<'a> ctx::SizeWith<()> for Section<'a> {
     type Units = usize;
-    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+    fn size_with(_ctx: &()) -> usize {
         4
     }
 }
@@ -53,9 +53,9 @@ pub struct Section32 {
     pub reserved2: u32,
 }
 
-impl<'a> ctx::TryFromCtx<'a, (usize, ctx::DefaultCtx)> for Section<'a> {
+impl<'a> ctx::TryFromCtx<'a, (usize, ())> for Section<'a> {
     type Error = scroll::Error;
-    fn try_from_ctx(_bytes: &'a [u8], (_offset, _ctx): (usize, ctx::DefaultCtx)) -> ::std::result::Result<Self, Self::Error> {
+    fn try_from_ctx(_bytes: &'a [u8], (_offset, _ctx): (usize, ())) -> ::std::result::Result<Self, Self::Error> {
         //let section = Section::from_ctx(bytes, bytes.pread_with::<Section32>(offset, ctx)?);
         let section = unsafe { ::std::mem::uninitialized::<Section>()};
         Ok(section)
@@ -98,9 +98,9 @@ impl<'a> Segment<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Segment<'a> {
+impl<'a> ctx::SizeWith<()> for Segment<'a> {
     type Units = usize;
-    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+    fn size_with(_ctx: &()) -> usize {
         4
     }
 }

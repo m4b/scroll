@@ -14,7 +14,7 @@ use endian::Endian;
 /// Attempt to add an offset for a given `N`'s size, used to compute error values in `Gread`, _or_ return the `N`'s size in units the same as the offset
 ///
 /// NB: this trait's name is likely to be changed, tweaked slightly, if you are implementing an entire `Pread` stack, beware this could change
-pub trait TryOffsetWith<Ctx = ctx::DefaultCtx, E = error::Error, I = usize> {
+pub trait TryOffsetWith<Ctx, E = error::Error, I = usize> {
     /// Given the `offset`, see if a size + offset can safely be performed on `Self`, and return the resulting computed size
     fn try_offset<N: SizeWith<Ctx, Units = I>>(&self, offset: I, ctx: &Ctx) -> result::Result<I, E>;
 }

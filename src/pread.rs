@@ -17,7 +17,7 @@ use error;
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
 ///
-/// impl<'a> ctx::TryFromCtx<'a> for Foo {
+/// impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
 ///      type Error = scroll::Error;
 ///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
 ///          if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
@@ -65,7 +65,7 @@ use error;
 ///  #[derive(Debug, PartialEq, Eq)]
 ///  pub struct Foo(u16);
 ///
-///  impl<'a> ctx::TryFromCtx<'a> for Foo {
+///  impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
 ///      type Error = ExternalError;
 ///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
 ///          use scroll::Pread;

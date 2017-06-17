@@ -21,13 +21,13 @@ use error::{self};
 ///     bar: u32,
 /// }
 ///
-/// impl ctx::FromCtx for Foo {
+/// impl ctx::FromCtx<scroll::Endian> for Foo {
 ///     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
 ///         Foo { foo: bytes.pread_with::<usize>(0, ctx).unwrap(), bar: bytes.pread_with::<u32>(8, ctx).unwrap() }
 ///     }
 /// }
 ///
-/// impl ctx::SizeWith for Foo {
+/// impl ctx::SizeWith<scroll::Endian> for Foo {
 ///     type Units = usize;
 ///     // our parsing context doesn't influence our size
 ///     fn size_with(_: &scroll::Endian) -> Self::Units {

@@ -59,8 +59,7 @@ let byte: scroll::Result<i64> = b.pread(0);
 let slice = b.pread_slice::<str>(0, 2).unwrap();
 let byte_slice: &[u8] = b.pread_slice(0, 2).unwrap();
 
-// here is an example of parsing a uleb128 custom datatype, which
-// uses the `ctx::DefaultCtx`
+// here is an example of parsing a uleb128 custom datatype
 let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
 // parses a uleb128 (variable length encoded integer) from the above bytes
 let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0).unwrap().into();

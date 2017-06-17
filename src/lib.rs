@@ -173,8 +173,8 @@ mod tests {
 
     #[test]
     fn test_measurable() {
-        use super::ctx::{CTX, SizeWith};
-        assert_eq!(8, u64::size_with(&CTX));
+        use super::ctx::SizeWith;
+        assert_eq!(8, u64::size_with(&LE));
     }
 
     //////////////////////////////////////////////////////////////
@@ -329,7 +329,7 @@ mod tests {
     #[derive(Debug, PartialEq, Eq)]
     pub struct Foo(u16);
 
-    impl super::ctx::TryIntoCtx for Foo {
+    impl super::ctx::TryIntoCtx<super::Endian> for Foo {
 
         type Error = ExternalError;
         fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<(), Self::Error> {
@@ -340,7 +340,7 @@ mod tests {
         }
     }
 
-    impl<'a> super::ctx::TryFromCtx<'a> for Foo {
+    impl<'a> super::ctx::TryFromCtx<'a, super::Endian> for Foo {
         type Error = ExternalError;
         fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<Self, Self::Error> {
             use super::Pread;
