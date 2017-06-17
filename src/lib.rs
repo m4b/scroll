@@ -140,7 +140,7 @@ extern crate core;
 pub mod ctx;
 mod pread;
 mod pwrite;
-//mod greater;
+mod greater;
 mod error;
 mod endian;
 //mod leb128;
@@ -150,7 +150,7 @@ mod lesser;
 pub use endian::*;
 pub use pread::*;
 pub use pwrite::*;
-//pub use greater::*;
+pub use greater::*;
 pub use error::*;
 //pub use leb128::*;
 #[cfg(feature = "std")]
@@ -161,15 +161,12 @@ mod tests {
     #[allow(overflowing_literals)]
     use super::{LE};
 
-    // cursor needs to implement AsRef<[u8]>
-    // #[test]
-    // fn test_measurable_on_cursor() {
-    //     use std::io::Cursor;
-    //     use super::Measure;
-    //     let bytes: [u8; 4] = [0xef, 0xbe, 0xad, 0xde];
-    //     let cursor = Cursor::new(bytes);
-    //     assert_eq!(cursor.measure(), 4);
-    // }
+    #[test]
+    fn test_measure_with_bytes() {
+        use super::ctx::MeasureWith;
+        let bytes: [u8; 4] = [0xef, 0xbe, 0xad, 0xde];
+        assert_eq!(bytes.measure_with(&()), 4);
+    }
 
     #[test]
     fn test_measurable() {
@@ -370,7 +367,6 @@ mod tests {
     //////////////////////////////////////////////////////////////
     // begin gread_with
     //////////////////////////////////////////////////////////////
-    /*
     macro_rules! g_test {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
@@ -460,6 +456,7 @@ mod tests {
         assert_eq!(*offset, bytes_to.len());
     }
 
+    /*
     #[test]
     fn gread_inout() {
         use super::{Gread};
@@ -471,6 +468,7 @@ mod tests {
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
     }
+    */
 
     #[test]
     fn gread_with_byte() {
@@ -483,6 +481,7 @@ mod tests {
         assert_eq!(*offset, 1);
     }
 
+    /*
     #[test]
     fn gread_slice() {
         use super::{Gread};
@@ -507,7 +506,7 @@ mod tests {
             assert_eq!(bytes2[i], bytes[i])
         }
     }
-    */
+     */
     /////////////////////////////////////////////////////////////////
     // end gread_with
     /////////////////////////////////////////////////////////////////

@@ -1,5 +1,4 @@
 use core::result;
-use core::fmt::Debug;
 use core::ops::{Index, IndexMut, RangeFrom, Add};
 
 use ctx::{TryIntoCtx, MeasureWith};
@@ -32,11 +31,11 @@ use error;
 ///
 pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
  where
-       Ctx: Copy + Default + Debug,
+       Ctx: Copy,
        I: Add + Copy + PartialOrd,
        E: From<error::Error<I>>,
 {
-    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&mut self, n: N, offset: I) -> result::Result<(), E> {
+    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&mut self, n: N, offset: I) -> result::Result<(), E> where Ctx: Default {
         self.pwrite_with(n, offset, Ctx::default())
     }
     /// Write `N` at offset `I` with context `Ctx`
@@ -56,7 +55,7 @@ pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + Measur
     }
 }
 
-impl<Ctx: Copy + Default + Debug,
+impl<Ctx: Copy,
      I: Add + Copy + PartialOrd,
      E: From<error::Error<I>>,
      R: ?Sized + Index<I> + IndexMut<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
