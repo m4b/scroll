@@ -47,7 +47,7 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 /// assert_eq!(foo_.bar, bar);
 /// ```
 ///
-pub trait Lread<Ctx: Copy, E> : Read
+pub trait Lread<Ctx: Copy> : Read
 {
     /// Reads the type `N` from `Self`, with a default parsing context.
     /// For the primitive numeric types, this will be at the host machine's endianness.
@@ -99,12 +99,12 @@ pub trait Lread<Ctx: Copy, E> : Read
 
 /// Types that implement `Read` get methods defined in `Lread`
 /// for free.
-impl<Ctx: Copy, E, R: Read + ?Sized> Lread<Ctx, E> for R {}
+impl<Ctx: Copy, R: Read + ?Sized> Lread<Ctx> for R {}
 
 /// An extension trait to `std::io::Write` streams; this only serializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
 ///
 /// To write custom types with a single `lwrite::<YourType>` call, implement [`IntoCtx`](trait.IntoCtx.html) and [`SizeWith`](ctx/trait.SizeWith.html) for `YourType`.
-pub trait Lwrite<Ctx: Copy, E>: Write
+pub trait Lwrite<Ctx: Copy>: Write
 {
     /// Writes the type `N` into `Self`, with the parsing context `ctx`.
     /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
@@ -156,4 +156,4 @@ pub trait Lwrite<Ctx: Copy, E>: Write
 
 /// Types that implement `Write` get methods defined in `Lwrite`
 /// for free.
-impl<Ctx: Copy, E, W: Write + ?Sized> Lwrite<Ctx, E> for W {}
+impl<Ctx: Copy, W: Write + ?Sized> Lwrite<Ctx> for W {}
