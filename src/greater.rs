@@ -147,8 +147,8 @@ pub trait Gwrite<Ctx, E, I = usize>: Pwrite<Ctx, E, I>
 impl<Ctx: Copy,
      I: Add + Copy + PartialOrd + AddAssign + Default + Debug,
      E: From<error::Error<I>> + Debug,
-     R: ?Sized + Index<I> + IndexMut<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
-    Gwrite<Ctx, E, I> for R {}
+     W: ?Sized + Index<I> + IndexMut<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
+    Gwrite<Ctx, E, I> for W {}
 
 /// Core-read - core, no_std friendly trait for reading basic traits from byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
 ///
@@ -179,7 +179,7 @@ impl<Ctx: Copy,
 /// ```
 pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
  where
-    Ctx: Copy + Default + Debug,
+    Ctx: Copy,
 {
     /// Reads a value from `Self` at `offset` with `ctx`. Cannot fail.
     /// If the buffer is too small for the value requested, this will panic.
@@ -214,13 +214,13 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
     /// assert_eq!(bar, 0xbeef);
     /// ```
     #[inline]
-    fn cread<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I) -> N {
+    fn cread<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I) -> N where Ctx: Default {
         let ctx = Ctx::default();
         N::from_ctx(&self[offset..], ctx)
     }
 }
 
-impl<Ctx: Copy + Default + Debug, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for R {}
+impl<Ctx: Copy, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for R {}
 
 /// Core-write - core, no_std friendly trait for writing basic types into byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
 /// Similar to [Cread](trait.Cread.html), if your type implements [IntoCtx](trait.IntoCtx.html) then you can `cwrite(your_type, offset)`.
@@ -248,9 +248,7 @@ impl<Ctx: Copy + Default + Debug, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>>
 /// let mut bytes = [0x0; 0x10];
 /// bytes.cwrite::<Bar>(bar, 0);
 /// ```
-pub trait Cwrite<Ctx = super::Endian, I = usize>: Index<I> + IndexMut<RangeFrom<I>>
- where
-    Ctx: Copy + Default + Debug {
+pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// Writes `n` into `Self` at `offset`; uses default context.
     ///
     /// # Example
@@ -263,7 +261,7 @@ pub trait Cwrite<Ctx = super::Endian, I = usize>: Index<I> + IndexMut<RangeFrom<
     /// assert_eq!(bytes.cread::<usize>(0), 42);
     /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
     #[inline]
-    fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) {
+    fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) where Ctx: Default {
         let ctx = Ctx::default();
         n.into_ctx(self.index_mut(offset..), ctx)
     }
@@ -284,4 +282,4 @@ pub trait Cwrite<Ctx = super::Endian, I = usize>: Index<I> + IndexMut<RangeFrom<
     }
 }
 
-impl<Ctx: Copy + Default + Debug, I, W: ?Sized + Index<I> + IndexMut<RangeFrom<I>>> Cwrite<Ctx, I> for W {}
+impl<Ctx: Copy, I, W: ?Sized + Index<I> + IndexMut<RangeFrom<I>>> Cwrite<Ctx, I> for W {}
