@@ -62,7 +62,7 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
             err => err
         }
     }
-    /*
+
     /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`, and updates the offset.
     /// # Example
     /// ```rust
@@ -86,17 +86,15 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
         }
         Ok(())
     }
-     */
 
-    /*
     /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the context `ctx`
     /// # Example
     /// ```rust
-    /// use scroll::{ctx, Gread};
+    /// use scroll::{ctx, LE, Gread};
     /// let mut bytes: Vec<u8> = vec![0, 0];
     /// let offset = &mut 0;
     /// let bytes_from: [u8; 2] = [0x48, 0x49];
-    /// bytes_from.gread_inout_with(offset, &mut bytes, ctx::CTX).unwrap();
+    /// bytes_from.gread_inout_with(offset, &mut bytes, LE).unwrap();
     /// assert_eq!(&bytes, &bytes_from);
     /// assert_eq!(*offset, 2);
     #[inline]
@@ -111,7 +109,6 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
         }
         Ok(())
     }
-     */
 }
 
 impl<Ctx: Copy,

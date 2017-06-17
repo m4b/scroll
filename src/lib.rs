@@ -160,6 +160,7 @@ pub use lesser::*;
 mod tests {
     #[allow(overflowing_literals)]
     use super::{LE};
+    use super::ctx::{StrCtx};
 
     #[test]
     fn test_measure_with_bytes() {
@@ -456,7 +457,6 @@ mod tests {
         assert_eq!(*offset, bytes_to.len());
     }
 
-    /*
     #[test]
     fn gread_inout() {
         use super::{Gread};
@@ -468,7 +468,6 @@ mod tests {
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
     }
-    */
 
     #[test]
     fn gread_with_byte() {
@@ -484,11 +483,11 @@ mod tests {
     /*
     #[test]
     fn gread_slice() {
-        use super::{Gread};
+        use super::{Gread, ctx};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let mut offset = &mut 0;
-        let res = b.gread_slice::<str>(offset, 3);
+        let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
         let astring: [u8; 3] = [0x45, 042, 0x44];
@@ -506,7 +505,7 @@ mod tests {
             assert_eq!(bytes2[i], bytes[i])
         }
     }
-     */
+    */
     /////////////////////////////////////////////////////////////////
     // end gread_with
     /////////////////////////////////////////////////////////////////
