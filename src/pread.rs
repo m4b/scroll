@@ -1,5 +1,4 @@
 use core::result;
-use core::fmt::Debug;
 use core::ops::{Index, RangeFrom, Add};
 
 use ctx::{TryFromCtx, MeasureWith};
@@ -81,7 +80,7 @@ use error;
 /// ```
 pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
  where
-       Ctx: Copy + Default + Debug,
+       Ctx: Copy,
        I: Add + Copy + PartialOrd,
        E: From<error::Error<I>>,
 {
@@ -92,7 +91,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.pread::<u8>(0).unwrap();
-    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a, Ctx: Default {
         self.pread_with(offset, Ctx::default())
     }
     #[inline]
@@ -112,7 +111,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     }
 }
 
-impl<Ctx: Copy + Default + Debug,
+impl<Ctx: Copy,
      I: Add + Copy + PartialOrd,
      E: From<error::Error<I>>,
      R: ?Sized + Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
