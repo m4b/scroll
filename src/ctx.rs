@@ -351,15 +351,18 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
     /// Read a `&str` from `src` using `delimiter`
     fn try_from_ctx(src: &'a [u8], ctx: StrCtx) -> Result<Self, Self::Error> {
         let len = match ctx {
+            StrCtx::Length(len) => len,
             StrCtx::Delimiter(delimiter) => src.iter().take_while(|c| **c != delimiter).count(),
             StrCtx::DelimiterUntil(delimiter, len) => {
+                if len > src.len() {
+                    return Err(error::Error::TooBig{size: len, len: src.len()});
+                };
                 src
                     .iter()
                     .take_while(|c| **c != delimiter)
                     .take(len)
                     .count()
             }
-            StrCtx::Length(len) => len,
         };
 
         if len > src.len() {
