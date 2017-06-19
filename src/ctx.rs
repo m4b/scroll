@@ -118,25 +118,25 @@ impl Default for StrCtx {
 }
 
 /// Reads `Self` from `This` using the context `Ctx`; must _not_ fail
-pub trait FromCtx<Ctx: Copy, This: ?Sized = [u8]> {
+pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
     #[inline]
     fn from_ctx(this: &This, ctx: Ctx) -> Self;
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<'a, Ctx: Copy, This: ?Sized = [u8]> where Self: 'a + Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     #[inline]
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<Self, Self::Error>;
 }
 
 /// Writes `Self` into `This` using the context `Ctx`
-pub trait IntoCtx<Ctx: Copy, This: ?Sized = [u8]>: Sized {
+pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     fn into_ctx(self, &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
-pub trait TryIntoCtx<Ctx: Copy, This: ?Sized = [u8]>: Sized {
+pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
 }
@@ -147,7 +147,7 @@ pub trait TryIntoCtx<Ctx: Copy, This: ?Sized = [u8]>: Sized {
 ///
 /// 1. Prevent `gread` from being used, and the offset being modified based on simply the sizeof the value, which can be a misnomer, e.g., for Leb128, etc.
 /// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
-pub trait SizeWith<Ctx> {
+pub trait SizeWith<Ctx = ()> {
     type Units;
     #[inline]
     fn size_with(ctx: &Ctx) -> Self::Units;
@@ -377,7 +377,7 @@ impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
     }
 }
 
-impl<'a> TryIntoCtx<()> for &'a [u8] {
+impl<'a> TryIntoCtx for &'a [u8] {
     type Error = error::Error;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<()> {
@@ -395,7 +395,7 @@ impl<'a> TryIntoCtx<()> for &'a [u8] {
     }
 }
 
-impl<'a> TryIntoCtx<()> for &'a str {
+impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], ctx: ()) -> error::Result<()> {

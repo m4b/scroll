@@ -2,7 +2,7 @@
 
 extern crate scroll;
 
-#[macro_use] extern crate scroll_derive;
+// #[macro_use] extern crate scroll_derive;
 
 use std::ops::{Deref,  DerefMut};
 use scroll::{ctx, Result, Cread, Pread, Gread};
@@ -30,7 +30,7 @@ impl<'a> Section<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<()> for Section<'a> {
+impl<'a> ctx::SizeWith for Section<'a> {
     type Units = usize;
     fn size_with(_ctx: &()) -> usize {
         4
@@ -100,7 +100,7 @@ impl<'a> Segment<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<()> for Segment<'a> {
+impl<'a> ctx::SizeWith for Segment<'a> {
     type Units = usize;
     fn size_with(_ctx: &()) -> usize {
         4

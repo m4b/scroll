@@ -160,7 +160,6 @@ pub use lesser::*;
 mod tests {
     #[allow(overflowing_literals)]
     use super::{LE};
-    use super::ctx::{StrCtx};
 
     #[test]
     fn test_measure_with_bytes() {
