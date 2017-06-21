@@ -73,7 +73,7 @@ assert_eq!("hello_world", hello_world);
 
 // ... and this parses the string if its space separated!
 let spaces: &[u8] = b"hello world some junk";
-let world: &str = spaces.pread_with(6, ctx::SPACE).unwrap();
+let world: &str = spaces.pread_with(6, StrCtx::Delimiter(SPACE)).unwrap();
 assert_eq!("world", world);
 ```
 

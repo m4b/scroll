@@ -101,19 +101,19 @@ pub enum StrCtx {
     Length(usize),
 }
 
-/// A C-style, null terminator based delimiter for a `StrCtx`
-pub const NULL: StrCtx = StrCtx::Delimiter(0);
-/// A space-based delimiter for a `StrCtx`
-pub const SPACE: StrCtx = StrCtx::Delimiter(0x20);
-/// A newline-based delimiter for a `StrCtx`
-pub const RET: StrCtx = StrCtx::Delimiter(0x0a);
-/// A tab-based delimiter for a `StrCtx`
-pub const TAB: StrCtx = StrCtx::Delimiter(0x09);
+/// A C-style, null terminator based delimiter
+pub const NULL: u8 = 0;
+/// A space-based delimiter
+pub const SPACE: u8 = 0x20;
+/// A newline-based delimiter
+pub const RET: u8 = 0x0a;
+/// A tab-based delimiter
+pub const TAB: u8 = 0x09;
 
 impl Default for StrCtx {
     #[inline]
     fn default() -> Self {
-        NULL
+        StrCtx::Delimiter(NULL)
     }
 }
 

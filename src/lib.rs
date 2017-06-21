@@ -59,10 +59,10 @@
 //! assert_eq!("hello_world", hello_world);
 //!
 //! // ... and this parses the string if its space separated!
+//! use scroll::ctx::*;
 //! let spaces: &[u8] = b"hello world some junk";
-//! let world: &str = spaces.pread_with(6, ctx::SPACE).unwrap();
+//! let world: &str = spaces.pread_with(6, StrCtx::Delimiter(SPACE)).unwrap();
 //! assert_eq!("world", world);
-//!
 //! ```
 //!
 //! # `std::io` API
@@ -239,22 +239,22 @@ mod tests {
     #[test]
     fn pread_str() {
         use super::Pread;
-        use super::ctx::{NULL, SPACE};
+        use super::ctx::*;
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
         let s: &str  = b.pread(0).unwrap();
         println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
-        let hello_world: &str = bytes.pread_with(0, NULL).unwrap();
+        let hello_world: &str = bytes.pread_with(0, StrCtx::Delimiter(NULL)).unwrap();
         println!("{:?}", &hello_world);
         assert_eq!(hello_world.len(), 13);
-        let hello: &str = bytes.pread_with(0, SPACE).unwrap();
+        let hello: &str = bytes.pread_with(0, StrCtx::Delimiter(SPACE)).unwrap();
         println!("{:?}", &hello);
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
-        let _error = bytes.pread_with::<&str>(6, SPACE);
-        let error = bytes.pread_with::<&str>(7, SPACE);
+        let _error = bytes.pread_with::<&str>(6, StrCtx::Delimiter(SPACE));
+        let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         println!("{:?}", &error);
         assert!(error.is_ok());
     }
@@ -262,12 +262,12 @@ mod tests {
     #[test]
     fn pread_str_weird() {
         use super::Pread;
-        use super::ctx::{NULL, SPACE};
+        use super::ctx::*;
         let bytes: &[u8] = b"";
-        let hello_world = bytes.pread_with::<&str>(0, NULL);
+        let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         println!("1 {:?}", &hello_world);
         assert_eq!(hello_world.is_err(), true);
-        let error = bytes.pread_with::<&str>(7, SPACE);
+        let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
@@ -279,19 +279,19 @@ mod tests {
     #[test]
     fn pwrite_str_and_bytes() {
         use super::{Pread, Pwrite};
-        use super::ctx::{self, SPACE};
+        use super::ctx::*;
         let astring: &str = "lol hello_world lal\0ala imabytes";
         let mut buffer = [0u8; 33];
         buffer.pwrite(astring, 0).unwrap();
         {
-            let hello_world = buffer.pread_with::<&str>(4, SPACE).unwrap();
+            let hello_world = buffer.pread_with::<&str>(4, StrCtx::Delimiter(SPACE)).unwrap();
             assert_eq!(hello_world, "hello_world");
         }
         let bytes: &[u8] = b"more\0bytes";
         buffer.pwrite(bytes, 0).unwrap();
-        let more = bytes.pread_with::<&str>(0, ctx::NULL).unwrap();
+        let more = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL)).unwrap();
         assert_eq!(more, "more");
-        let bytes = bytes.pread_with::<&str>(more.len() + 1, ctx::NULL).unwrap();
+        let bytes = bytes.pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL)).unwrap();
         assert_eq!(bytes, "bytes");
     }
 
