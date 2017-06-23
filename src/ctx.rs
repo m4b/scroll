@@ -1,6 +1,8 @@
 //! Generic context-aware conversion traits, for automatic _downstream_ extension of `Pread`, et. al
 //!
 //! # Discussion
+//! **TODO**: UPDATE THIS
+//!
 //! Let us postulate that there is a deep relationship between trying to make something from something else, and
 //! the generic concept of "parsing" or "reading".
 //!
@@ -26,6 +28,7 @@
 //! into two methods (`pread_with` and `pread_slice`).
 //!
 //! # Example
+//! **TODO**: THIS IS NOT TRUE ANYMORE
 //!
 //! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
@@ -33,28 +36,25 @@
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //!
 //! ```rust
-//! use scroll::{self, ctx, Pread, BE};
+//! use scroll::{self, ctx, Endian, Pread, BE};
+//!
 //! struct Data<'a> {
 //!   name: &'a str,
 //!   id: u32,
 //! }
 //!
-//! // we could use a `(usize, endian::Scroll)` if we wanted
-//! #[derive(Debug, Clone, Copy, Default)]
-//! struct DataCtx { pub size: usize, pub endian: scroll::Endian }
-//!
-//! impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
+//! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
-//!   fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
+//!   fn try_from_ctx (src: &'a [u8], ctx: Endian)
 //!     -> Result<Self, Self::Error> {
-//!     let name = src.pread_slice::<str>(offset, size)?;
-//!     let id = src.pread_with(offset+size, endian)?;
+//!     let name = src.pread::<&str>(0)?;
+//!     let id = src.pread_with(name.len() + 1, ctx)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
 //!
-//! let bytes = b"UserName\x01\x02\x03\x04";
-//! let data = bytes.pread_with::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+//! let bytes = b"UserName\x00\x01\x02\x03\x04";
+//! let data = bytes.pread_with::<Data>(0, BE).unwrap();
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
 //!
@@ -64,87 +64,81 @@ use core::ptr::copy_nonoverlapping;
 use core::mem::transmute;
 use core::mem::size_of;
 use core::str;
+use core::result;
 
 use error;
-use endian;
+use endian::Endian;
 
-/// The default parsing context; use this when the context isn't important for your datatype
-pub type DefaultCtx = endian::Endian;
+pub trait MeasureWith<Ctx> {
+    type Units;
+    #[inline]
+    fn measure_with(&self, ctx: &Ctx) -> Self::Units;
+}
 
-/// Convenience constant for the default parsing context
-pub const CTX: DefaultCtx = endian::NATIVE;
+impl<Ctx> MeasureWith<Ctx> for [u8] {
+    type Units = usize;
+    #[inline]
+    fn measure_with(&self, _ctx: &Ctx) -> Self::Units {
+        self.len()
+    }
+}
+
+impl<Ctx, T: AsRef<[u8]>> MeasureWith<Ctx> for T {
+    type Units = usize;
+    #[inline]
+    fn measure_with(&self, _ctx: &Ctx) -> Self::Units {
+        self.as_ref().len()
+    }
+}
 
 /// The parsing context for converting a byte sequence to a `&str`
 ///
 /// `StrCtx` specifies what byte delimiter to use, and defaults to C-style null terminators. Be careful.
 #[derive(Debug, Copy, Clone)]
-pub struct StrCtx {
-    pub delimiter: u8
+pub enum StrCtx {
+    Delimiter(u8),
+    DelimiterUntil(u8, usize),
+    Length(usize),
 }
 
-/// A C-style, null terminator based delimiter for a `StrCtx`
-pub const NULL: StrCtx = StrCtx { delimiter: 0 };
-/// A space-based delimiter for a `StrCtx`
-pub const SPACE: StrCtx = StrCtx { delimiter: 0x20 };
-/// A newline-based delimiter for a `StrCtx`
-pub const RET: StrCtx = StrCtx { delimiter: 0x0a };
-/// A tab-based delimiter for a `StrCtx`
-pub const TAB: StrCtx = StrCtx { delimiter: 0x09 };
+/// A C-style, null terminator based delimiter
+pub const NULL: u8 = 0;
+/// A space-based delimiter
+pub const SPACE: u8 = 0x20;
+/// A newline-based delimiter
+pub const RET: u8 = 0x0a;
+/// A tab-based delimiter
+pub const TAB: u8 = 0x09;
 
 impl Default for StrCtx {
     #[inline]
     fn default() -> Self {
-        NULL
-    }
-}
-
-impl From<u8> for StrCtx {
-    fn from(delimiter: u8) -> Self {
-        StrCtx { delimiter: delimiter }
+        StrCtx::Delimiter(NULL)
     }
 }
 
 /// Reads `Self` from `This` using the context `Ctx`; must _not_ fail
-pub trait FromCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]> {
+pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
     #[inline]
     fn from_ctx(this: &This, ctx: Ctx) -> Self;
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<'a, Ctx: Copy = (usize, DefaultCtx), This: ?Sized = [u8]> where Self: 'a + Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     #[inline]
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<Self, Self::Error>;
 }
 
 /// Writes `Self` into `This` using the context `Ctx`
-pub trait IntoCtx<Ctx: Copy = DefaultCtx, This: ?Sized = [u8]>: Sized {
+pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     fn into_ctx(self, &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
-pub trait TryIntoCtx<Ctx: Copy = (usize, DefaultCtx), This: ?Sized = [u8]>: Sized {
+pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
-}
-
-pub trait RefFrom<This: ?Sized = [u8], I = usize> {
-    type Error;
-    #[inline]
-    fn ref_from(from: &This, offset: I, count: I) -> Result<&Self, Self::Error>;
-}
-
-/// Tries to read a reference to `Self` from `This` using the context `Ctx`
-pub trait TryRefFromCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [u8]> {
-    type Error;
-    #[inline]
-    fn try_ref_from_ctx(from: &This, ctx: Ctx) -> Result<&Self, Self::Error>;
-}
-
-/// Tries to write a reference to `Self` into `This` using the context `Ctx`
-pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [u8]>: Sized {
-    type Error;
-    fn try_ref_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
 }
 
 /// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
@@ -153,66 +147,10 @@ pub trait TryRefIntoCtx<Ctx: Copy = (usize, usize, DefaultCtx), This: ?Sized = [
 ///
 /// 1. Prevent `gread` from being used, and the offset being modified based on simply the sizeof the value, which can be a misnomer, e.g., for Leb128, etc.
 /// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
-pub trait SizeWith<Ctx = DefaultCtx> {
+pub trait SizeWith<Ctx = ()> {
     type Units;
     #[inline]
     fn size_with(ctx: &Ctx) -> Self::Units;
-}
-
-impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for [u8] where T: AsRef<[u8]> {
-    type Error = error::Error;
-    #[inline]
-    fn try_ref_from_ctx(b: &T, (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&[u8]> {
-        let b = b.as_ref();
-        if offset + count > b.len () {
-            Err(error::Error::BadRange{range: (offset..offset+count), size: b.len()})
-        } else {
-            Ok(&b[offset..(offset+count)])
-        }
-    }
-}
-
-impl TryRefFromCtx for [u8] {
-    type Error = error::Error;
-    #[inline]
-    fn try_ref_from_ctx(b: &[u8], (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&[u8]> {
-        if offset + count > b.len () {
-            Err(error::Error::BadRange{range: (offset..offset+count), size: b.len()})
-        } else {
-            Ok(&b[offset..(offset+count)])
-        }
-    }
-}
-
-impl TryRefFromCtx for str {
-    type Error = error::Error;
-    #[inline]
-    fn try_ref_from_ctx(b: &[u8], (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&str> {
-        if offset + count > b.len () {
-            Err(error::Error::BadRange{range: (offset..offset+count), size: b.len()})
-        } else {
-            let bytes = &b[offset..(offset+count)];
-            str::from_utf8(bytes).map_err(| _err | {
-                error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
-            })
-        }
-    }
-}
-
-impl<T> TryRefFromCtx<(usize, usize, super::Endian), T> for str where T: AsRef<[u8]> {
-    type Error = error::Error;
-    #[inline]
-    fn try_ref_from_ctx(b: &T, (offset, count, _): (usize, usize, super::Endian)) -> error::Result<&str> {
-        let b = b.as_ref();
-        if offset + count > b.len () {
-            Err(error::Error::BadRange{range: (offset..offset+count), size: b.len()})
-        } else {
-            let bytes = &b[offset..(offset+count)];
-            str::from_utf8(bytes).map_err(| _err | {
-                error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
-            })
-        }
-    }
 }
 
 macro_rules! signed_to_unsigned {
@@ -239,23 +177,22 @@ macro_rules! write_into {
 }
 
 macro_rules! into_ctx_impl {
-    ($typ:tt, $size:expr, $ctx:ty) => {
-        impl IntoCtx for $typ {
+    ($typ:tt, $size:expr) => {
+        impl IntoCtx<Endian> for $typ {
             #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+            fn into_ctx(self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
                 write_into!($typ, $size, self, dst, le);
             }
         }
-        impl TryIntoCtx<(usize, $ctx)> for $typ where $typ: IntoCtx<$ctx> {
+        impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
-                if offset + $size > dst.len () {
-                    Err(error::Error::BadRange{range: offset..offset+$size, size: dst.len()})
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
+                if $size > dst.len () {
+                    Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
-                    <$typ as IntoCtx<$ctx>>::into_ctx(self, &mut dst[offset..(offset+$size)], le);
-                    Ok(())
+                    Ok(<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le))
                 }
             }
         }
@@ -263,10 +200,10 @@ macro_rules! into_ctx_impl {
 }
 
 macro_rules! from_ctx_impl {
-    ($typ:tt, $size:expr, $ctx:ty) => {
-        impl<'a> FromCtx<$ctx> for $typ {
+    ($typ:tt, $size:expr) => {
+        impl<'a> FromCtx<Endian> for $typ {
             #[inline]
-            fn from_ctx(src: &[u8], le: $ctx) -> Self {
+            fn from_ctx(src: &[u8], le: Endian) -> Self {
                 assert!(src.len() >= $size);
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
@@ -279,21 +216,21 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
-            type Error = error::Error;
+        impl<'a> TryFromCtx<'a, Endian> for $typ where $typ: FromCtx<Endian> {
+            type Error = error::Error<usize>;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
+            fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<Self, Self::Error> {
+                if $size > src.len () {
+                    Err(error::Error::TooBig{size: $size, len: src.len()})
                 } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
+                    Ok(FromCtx::from_ctx(&src, le))
                 }
             }
         }
         // as ref
-        impl<'a, T> FromCtx<$ctx, T> for $typ where T: AsRef<[u8]> {
+        impl<'a, T> FromCtx<Endian, T> for $typ where T: AsRef<[u8]> {
             #[inline]
-            fn from_ctx(src: &T, le: $ctx) -> Self {
+            fn from_ctx(src: &T, le: Endian) -> Self {
                 let src = src.as_ref();
                 assert!(src.len() >= $size);
                 let mut data: signed_to_unsigned!($typ) = 0;
@@ -307,25 +244,20 @@ macro_rules! from_ctx_impl {
             }
         }
 
-        impl<'a, T> TryFromCtx<'a, (usize, $ctx), T> for $typ where $typ: FromCtx<$ctx, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, Endian, T> for $typ where $typ: FromCtx<Endian, T>, T: AsRef<[u8]> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a T, (offset, le): (usize, $ctx)) -> error::Result<Self> {
+            fn try_from_ctx(src: &'a T, le: Endian) -> result::Result<Self, Self::Error> {
                 let src = src.as_ref();
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
-                } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
-                }
+                Self::try_from_ctx(src, le)
             }
         }
-
     };
 }
 
 macro_rules! ctx_impl {
     ($typ:tt, $size:expr) => {
-        from_ctx_impl!($typ, $size, super::Endian);
+        from_ctx_impl!($typ, $size);
      };
 }
 
@@ -339,10 +271,10 @@ ctx_impl!(u64, 8);
 ctx_impl!(i64, 8);
 
 macro_rules! from_ctx_float_impl {
-    ($typ:tt, $size:expr, $ctx:ty) => {
-        impl<'a> FromCtx<$ctx> for $typ {
+    ($typ:tt, $size:expr) => {
+        impl<'a> FromCtx<Endian> for $typ {
             #[inline]
-            fn from_ctx(src: &[u8], le: $ctx) -> Self {
+            fn from_ctx(src: &[u8], le: Endian) -> Self {
                 assert!(src.len() >= ::core::mem::size_of::<Self>());
                 let mut data: signed_to_unsigned!($typ) = 0;
                 unsafe {
@@ -355,142 +287,131 @@ macro_rules! from_ctx_float_impl {
             }
         }
 
-        impl<'a> TryFromCtx<'a, (usize, $ctx)> for $typ where $typ: FromCtx<$ctx> {
+        impl<'a> TryFromCtx<'a, Endian> for $typ where $typ: FromCtx<Endian> {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], (offset, le): (usize, $ctx)) -> error::Result<Self> {
-                if offset + $size > src.len () {
-                    Err(error::Error::BadRange{range: (offset..offset+$size), size: src.len()})
+            fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<Self, Self::Error> {
+                if $size > src.len () {
+                    Err(error::Error::TooBig{size: $size, len: src.len()})
                 } else {
-                    Ok(FromCtx::from_ctx(&src[offset..(offset + $size)], le))
+                    Ok(FromCtx::from_ctx(src, le))
                 }
             }
         }
     }
 }
 
-from_ctx_float_impl!(f32, 4, super::Endian);
-from_ctx_float_impl!(f64, 8, super::Endian);
+from_ctx_float_impl!(f32, 4);
+from_ctx_float_impl!(f64, 8);
 
-into_ctx_impl!(u8,  1, super::Endian);
-into_ctx_impl!(i8,  1, super::Endian);
-into_ctx_impl!(u16, 2, super::Endian);
-into_ctx_impl!(i16, 2, super::Endian);
-into_ctx_impl!(u32, 4, super::Endian);
-into_ctx_impl!(i32, 4, super::Endian);
-into_ctx_impl!(u64, 8, super::Endian);
-into_ctx_impl!(i64, 8, super::Endian);
+into_ctx_impl!(u8,  1);
+into_ctx_impl!(i8,  1);
+into_ctx_impl!(u16, 2);
+into_ctx_impl!(i16, 2);
+into_ctx_impl!(u32, 4);
+into_ctx_impl!(i32, 4);
+into_ctx_impl!(u64, 8);
+into_ctx_impl!(i64, 8);
 
 macro_rules! into_ctx_float_impl {
-    ($typ:tt, $size:expr, $ctx:ty) => {
-        impl IntoCtx for $typ {
+    ($typ:tt, $size:expr) => {
+        impl IntoCtx<Endian> for $typ {
             #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+            fn into_ctx(self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
                 write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
             }
         }
-        impl TryIntoCtx<(usize, $ctx)> for $typ where $typ: IntoCtx<$ctx> {
+        impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
-                if offset + $size > dst.len () {
-                    Err(error::Error::BadRange{range: offset..offset+$size, size: dst.len()})
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
+                if $size > dst.len () {
+                    Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
-                    <$typ as IntoCtx<$ctx>>::into_ctx(self, &mut dst[offset..(offset+$size)], le);
-                    Ok(())
+                    Ok(<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le))
                 }
             }
         }
     }
 }
 
-into_ctx_float_impl!(f32, 4, super::Endian);
-into_ctx_float_impl!(f64, 8, super::Endian);
+into_ctx_float_impl!(f32, 4);
+into_ctx_float_impl!(f64, 8);
 
-#[inline(always)]
-fn get_str_delimiter_offset(bytes: &[u8], idx: usize, delimiter: u8) -> usize {
-    let len = bytes.len();
-    let mut i = idx;
-    let mut byte = bytes[i];
-    // TODO: this is still a hack and getting worse and worse - this hack has come from dryad -> goblin -> scroll :D
-    if byte == delimiter {
-        return i;
-    }
-    while byte != delimiter && i < len {
-        byte = bytes[i];
-        i += 1;
-    }
-    // we drop the terminator/delimiter unless we're at the end and the byte isn't the terminator
-    if i < len || bytes[i - 1] == delimiter {
-        i -= 1;
-    }
-    i
-}
-
-impl<'a> TryFromCtx<'a, (usize, StrCtx)> for &'a str {
+impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
     type Error = error::Error;
     #[inline]
     /// Read a `&str` from `src` using `delimiter`
-    fn try_from_ctx(src: &'a [u8], (offset, StrCtx {delimiter}): (usize, StrCtx)) -> error::Result<Self> {
-        let len = src.len();
-        if offset >= len {
-            return Err(error::Error::BadOffset(offset))
-        }
-        let delimiter_offset = get_str_delimiter_offset(src, offset, delimiter);
-        let count = delimiter_offset - offset;
-        if count == 0 { return Ok("") }
-        let bytes = &src[offset..(offset+count)];
-        str::from_utf8(bytes).map_err(| _err | {
-            error::Error::BadInput{ range: offset..offset+count, size: bytes.len(), msg: "invalid utf8" }
-        })
+    fn try_from_ctx(src: &'a [u8], ctx: StrCtx) -> Result<Self, Self::Error> {
+        let len = match ctx {
+            StrCtx::Length(len) => len,
+            StrCtx::Delimiter(delimiter) => src.iter().take_while(|c| **c != delimiter).count(),
+            StrCtx::DelimiterUntil(delimiter, len) => {
+                if len > src.len() {
+                    return Err(error::Error::TooBig{size: len, len: src.len()});
+                };
+                src
+                    .iter()
+                    .take_while(|c| **c != delimiter)
+                    .take(len)
+                    .count()
+            }
+        };
+
+        if len > src.len() {
+            return Err(error::Error::TooBig{size: len, len: src.len()});
+        };
+
+        str::from_utf8(&src[..len])
+            .map_err(|_|
+                     error::Error::BadInput{size: src.len(), msg: "invalid utf8"})
     }
 }
 
-impl<'a, T> TryFromCtx<'a, (usize, StrCtx), T> for &'a str where T: AsRef<[u8]> {
+impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a T, ctx: (usize, StrCtx)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a T, ctx: StrCtx) -> result::Result<Self, Self::Error> {
         let src = src.as_ref();
         TryFromCtx::try_from_ctx(src, ctx)
     }
 }
 
-impl<'a> TryIntoCtx<(usize, DefaultCtx)> for &'a [u8] {
+impl<'a> TryIntoCtx for &'a [u8] {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], (uoffset, _): (usize, DefaultCtx)) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<()> {
         let src_len = self.len() as isize;
         let dst_len = dst.len() as isize;
-        let offset = uoffset as isize;
         // if src_len < 0 || dst_len < 0 || offset < 0 {
         //     return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
         // }
-        if offset + src_len > dst_len {
-            Err(error::Error::BadRange{ range: uoffset..uoffset+self.len(), size: dst.len()})
+        if src_len > dst_len {
+            Err(error::Error::TooBig{ size: self.len(), len: dst.len()})
         } else {
-            unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr().offset(offset as isize), src_len as usize) };
+            unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr(), src_len as usize) };
             Ok(())
         }
     }
 }
 
-impl<'a> TryIntoCtx<(usize, StrCtx)> for &'a str {
+impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], (offset, _): (usize, StrCtx)) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], ctx: ()) -> error::Result<()> {
         let bytes = self.as_bytes();
-        TryIntoCtx::try_into_ctx(bytes, dst, (offset, CTX))
+        TryIntoCtx::try_into_ctx(bytes, dst, ctx)
     }
 }
 
 // TODO: we can make this compile time without size_of call, but compiler probably does that anyway
 macro_rules! sizeof_impl {
     ($ty:ty) => {
-        impl SizeWith for $ty {
+        impl SizeWith<Endian> for $ty {
             type Units = usize;
             #[inline]
-            fn size_with(_ctx: &DefaultCtx) -> usize {
+            fn size_with(_ctx: &Endian) -> usize {
                 size_of::<$ty>()
             }
         }
@@ -510,9 +431,9 @@ sizeof_impl!(f64);
 sizeof_impl!(usize);
 sizeof_impl!(isize);
 
-impl FromCtx for usize {
+impl FromCtx<Endian> for usize {
     #[inline]
-    fn from_ctx(src: &[u8], le: super::Endian) -> Self {
+    fn from_ctx(src: &[u8], le: Endian) -> Self {
         let size = ::core::mem::size_of::<Self>();
         assert!(src.len() >= size);
         let mut data: usize = 0;
@@ -526,22 +447,22 @@ impl FromCtx for usize {
     }
 }
 
-impl<'a> TryFromCtx<'a, (usize, super::Endian)> for usize where usize: FromCtx<super::Endian> {
+impl<'a> TryFromCtx<'a, Endian> for usize where usize: FromCtx<Endian> {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], (offset, le): (usize, super::Endian)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], le: Endian) -> error::Result<Self> {
         let size = ::core::mem::size_of::<usize>();
-        if offset + size > src.len () {
-            Err(error::Error::BadRange{range: offset..offset+size, size: src.len()})
+        if size > src.len () {
+            Err(error::Error::TooBig{size: size, len: src.len()})
         } else {
-            Ok(FromCtx::from_ctx(&src[offset..(offset + size)], le))
+            Ok(FromCtx::from_ctx(src, le))
         }
     }
 }
 
-impl IntoCtx for usize {
+impl IntoCtx<Endian> for usize {
     #[inline]
-    fn into_ctx(self, dst: &mut [u8], le: super::Endian) {
+    fn into_ctx(self, dst: &mut [u8], le: Endian) {
         let size = ::core::mem::size_of::<Self>();
         assert!(dst.len() >= size);
         let mut data = if le.is_little() { self.to_le() } else { self.to_be() };
@@ -552,23 +473,22 @@ impl IntoCtx for usize {
     }
 }
 
-impl TryIntoCtx<(usize, super::Endian)> for usize where usize: IntoCtx<super::Endian> {
+impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], (offset, le): (usize, super::Endian)) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
         let size = ::core::mem::size_of::<usize>();
-        if offset + size > dst.len() {
-            Err(error::Error::BadRange{range: offset..offset+size, size: dst.len()})
+        if size > dst.len() {
+            Err(error::Error::TooBig{size: size, len: dst.len()})
         } else {
-            <usize as IntoCtx<super::Endian>>::into_ctx(self, &mut dst[offset..(offset+size)], le);
-            Ok(())
+            Ok(<usize as IntoCtx<Endian>>::into_ctx(self, dst, le))
         }
     }
 }
 
 // example of marshalling to bytes, let's wait until const is an option
 // impl FromCtx for [u8; 10] {
-//     fn from_ctx(bytes: &[u8], _ctx: super::Endian) -> Self {
+//     fn from_ctx(bytes: &[u8], _ctx: Endian) -> Self {
 //         let mut dst: Self = [0; 10];
 //         assert!(bytes.len() >= dst.len());
 //         unsafe {

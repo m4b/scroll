@@ -50,9 +50,6 @@
 //! // Scroll has core friendly errors (no allocation). This will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
 //! let byte: scroll::Result<i64> = bytes.pread(0);
 //!
-//! //If you know the operation can't fail, you can also use the `pread_unsafe` api:
-//! let byte: u8 = bytes.pread_unsafe(0, LE);
-//!
 //! // Scroll is extensible: as long as the type implements `TryWithCtx`, then you can read your type out of the byte array!
 //!
 //! // We can parse out custom datatypes, or types with lifetimes
@@ -62,10 +59,10 @@
 //! assert_eq!("hello_world", hello_world);
 //!
 //! // ... and this parses the string if its space separated!
+//! use scroll::ctx::*;
 //! let spaces: &[u8] = b"hello world some junk";
-//! let world: &str = spaces.pread_with(6, ctx::SPACE).unwrap();
+//! let world: &str = spaces.pread_with(6, StrCtx::Delimiter(SPACE)).unwrap();
 //! assert_eq!("world", world);
-//!
 //! ```
 //!
 //! # `std::io` API
@@ -116,13 +113,13 @@
 //! }
 //! 
 //! // note the lifetime specified here
-//! impl<'a> ctx::TryFromCtx<'a, (usize, Endian)> for Data<'a> {
+//! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
 //!   // and the lifetime annotation on `&'a [u8]` here
-//!   fn try_from_ctx (src: &'a [u8], (offset, endian): (usize, Endian))
+//!   fn try_from_ctx (src: &'a [u8], endian: Endian)
 //!     -> Result<Self, Self::Error> {
-//!     let name = src.pread::<&str>(offset)?;
-//!     let id = src.pread_with(offset+name.len()+1, endian)?;
+//!     let name = src.pread::<&str>(0)?;
+//!     let id = src.pread_with(name.len()+1, endian)?;
 //!     Ok(Data { name: name, id: id })
 //!   }
 //! }
@@ -146,7 +143,7 @@ mod pwrite;
 mod greater;
 mod error;
 mod endian;
-mod leb128;
+//mod leb128;
 #[cfg(feature = "std")]
 mod lesser;
 
@@ -155,7 +152,7 @@ pub use pread::*;
 pub use pwrite::*;
 pub use greater::*;
 pub use error::*;
-pub use leb128::*;
+//pub use leb128::*;
 #[cfg(feature = "std")]
 pub use lesser::*;
 
@@ -164,20 +161,17 @@ mod tests {
     #[allow(overflowing_literals)]
     use super::{LE};
 
-    // cursor needs to implement AsRef<[u8]>
-    // #[test]
-    // fn test_measurable_on_cursor() {
-    //     use std::io::Cursor;
-    //     use super::Measure;
-    //     let bytes: [u8; 4] = [0xef, 0xbe, 0xad, 0xde];
-    //     let cursor = Cursor::new(bytes);
-    //     assert_eq!(cursor.measure(), 4);
-    // }
+    #[test]
+    fn test_measure_with_bytes() {
+        use super::ctx::MeasureWith;
+        let bytes: [u8; 4] = [0xef, 0xbe, 0xad, 0xde];
+        assert_eq!(bytes.measure_with(&()), 4);
+    }
 
     #[test]
     fn test_measurable() {
-        use super::ctx::{CTX, SizeWith};
-        assert_eq!(8, u64::size_with(&CTX));
+        use super::ctx::SizeWith;
+        assert_eq!(8, u64::size_with(&LE));
     }
 
     //////////////////////////////////////////////////////////////
@@ -199,19 +193,19 @@ mod tests {
         }
     }
 
-    pwrite_test!(p_u16, u16, 0xbeef);
-    pwrite_test!(p_i16, i16, 0x7eef);
-    pwrite_test!(p_u32, u32, 0xbeefbeef);
-    pwrite_test!(p_i32, i32, 0x7eefbeef);
-    pwrite_test!(p_u64, u64, 0xbeefbeef7eef7eef);
-    pwrite_test!(p_i64, i64, 0x7eefbeef7eef7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u16, u16, 0xbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i16, i16, 0x7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u32, u32, 0xbeefbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i32, i32, 0x7eefbeef);
+    pwrite_test!(pwrite_and_pread_roundtrip_u64, u64, 0xbeefbeef7eef7eef);
+    pwrite_test!(pwrite_and_pread_roundtrip_i64, i64, 0x7eefbeef7eef7eef);
 
     #[test]
     fn pread_with_be() {
         use super::{Pread};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let byte: u16 = <[u8] as Pread>::pread_with(b, 0, super::BE).unwrap();
+        let byte: u16 = b.pread_with(0, super::BE).unwrap();
         assert_eq!(0x7eef, byte);
         let bytes: [u8; 2] = [0xde, 0xad];
         let dead: u16 = bytes.pread_with(0, super::BE).unwrap();
@@ -230,36 +224,37 @@ mod tests {
     #[test]
     fn pread_slice() {
         use super::{Pread};
+        use super::ctx::StrCtx;
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let _bytes2: Result<&str, _>  = b.pread_slice::<str>(0, 2);
-        let bytes2: &[u8]  = b.pread_slice(0, 2).unwrap();
-        //let bytes3: &[u8; 2]  = b.pread_slice(0, 2).unwrap();
-        assert_eq!(bytes2.len(), bytes[..].len());
-        for i in 0..bytes2.len() {
-            assert_eq!(bytes2[i], bytes[i])
-        }
+        let iserr: Result<&str, _>  = b.pread_with(0, StrCtx::Length(3));
+        assert!(iserr.is_err());
+        // let bytes2: &[u8]  = b.pread_with(0, 2).unwrap();
+        // assert_eq!(bytes2.len(), bytes[..].len());
+        // for i in 0..bytes2.len() {
+        //     assert_eq!(bytes2[i], bytes[i])
+        // }
     }
 
     #[test]
     fn pread_str() {
         use super::Pread;
-        use super::ctx::{NULL, SPACE};
+        use super::ctx::*;
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
         let s: &str  = b.pread(0).unwrap();
         println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
-        let hello_world: &str = bytes.pread_with(0, NULL).unwrap();
+        let hello_world: &str = bytes.pread_with(0, StrCtx::Delimiter(NULL)).unwrap();
         println!("{:?}", &hello_world);
         assert_eq!(hello_world.len(), 13);
-        let hello: &str = bytes.pread_with(0, SPACE).unwrap();
+        let hello: &str = bytes.pread_with(0, StrCtx::Delimiter(SPACE)).unwrap();
         println!("{:?}", &hello);
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
-        let _error = bytes.pread_with::<&str>(6, SPACE);
-        let error = bytes.pread_with::<&str>(7, SPACE);
+        let _error = bytes.pread_with::<&str>(6, StrCtx::Delimiter(SPACE));
+        let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         println!("{:?}", &error);
         assert!(error.is_ok());
     }
@@ -267,38 +262,36 @@ mod tests {
     #[test]
     fn pread_str_weird() {
         use super::Pread;
-        use super::ctx::{NULL, SPACE};
+        use super::ctx::*;
         let bytes: &[u8] = b"";
-        let hello_world  = bytes.pread_with::<&str>(0, NULL);
-        println!("{:?}", &hello_world);
+        let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
+        println!("1 {:?}", &hello_world);
         assert_eq!(hello_world.is_err(), true);
-        let error = bytes.pread_with::<&str>(7, SPACE);
-        println!("{:?}", &error);
+        let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
+        println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null  = bytes.pread::<&str>(0).unwrap();
-        println!("{:?}", &null);
+        println!("3 {:?}", &null);
         assert_eq!(null.len(), 0);
     }
 
     #[test]
     fn pwrite_str_and_bytes() {
         use super::{Pread, Pwrite};
-        use super::ctx::{self, SPACE};
+        use super::ctx::*;
         let astring: &str = "lol hello_world lal\0ala imabytes";
         let mut buffer = [0u8; 33];
         buffer.pwrite(astring, 0).unwrap();
         {
-            let hello_world = buffer.pread_with::<&str>(4, SPACE).unwrap();
+            let hello_world = buffer.pread_with::<&str>(4, StrCtx::Delimiter(SPACE)).unwrap();
             assert_eq!(hello_world, "hello_world");
         }
         let bytes: &[u8] = b"more\0bytes";
         buffer.pwrite(bytes, 0).unwrap();
-        let bytes2 = bytes.pread_slice::<[u8]>(0, bytes.len()).unwrap();
-        assert_eq!(bytes2.len(), bytes.len());
-        let more = bytes.pread_with::<&str>(0, ctx::NULL).unwrap();
+        let more = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL)).unwrap();
         assert_eq!(more, "more");
-        let bytes = bytes.pread_with::<&str>(more.len() + 1, ctx::NULL).unwrap();
+        let bytes = bytes.pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL)).unwrap();
         assert_eq!(bytes, "bytes");
     }
 
@@ -333,26 +326,23 @@ mod tests {
     #[derive(Debug, PartialEq, Eq)]
     pub struct Foo(u16);
 
-    impl super::ctx::TryIntoCtx for Foo {
+    impl super::ctx::TryIntoCtx<super::Endian> for Foo {
+
         type Error = ExternalError;
-        fn try_into_ctx(self, this: &mut [u8], ctx: (usize, super::Endian)) -> Result<(), Self::Error> {
+        fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<(), Self::Error> {
             use super::Pwrite;
-            let offset = ctx.0;
-            let le = ctx.1;
-            if offset > 2 { return Err((ExternalError {}).into()) }
-            this.pwrite_with(self.0, offset, le)?;
+            if this.len() < 2 { return Err((ExternalError {}).into()) }
+            this.pwrite_with(self.0, 0, le)?;
             Ok(())
         }
     }
 
-    impl<'a> super::ctx::TryFromCtx<'a> for Foo {
+    impl<'a> super::ctx::TryFromCtx<'a, super::Endian> for Foo {
         type Error = ExternalError;
-        fn try_from_ctx(this: &'a [u8], ctx: (usize, super::Endian)) -> Result<Self, Self::Error> {
+        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<Self, Self::Error> {
             use super::Pread;
-            let offset = ctx.0;
-            let le = ctx.1;
-            if offset > 2 { return Err((ExternalError {}).into()) }
-            let n = this.pread_with(offset, le)?;
+            if this.len() > 2 { return Err((ExternalError {}).into()) }
+            let n = this.pread_with(0, le)?;
             Ok(Foo(n))
         }
     }
@@ -377,7 +367,6 @@ mod tests {
     //////////////////////////////////////////////////////////////
     // begin gread_with
     //////////////////////////////////////////////////////////////
-
     macro_rules! g_test {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
@@ -490,13 +479,14 @@ mod tests {
         assert_eq!(*offset, 1);
     }
 
+    /*
     #[test]
     fn gread_slice() {
-        use super::{Gread};
+        use super::{Gread, ctx};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let mut offset = &mut 0;
-        let res = b.gread_slice::<str>(offset, 3);
+        let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
         let astring: [u8; 3] = [0x45, 042, 0x44];
@@ -514,7 +504,7 @@ mod tests {
             assert_eq!(bytes2[i], bytes[i])
         }
     }
-
+    */
     /////////////////////////////////////////////////////////////////
     // end gread_with
     /////////////////////////////////////////////////////////////////

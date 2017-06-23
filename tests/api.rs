@@ -2,10 +2,10 @@
 
 extern crate scroll;
 
-#[macro_use] extern crate scroll_derive;
+// #[macro_use] extern crate scroll_derive;
 
 use std::ops::{Deref,  DerefMut};
-use scroll::{ctx, Result, Pread, Gread};
+use scroll::{ctx, Result, Cread, Pread, Gread};
 use scroll::ctx::SizeWith;
 
 pub struct Section<'a> {
@@ -30,15 +30,17 @@ impl<'a> Section<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Section<'a> {
+impl<'a> ctx::SizeWith for Section<'a> {
     type Units = usize;
-    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+    fn size_with(_ctx: &()) -> usize {
         4
     }
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Pread, Pwrite)]
+// renable when scroll_derive Pread/Pwrite matches
+//#[derive(Debug, Clone, Copy, Pread, Pwrite)]
+#[derive(Debug, Clone, Copy)]
 pub struct Section32 {
     pub sectname:  [u8; 16],
     pub segname:   [u8; 16],
@@ -53,9 +55,9 @@ pub struct Section32 {
     pub reserved2: u32,
 }
 
-impl<'a> ctx::TryFromCtx<'a, (usize, ctx::DefaultCtx)> for Section<'a> {
+impl<'a> ctx::TryFromCtx<'a, ()> for Section<'a> {
     type Error = scroll::Error;
-    fn try_from_ctx(_bytes: &'a [u8], (_offset, _ctx): (usize, ctx::DefaultCtx)) -> ::std::result::Result<Self, Self::Error> {
+    fn try_from_ctx(_bytes: &'a [u8], _ctx: ()) -> ::std::result::Result<Self, Self::Error> {
         //let section = Section::from_ctx(bytes, bytes.pread_with::<Section32>(offset, ctx)?);
         let section = unsafe { ::std::mem::uninitialized::<Section>()};
         Ok(section)
@@ -86,11 +88,11 @@ impl<'a> Segment<'a> {
     pub fn sections(&self) -> Result<Vec<Section<'a>>> {
         let nsects = self.nsects as usize;
         let mut sections = Vec::with_capacity(nsects);
-        let offset = &mut (self.offset + Self::size_with(&ctx::CTX));
-        let _size = Section::size_with(&ctx::CTX);
+        let offset = &mut (self.offset + Self::size_with(&()));
+        let _size = Section::size_with(&());
         let raw_data: &'a [u8] = self.raw_data;
         for _ in 0..nsects {
-            let section = raw_data.gread_with::<Section<'a>>(offset, ctx::CTX)?;
+            let section = raw_data.gread_with::<Section<'a>>(offset, ())?;
             sections.push(section);
             //offset += size;
         }
@@ -98,9 +100,9 @@ impl<'a> Segment<'a> {
     }
 }
 
-impl<'a> ctx::SizeWith<ctx::DefaultCtx> for Segment<'a> {
+impl<'a> ctx::SizeWith for Segment<'a> {
     type Units = usize;
-    fn size_with(_ctx: &ctx::DefaultCtx) -> usize {
+    fn size_with(_ctx: &()) -> usize {
         4
     }
 }
@@ -172,13 +174,13 @@ struct Foo {
     bar: u32,
 }
 
-impl scroll::ctx::FromCtx for Foo {
+impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-        Foo { foo: bytes.pread_unsafe::<usize>(0, ctx), bar: bytes.pread_unsafe::<u32>(8, ctx) }
+        Foo { foo: bytes.cread_with::<usize>(0, ctx), bar: bytes.cread_with::<u32>(8, ctx) }
     }
 }
 
-impl scroll::ctx::SizeWith for Foo {
+impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
     type Units = usize;
     fn size_with(_: &scroll::Endian) -> Self::Units {
         ::std::mem::size_of::<Foo>()
@@ -209,7 +211,7 @@ struct Bar {
     bar: u32,
 }
 
-impl scroll::ctx::FromCtx for Bar {
+impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
         use scroll::Cread;
         Bar { foo: bytes.cread_with(0, ctx), bar: bytes.cread_with(4, ctx) }
@@ -254,7 +256,7 @@ fn cwrite_api() {
     assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
 }
 
-impl scroll::ctx::IntoCtx for Bar {
+impl scroll::ctx::IntoCtx<scroll::Endian> for Bar {
     fn into_ctx(self, bytes: &mut [u8], ctx: scroll::Endian) {
         use scroll::Cwrite;
         bytes.cwrite_with(self.foo, 0, ctx);
@@ -272,3 +274,4 @@ fn cwrite_api_customtype() {
     assert_eq!(bar.foo, -1);
     assert_eq!(bar.bar, 0xdeadbeef);
 }
+

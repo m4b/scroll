@@ -1,7 +1,5 @@
-use std::fmt::Debug;
 use std::io::{Result, Read, Write};
 use ctx::{FromCtx, IntoCtx, SizeWith};
-use error::{self};
 
 /// An extension trait to `std::io::Read` streams; this only deserializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
 ///
@@ -21,13 +19,13 @@ use error::{self};
 ///     bar: u32,
 /// }
 ///
-/// impl ctx::FromCtx for Foo {
+/// impl ctx::FromCtx<scroll::Endian> for Foo {
 ///     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-///         Foo { foo: bytes.pread_unsafe::<usize>(0, ctx), bar: bytes.pread_unsafe::<u32>(8, ctx) }
+///         Foo { foo: bytes.pread_with::<usize>(0, ctx).unwrap(), bar: bytes.pread_with::<u32>(8, ctx).unwrap() }
 ///     }
 /// }
 ///
-/// impl ctx::SizeWith for Foo {
+/// impl ctx::SizeWith<scroll::Endian> for Foo {
 ///     type Units = usize;
 ///     // our parsing context doesn't influence our size
 ///     fn size_with(_: &scroll::Endian) -> Self::Units {
@@ -49,10 +47,7 @@ use error::{self};
 /// assert_eq!(foo_.bar, bar);
 /// ```
 ///
-pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
- where
-    Ctx: Copy + Default + Debug,
-    E: Debug,
+pub trait Lread<Ctx: Copy> : Read
 {
     /// Reads the type `N` from `Self`, with a default parsing context.
     /// For the primitive numeric types, this will be at the host machine's endianness.
@@ -67,7 +62,7 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
     /// assert_eq!(0xbeef, beef);
     /// ```
     #[inline]
-    fn lread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> Result<N> {
+    fn lread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> Result<N> where Ctx: Default {
         let ctx = Ctx::default();
         self.lread_with(ctx)
     }
@@ -104,15 +99,12 @@ pub trait Lread<Ctx = super::Endian, E = error::Error> : Read
 
 /// Types that implement `Read` get methods defined in `Lread`
 /// for free.
-impl<R: Read + ?Sized> Lread for R {}
+impl<Ctx: Copy, R: Read + ?Sized> Lread<Ctx> for R {}
 
 /// An extension trait to `std::io::Write` streams; this only serializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
 ///
 /// To write custom types with a single `lwrite::<YourType>` call, implement [`IntoCtx`](trait.IntoCtx.html) and [`SizeWith`](ctx/trait.SizeWith.html) for `YourType`.
-pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
-    where
-          Ctx: Copy + Default + Debug,
-          E: Debug,
+pub trait Lwrite<Ctx: Copy>: Write
 {
     /// Writes the type `N` into `Self`, with the parsing context `ctx`.
     /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
@@ -130,7 +122,7 @@ pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
     /// assert_eq!(bytes.into_inner(), [0xef, 0xbe, 0xad, 0xde,]);
     /// ```
     #[inline]
-    fn lwrite<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N) -> Result<()> {
+    fn lwrite<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N) -> Result<()> where Ctx: Default {
         let ctx = Ctx::default();
         self.lwrite_with(n, ctx)
     }
@@ -164,4 +156,4 @@ pub trait Lwrite<Ctx = super::Endian, E = error::Error>: Write
 
 /// Types that implement `Write` get methods defined in `Lwrite`
 /// for free.
-impl<W: Write + ?Sized> Lwrite for W {}
+impl<Ctx: Copy, W: Write + ?Sized> Lwrite<Ctx> for W {}

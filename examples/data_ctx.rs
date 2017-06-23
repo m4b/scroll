@@ -8,12 +8,12 @@ struct Data<'a> {
     id: u32,
 }
 
-impl<'a> ctx::TryFromCtx<'a, (usize, Endian)> for Data<'a> {
+impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
     type Error = scroll::Error;
-    fn try_from_ctx (src: &'a [u8], (offset, endian): (usize, Endian))
+    fn try_from_ctx (src: &'a [u8], endian: Endian)
                      -> Result<Self, Self::Error> {
-        let name = src.pread::<&'a str>(offset)?;
-        let id = src.pread_with(offset+name.len()+1, endian)?;
+        let name = src.pread::<&'a str>(0)?;
+        let id = src.pread_with(name.len()+1, endian)?;
         Ok(Data { name: name, id: id })
     }
 }
