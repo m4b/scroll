@@ -364,7 +364,8 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
         };
 
         str::from_utf8(&src[..len])
-            .map_err(|_| error::Error::Custom("utf8 error".to_owned()))
+            .map_err(|_|
+                     error::Error::BadInput{size: src.len(), msg: "invalid utf8"})
     }
 }
 

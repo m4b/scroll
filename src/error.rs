@@ -13,6 +13,7 @@ pub enum Error<T = usize> {
     TooBig { size: T, len: T },
     /// The requested offset to read/write at is invalid
     BadOffset(T),
+    BadInput{ size: T, msg: &'static str },
     #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
     Custom(String),
@@ -27,6 +28,7 @@ impl error::Error for Error {
         match *self {
             Error::TooBig{ .. } => { "TooBig" }
             Error::BadOffset(_) => { "BadOffset" }
+            Error::BadInput{ .. } => { "BadInput" }
             Error::Custom(_) => { "Custom" }
             Error::IO(_) => { "IO" }
         }
@@ -35,6 +37,7 @@ impl error::Error for Error {
         match *self {
             Error::TooBig{ .. } => { None }
             Error::BadOffset(_) => { None }
+            Error::BadInput{ .. } => { None }
             Error::Custom(_) => { None }
             Error::IO(ref io) => { io.cause() }
         }
@@ -53,6 +56,7 @@ impl Display for Error {
         match *self {
             Error::TooBig{ ref size, ref len } => { write! (fmt, "type is too big ({}) for {}", size, len) },
             Error::BadOffset(ref offset) => { write! (fmt, "bad offset {}", offset) },
+            Error::BadInput{ ref msg, ref size } => { write! (fmt, "bad input {} ({})", msg, size) },
             #[cfg(feature = "std")]
             Error::Custom(ref msg) => { write! (fmt, "{}", msg) },
             #[cfg(feature = "std")]
