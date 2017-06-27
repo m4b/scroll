@@ -1,17 +1,8 @@
 use core::u8;
 use core::convert::{From, AsRef};
-
-use ctx::{self, TryFromCtx};
-use endian;
+        use Pread;
+use ctx::TryFromCtx;
 use error;
-
-/// A variable length integer parsing `Ctx`, compatible with the standard integer endian-aware parsing context
-pub type Leb128 = endian::Endian;
-
-/// This context instructs the underlying `Pread` implementor to parse as a variable length integer.
-///
-/// It currently is just the default ctx.
-pub const LEB128: Leb128 = endian::NATIVE;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An unsigned leb128 integer
@@ -28,8 +19,7 @@ impl Uleb128 {
     }
     #[inline]
     /// Read a variable length u64 from `bytes` at `offset`
-    pub fn read<B: AsRef<[u8]>>(bytes: &B, offset: &mut usize) -> error::Result<u64> {
-        use Pread;
+    pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<u64> {
         let tmp = bytes.pread::<Uleb128>(*offset)?;
         *offset = *offset + tmp.size();
         Ok(tmp.into())
@@ -64,7 +54,7 @@ impl Sleb128 {
     }
     #[inline]
     /// Read a variable length i64 from `bytes` at `offset`
-    pub fn read<B: AsRef<[u8]>>(bytes: &B, offset: &mut usize) -> error::Result<i64> {
+    pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<i64> {
         use Pread;
         let tmp = bytes.pread::<Sleb128>(*offset)?;
         *offset = *offset + tmp.size();
@@ -100,19 +90,19 @@ fn mask_continuation(byte: u8) -> u8 {
 //     mask_continuation(byte as u8)
 // }
 
-impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
+impl<'a> TryFromCtx<'a> for Uleb128 {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], (offset, _ctx): (usize, Leb128)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> error::Result<Self> {
         use pread::Pread;
         let mut result = 0;
         let mut shift = 0;
         let mut count = 0;
         loop {
-            let byte: u8 = src.pread(offset + count)?;
+            let byte: u8 = src.pread(count)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x01 {
-                return Err(error::Error::BadInput{ range: offset..offset+count, size: src.len(), msg: "failed to parse"})
+                return Err(error::Error::BadInput{ size: src.len(), msg: "failed to parse"})
             }
 
             let low_bits = mask_continuation(byte) as u64;
@@ -128,13 +118,13 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Uleb128 {
     }
 }
 
-impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
+impl<'a> TryFromCtx<'a> for Sleb128 {
     type Error = error::Error;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], (offset, _): (usize, Leb128)) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> error::Result<Self> {
         use greater::Gread;
-        let o = offset;
-        let offset = &mut offset.clone();
+        let o = 0;
+        let offset = &mut 0;
         let mut result = 0;
         let mut shift = 0;
         let size = 64;
@@ -143,7 +133,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
             byte = src.gread(offset)?;
 
             if shift == 63 && byte != 0x00 && byte != 0x7f {
-                return Err(error::Error::BadInput{range: o..*offset, size: src.len(), msg: "failed to parse"})
+                return Err(error::Error::BadInput{size: src.len(), msg: "failed to parse"})
             }
 
             let low_bits = mask_continuation(byte) as i64;
@@ -165,7 +155,7 @@ impl<'a> TryFromCtx<'a, (usize, Leb128)> for Sleb128 {
 
 #[cfg(test)]
 mod tests {
-    use super::{LEB128, Uleb128, Sleb128};
+    use super::{Uleb128, Sleb128};
     use super::super::LE;
 
     const CONTINUATION_BIT: u8 = 1 << 7;
@@ -221,7 +211,7 @@ mod tests {
                    2 | CONTINUATION_BIT,
                    1];
         let bytes = &buf[..];
-        assert!(bytes.pread_with::<Uleb128>(0, LEB128).is_err());
+        assert!(bytes.pread::<Uleb128>(0).is_err());
     }
 
     #[test]

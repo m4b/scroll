@@ -143,7 +143,7 @@ mod pwrite;
 mod greater;
 mod error;
 mod endian;
-//mod leb128;
+mod leb128;
 #[cfg(feature = "std")]
 mod lesser;
 
