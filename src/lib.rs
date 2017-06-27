@@ -152,7 +152,7 @@ pub use pread::*;
 pub use pwrite::*;
 pub use greater::*;
 pub use error::*;
-//pub use leb128::*;
+pub use leb128::*;
 #[cfg(feature = "std")]
 pub use lesser::*;
 
