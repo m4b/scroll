@@ -10,8 +10,9 @@ documentation = "https://docs.rs/scroll"
 description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 
 [features]
-default = ["std"]
-std = []
+
+[dependencies]
+byte = "0.2"
 
 [dev-dependencies]
 rayon = "0.6.0"
