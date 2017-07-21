@@ -1,6 +1,7 @@
 use core::u8;
 use core::convert::{From, AsRef};
-        use Pread;
+use core::result;
+use Pread;
 use ctx::TryFromCtx;
 use error;
 
@@ -92,8 +93,9 @@ fn mask_continuation(byte: u8) -> u8 {
 
 impl<'a> TryFromCtx<'a> for Uleb128 {
     type Error = error::Error;
+    type Size = usize;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
         use pread::Pread;
         let mut result = 0;
         let mut shift = 0;
@@ -112,7 +114,7 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
             shift += 7;
 
             if byte & CONTINUATION_BIT == 0 {
-                return Ok(Uleb128 { value: result, count: count });
+                return Ok((Uleb128 { value: result, count: count }, count));
             }
         }
     }
@@ -120,8 +122,9 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
 
 impl<'a> TryFromCtx<'a> for Sleb128 {
     type Error = error::Error;
+    type Size = usize;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> error::Result<Self> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
         use greater::Gread;
         let o = 0;
         let offset = &mut 0;
@@ -149,7 +152,8 @@ impl<'a> TryFromCtx<'a> for Sleb128 {
             // Sign extend the result.
             result |= !0 << shift;
         }
-        Ok(Sleb128{ value: result, count: *offset - o })
+        let count = *offset - o;
+        Ok((Sleb128{ value: result, count: count }, count))
     }
 }
 

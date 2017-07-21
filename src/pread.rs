@@ -18,10 +18,11 @@ use error;
 ///
 /// impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
 ///      type Error = scroll::Error;
-///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
+///      type Size = usize;
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<(Self, Self::Size), Self::Error> {
 ///          if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
 ///          let n = this.pread_with(0, le)?;
-///          Ok(Foo(n))
+///          Ok((Foo(n), 2))
 ///      }
 /// }
 ///
@@ -66,11 +67,13 @@ use error;
 ///
 ///  impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
 ///      type Error = ExternalError;
-///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<Self, Self::Error> {
-///          use scroll::Pread;
+///      type Size = usize;
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<(Self, Self::Size), Self::Error> {
+///          use scroll::Gread;
 ///          if this.len() <= 2 { return Err((ExternalError {}).into()) }
-///          let n = this.pread_with(0, le)?;
-///          Ok(Foo(n))
+///          let offset = &mut 0;
+///          let n = this.gread_with(offset, le)?;
+///          Ok((Foo(n), *offset))
 ///      }
 ///  }
 ///
@@ -91,7 +94,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.pread::<u8>(0).unwrap();
-    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a, Ctx: Default {
+    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a, Ctx: Default {
         self.pread_with(offset, Ctx::default())
     }
     #[inline]
@@ -102,12 +105,12 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// let bytes: [u8; 2] = [0xde, 0xad];
     /// let dead: u16 = bytes.pread_with(0, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
-    fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
         let len = self.measure_with(&ctx);
         if offset >= len {
             return Err(error::Error::BadOffset(offset).into())
         }
-        N::try_from_ctx(&self[offset..], ctx)
+        N::try_from_ctx(&self[offset..], ctx).and_then(|(n, _)| Ok(n))
     }
 }
 

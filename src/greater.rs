@@ -37,7 +37,7 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.gread::<u8>(offset).unwrap();
     /// assert_eq!(*offset, 1);
-    fn gread<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: &mut I) -> result::Result<N, E> where Ctx: Default, <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn gread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: &mut I) -> result::Result<N, E> where Ctx: Default, <Self as Index<RangeFrom<I>>>::Output: 'a {
         let ctx = Ctx::default();
         self.gread_with(offset, ctx)
     }
@@ -51,16 +51,24 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
     /// assert_eq!(dead, 0xdeadu16);
     /// assert_eq!(*offset, 2);
     #[inline]
-    fn gread_with<'a, N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&'a self, offset: &mut I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn gread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>
+        (&'a self, offset: &mut I, ctx: Ctx) ->
+        result::Result<N, E>
+        where <Self as Index<RangeFrom<I>>>::Output: 'a
+    {
         let o = *offset;
-        match self.pread_with(o, ctx) {
-            Ok(n) => {
-                let size = N::size_with(&ctx);
-                *offset += size;
-                Ok(n)
-            },
-            err => err
+        // self.pread_with(o, ctx).and_then(|(n, size)| {
+        //     *offset += size;
+        //     Ok(n)
+        // })
+        let len = self.measure_with(&ctx);
+        if o >= len {
+            return Err(error::Error::BadOffset(o).into())
         }
+        N::try_from_ctx(&self[o..], ctx).and_then(|(n, size)| {
+            *offset += size;
+            Ok(n)
+        })
     }
 
     /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`, and updates the offset.
@@ -76,7 +84,7 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
     #[inline]
     fn gread_inout<'a, N>(&'a self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
         where
-        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>,
+        N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
     Ctx: Default,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
@@ -100,7 +108,7 @@ pub trait Gread<Ctx, E, I = usize>: Pread<Ctx, E, I> + Index<RangeFrom<I>>
     #[inline]
     fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
         where
-        N: SizeWith<Ctx, Units = I> + TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>,
+        N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
         let len = inout.len();

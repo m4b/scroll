@@ -105,7 +105,7 @@
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //! 
 //! ```rust
-//! use scroll::{self, ctx, Pread, BE, Endian};
+//! use scroll::{self, ctx, Pread, Gread, BE, Endian};
 //! 
 //! struct Data<'a> {
 //!   name: &'a str,
@@ -115,12 +115,14 @@
 //! // note the lifetime specified here
 //! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
+//!   type Size = usize;
 //!   // and the lifetime annotation on `&'a [u8]` here
 //!   fn try_from_ctx (src: &'a [u8], endian: Endian)
-//!     -> Result<Self, Self::Error> {
-//!     let name = src.pread::<&str>(0)?;
-//!     let id = src.pread_with(name.len()+1, endian)?;
-//!     Ok(Data { name: name, id: id })
+//!     -> Result<(Self, Self::Size), Self::Error> {
+//!     let offset = &mut 0;
+//!     let name = src.gread::<&str>(offset)?;
+//!     let id = src.gread_with(offset, endian)?;
+//!     Ok((Data { name: name, id: id }, *offset))
 //!   }
 //! }
 //! 
@@ -339,11 +341,12 @@ mod tests {
 
     impl<'a> super::ctx::TryFromCtx<'a, super::Endian> for Foo {
         type Error = ExternalError;
-        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<Self, Self::Error> {
+        type Size = usize;
+        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<(Self, Self::Size), Self::Error> {
             use super::Pread;
             if this.len() > 2 { return Err((ExternalError {}).into()) }
             let n = this.pread_with(0, le)?;
-            Ok(Foo(n))
+            Ok((Foo(n), 2))
         }
     }
 

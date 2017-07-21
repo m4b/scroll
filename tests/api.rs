@@ -57,10 +57,11 @@ pub struct Section32 {
 
 impl<'a> ctx::TryFromCtx<'a, ()> for Section<'a> {
     type Error = scroll::Error;
-    fn try_from_ctx(_bytes: &'a [u8], _ctx: ()) -> ::std::result::Result<Self, Self::Error> {
+    type Size = usize;
+    fn try_from_ctx(_bytes: &'a [u8], _ctx: ()) -> ::std::result::Result<(Self, Self::Size), Self::Error> {
         //let section = Section::from_ctx(bytes, bytes.pread_with::<Section32>(offset, ctx)?);
         let section = unsafe { ::std::mem::uninitialized::<Section>()};
-        Ok(section)
+        Ok((section, ::std::mem::size_of::<Section>()))
     }
 }
 
