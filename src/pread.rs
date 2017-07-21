@@ -1,7 +1,7 @@
 use core::result;
 use core::ops::{Index, RangeFrom, Add, AddAssign};
 
-use ctx::{TryFromCtx, MeasureWith};
+use ctx::{FromCtx, TryFromCtx, SizeWith, MeasureWith};
 use error;
 
 /// A very generic, contextual pread interface in Rust. Allows completely parallelized reads, as `Self` is immutable
@@ -79,7 +79,8 @@ use error;
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
-pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
+//pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
+pub trait Pread<Ctx, E, I = usize>
  where
        Ctx: Copy,
        I: Add + Copy + PartialOrd,
@@ -92,7 +93,11 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// use scroll::Pread;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.pread::<u8>(0).unwrap();
-    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a, Ctx: Default {
+    fn pread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I) -> result::Result<N, E>
+        where
+        <Self as Index<RangeFrom<I>>>::Output: 'a, Ctx: Default,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>,
+    {
         self.pread_with(offset, Ctx::default())
     }
     #[inline]
@@ -103,13 +108,71 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// let bytes: [u8; 2] = [0xde, 0xad];
     /// let dead: u16 = bytes.pread_with(0, scroll::BE).unwrap();
     /// assert_eq!(dead, 0xdeadu16);
-    fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E> where <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn pread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: I, ctx: Ctx) -> result::Result<N, E>
+        where
+        <Self as Index<RangeFrom<I>>>::Output: 'a,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>
+    {
         let len = self.measure_with(&ctx);
         if offset >= len {
             return Err(error::Error::BadOffset(offset).into())
         }
         N::try_from_ctx(&self[offset..], ctx).and_then(|(n, _)| Ok(n))
     }
+
+    /// Reads the type `N` from `Self`, with a default parsing context.
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::Lread;
+    /// use std::io::Cursor;
+    /// let bytes = [0xef, 0xbe];
+    /// let mut bytes = Cursor::new(&bytes[..]);
+    /// let beef = bytes.lread::<u16>().unwrap();
+    /// assert_eq!(0xbeef, beef);
+    /// ```
+    #[inline]
+    #[cfg(feature = "std")]
+    fn lread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> error::Result<N>
+        where
+        Ctx: Default,
+        Self: ::std::io::Read,
+    {
+        let ctx = Ctx::default();
+        self.lread_with(ctx)
+    }
+
+    /// Reads the type `N` from `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're reading has a size greater than 256. Plans are to have this allocate in larger cases.
+    ///
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::{Lread, LE, BE};
+    /// use std::io::Cursor;
+    /// let bytes = [0xef, 0xbe, 0xb0, 0xb0, 0xfe, 0xed, 0xde, 0xad];
+    /// let mut bytes = Cursor::new(&bytes[..]);
+    /// let beef = bytes.lread_with::<u16>(LE).unwrap();
+    /// assert_eq!(0xbeef, beef);
+    /// let b0 = bytes.lread::<u8>().unwrap();
+    /// assert_eq!(0xb0, b0);
+    /// let b0 = bytes.lread::<u8>().unwrap();
+    /// assert_eq!(0xb0, b0);
+    /// let feeddead = bytes.lread_with::<u32>(BE).unwrap();
+    /// assert_eq!(0xfeeddead, feeddead);
+    /// ```
+    #[inline]
+    #[cfg(feature = "std")]
+    fn lread_with<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self, ctx: Ctx) -> error::Result<N> where Self: ::std::io::Read {
+        let mut scratch = [0u8; 256];
+        let size = N::size_with(&ctx);
+        let mut buf = &mut scratch[0..size];
+        self.read_exact(&mut buf)?;
+        Ok(N::from_ctx(buf, ctx))
+    }
+
     #[inline]
     /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness. Updates the offset
     /// # Example
@@ -119,7 +182,13 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.gread::<u8>(offset).unwrap();
     /// assert_eq!(*offset, 1);
-    fn gread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: &mut I) -> result::Result<N, E> where I: AddAssign, Ctx: Default, <Self as Index<RangeFrom<I>>>::Output: 'a {
+    fn gread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: &mut I) -> result::Result<N, E>
+        where
+        I: AddAssign,
+        Ctx: Default,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>,
+    <Self as Index<RangeFrom<I>>>::Output: 'a
+    {
         let ctx = Ctx::default();
         self.gread_with(offset, ctx)
     }
@@ -136,7 +205,10 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     fn gread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>
         (&'a self, offset: &mut I, ctx: Ctx) ->
         result::Result<N, E>
-        where I: AddAssign, <Self as Index<RangeFrom<I>>>::Output: 'a
+        where
+        I: AddAssign,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>,
+    <Self as Index<RangeFrom<I>>>::Output: 'a,
     {
         let o = *offset;
         // self.pread_with(o, ctx).and_then(|(n, size)| {
@@ -168,7 +240,8 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
         where
         I: AddAssign,
         N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
-    Ctx: Default,
+        Ctx: Default,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
         let len = inout.len();
@@ -193,6 +266,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
         where
         I: AddAssign,
         N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
+        Self: Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
         let len = inout.len();
@@ -206,5 +280,5 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
 impl<Ctx: Copy,
      I: Add + Copy + PartialOrd,
      E: From<error::Error<I>>,
-     R: ?Sized + Index<I> + Index<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
+     R: ?Sized>
     Pread<Ctx, E, I> for R {}

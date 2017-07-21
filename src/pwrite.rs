@@ -1,7 +1,7 @@
 use core::result;
 use core::ops::{Index, IndexMut, RangeFrom, Add, AddAssign};
 
-use ctx::{TryIntoCtx, MeasureWith};
+use ctx::{IntoCtx, TryIntoCtx, MeasureWith, SizeWith};
 use error;
 
 /// Writes into `Self` at an offset of type `I` using a `Ctx`
@@ -53,6 +53,58 @@ pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + Measur
         }
         let dst = &mut self[offset..];
         n.try_into_ctx(dst, ctx)
+    }
+    /// Writes the type `N` into `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
+    ///
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::Lwrite;
+    /// use std::io::Cursor;
+    ///
+    /// let mut bytes = [0x0u8; 4];
+    /// let mut bytes = Cursor::new(&mut bytes[..]);
+    /// bytes.lwrite(0xdeadbeef as u32).unwrap();
+    /// assert_eq!(bytes.into_inner(), [0xef, 0xbe, 0xad, 0xde,]);
+    /// ```
+    #[inline]
+    #[cfg(feature = "std")]
+    fn lwrite<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N) -> error::Result<()>
+        where
+        Ctx: Default,
+        Self: ::std::io::Write
+    {
+        let ctx = Ctx::default();
+        self.lwrite_with(n, ctx)
+    }
+
+    /// Writes the type `N` into `Self`, with the parsing context `ctx`.
+    /// **NB**: this will panic if the type you're writing has a size greater than 256. Plans are to have this allocate in larger cases.
+    ///
+    /// For the primitive numeric types, this will be at the host machine's endianness.
+    ///
+    /// # Example
+    /// ```rust
+    /// use scroll::{Lwrite, LE, BE};
+    /// use std::io::{Write, Cursor};
+    ///
+    /// let mut bytes = [0x0u8; 10];
+    /// let mut cursor = Cursor::new(&mut bytes[..]);
+    /// cursor.write_all(b"hello").unwrap();
+    /// cursor.lwrite_with(0xdeadbeef as u32, BE).unwrap();
+    /// assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
+    /// ```
+    #[inline]
+    #[cfg(feature = "std")]
+    fn lwrite_with<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N, ctx: Ctx) -> error::Result<()> where Self: ::std::io::Write {
+        let mut buf = [0u8; 256];
+        let size = N::size_with(&ctx);
+        let mut buf = &mut buf[0..size];
+        n.into_ctx(buf, ctx);
+        self.write_all(buf)?;
+        Ok(())
     }
     /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
     #[inline]
