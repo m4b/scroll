@@ -482,10 +482,10 @@ mod tests {
         assert_eq!(*offset, 1);
     }
 
-    /*
     #[test]
     fn gread_slice() {
-        use super::{Pread, ctx};
+        use super::{Pread};
+        use super::ctx::{StrCtx};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let mut offset = &mut 0;
@@ -493,21 +493,21 @@ mod tests {
         assert!(res.is_err());
         *offset = 0;
         let astring: [u8; 3] = [0x45, 042, 0x44];
-        let string = astring.gread_slice::<str>(offset, 2);
+        let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
             &Ok(_) => {},
             &Err(ref err) => {println!("{}", &err); panic!();}
         }
         assert_eq!(string.unwrap(), "E*");
         *offset = 0;
-        let bytes2: &[u8]  = b.gread_slice(offset, 2).unwrap();
+        let bytes2: &[u8]  = b.gread_with(offset, 2).unwrap();
         assert_eq!(*offset, 2);
         assert_eq!(bytes2.len(), bytes[..].len());
         for i in 0..bytes2.len() {
             assert_eq!(bytes2[i], bytes[i])
         }
     }
-    */
+
     /////////////////////////////////////////////////////////////////
     // end gread_with
     /////////////////////////////////////////////////////////////////

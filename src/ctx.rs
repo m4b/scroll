@@ -487,6 +487,19 @@ impl<'a> TryFromCtx<'a, Endian> for usize where usize: FromCtx<Endian> {
     }
 }
 
+impl<'a> TryFromCtx<'a, usize> for &'a[u8] {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], size: usize) -> result::Result<(Self, Self::Size), Self::Error> {
+        if size > src.len () {
+            Err(error::Error::TooBig{size: size, len: src.len()})
+        } else {
+            Ok((&src[..size], size))
+        }
+    }
+}
+
 impl IntoCtx<Endian> for usize {
     #[inline]
     fn into_ctx(self, dst: &mut [u8], le: Endian) {
