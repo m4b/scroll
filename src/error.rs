@@ -44,6 +44,12 @@ impl error::Error for Error {
     }
 }
 
+impl<I> From<Error<I>> for () {
+    fn from(_err: Error<I>) -> () {
+        ()
+    }
+}
+
 #[cfg(feature = "std")]
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
