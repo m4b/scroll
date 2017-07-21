@@ -133,19 +133,18 @@ pub trait Gwrite<Ctx, E, I = usize>: Pwrite<Ctx, E, I>
 {
     /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
     #[inline]
-    fn gwrite<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output,  Error = E>>(&mut self, n: N, offset: &mut I) -> result::Result<(), E> where Ctx: Default {
+    fn gwrite<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output,  Error = E, Size = I>>(&mut self, n: N, offset: &mut I) -> result::Result<I, E> where Ctx: Default {
         let ctx = Ctx::default();
         self.gwrite_with(n, offset, ctx)
     }
     /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
     #[inline]
-    fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<(), E> {
+    fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<I, E> {
         let o = *offset;
         match self.pwrite_with(n, o, ctx) {
-            Ok(n) => {
-                let size = N::size_with(&ctx);
+            Ok(size) => {
                 *offset += size;
-                Ok(n)
+                Ok(size)
             },
             err => err
         }

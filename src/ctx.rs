@@ -150,7 +150,8 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 /// Tries to write `Self` into `This` using the context `Ctx`
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
-    fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<(), Self::Error>;
+    type Size;
+    fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<Self::Size, Self::Error>;
 }
 
 /// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
@@ -199,14 +200,14 @@ macro_rules! into_ctx_impl {
         }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
-            //type Size = usize;
+            type Size = usize;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
                 if $size > dst.len () {
                     Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
-                    //Ok((<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le), $size))
-                    Ok(<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le))
+                    <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
+                    Ok($size)
                 }
             }
         }
@@ -341,14 +342,14 @@ macro_rules! into_ctx_float_impl {
         }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
-            //type Size = usize;
+            type Size = usize;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
                 if $size > dst.len () {
                     Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
-                    //Ok((<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le), $size))
-                    Ok(<$typ as IntoCtx<Endian>>::into_ctx(self, dst, le))
+                    <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
+                    Ok($size)
                 }
             }
         }
@@ -402,8 +403,9 @@ impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
 
 impl<'a> TryIntoCtx for &'a [u8] {
     type Error = error::Error;
+    type Size = usize;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
         let src_len = self.len() as isize;
         let dst_len = dst.len() as isize;
         // if src_len < 0 || dst_len < 0 || offset < 0 {
@@ -413,15 +415,17 @@ impl<'a> TryIntoCtx for &'a [u8] {
             Err(error::Error::TooBig{ size: self.len(), len: dst.len()})
         } else {
             unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr(), src_len as usize) };
-            Ok(())
+            Ok(self.len())
         }
     }
 }
 
+// TODO: make TryIntoCtx use StrCtx for awesomeness
 impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
+    type Size = usize;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], ctx: ()) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], ctx: ()) -> error::Result<Self::Size> {
         let bytes = self.as_bytes();
         TryIntoCtx::try_into_ctx(bytes, dst, ctx)
     }
@@ -498,13 +502,15 @@ impl IntoCtx<Endian> for usize {
 
 impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     type Error = error::Error;
+    type Size = usize;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<()> {
+    fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
         let size = ::core::mem::size_of::<usize>();
         if size > dst.len() {
             Err(error::Error::TooBig{size: size, len: dst.len()})
         } else {
-            Ok(<usize as IntoCtx<Endian>>::into_ctx(self, dst, le))
+            <usize as IntoCtx<Endian>>::into_ctx(self, dst, le);
+            Ok(size)
         }
     }
 }

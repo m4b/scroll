@@ -17,11 +17,12 @@ use error;
 /// impl ctx::TryIntoCtx<Endian> for Foo {
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
+///     type Size = usize;
 ///     // you can write using your own context too... see `leb128.rs`
-///     fn try_into_ctx(self, this: &mut [u8], le: Endian) -> Result<(), Self::Error> {
+///     fn try_into_ctx(self, this: &mut [u8], le: Endian) -> Result<Self::Size, Self::Error> {
 ///         if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
 ///         this.pwrite_with(self.0, 0, le)?;
-///         Ok(())
+///         Ok(2)
 ///     }
 /// }
 /// // now we can write a `Foo` into some buffer (in this case, a byte buffer, because that's what we implemented it for above)
@@ -35,7 +36,7 @@ pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + Measur
        I: Add + Copy + PartialOrd,
        E: From<error::Error<I>>,
 {
-    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&mut self, n: N, offset: I) -> result::Result<(), E> where Ctx: Default {
+    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&mut self, n: N, offset: I) -> result::Result<I, E> where Ctx: Default {
         self.pwrite_with(n, offset, Ctx::default())
     }
     /// Write `N` at offset `I` with context `Ctx`
@@ -45,7 +46,7 @@ pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + Measur
     /// let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
     /// bytes.pwrite_with::<u32>(0xbeefbeef, 0, LE).unwrap();
     /// assert_eq!(bytes.pread_with::<u32>(0, LE).unwrap(), 0xbeefbeef);
-    fn pwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E>>(&mut self, n: N, offset: I, ctx: Ctx) -> result::Result<(), E> {
+    fn pwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&mut self, n: N, offset: I, ctx: Ctx) -> result::Result<I, E> {
         let len = self.measure_with(&ctx);
         if offset >= len {
             return Err(error::Error::BadOffset(offset).into())
