@@ -1,5 +1,5 @@
 use core::result;
-use core::ops::{Index, RangeFrom, Add};
+use core::ops::{Index, RangeFrom, Add, AddAssign};
 
 use ctx::{TryFromCtx, MeasureWith};
 use error;
@@ -111,6 +111,97 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
             return Err(error::Error::BadOffset(offset).into())
         }
         N::try_from_ctx(&self[offset..], ctx).and_then(|(n, _)| Ok(n))
+    }
+    #[inline]
+    /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness. Updates the offset
+    /// # Example
+    /// ```rust
+    /// use scroll::Gread;
+    /// let offset = &mut 0;
+    /// let bytes = [0x7fu8; 0x01];
+    /// let byte = bytes.gread::<u8>(offset).unwrap();
+    /// assert_eq!(*offset, 1);
+    fn gread<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&'a self, offset: &mut I) -> result::Result<N, E> where I: AddAssign, Ctx: Default, <Self as Index<RangeFrom<I>>>::Output: 'a {
+        let ctx = Ctx::default();
+        self.gread_with(offset, ctx)
+    }
+    /// Reads a value from `self` at `offset` with the given `ctx`, and updates the offset.
+    /// # Example
+    /// ```rust
+    /// use scroll::Gread;
+    /// let offset = &mut 0;
+    /// let bytes: [u8; 2] = [0xde, 0xad];
+    /// let dead: u16 = bytes.gread_with(offset, scroll::BE).unwrap();
+    /// assert_eq!(dead, 0xdeadu16);
+    /// assert_eq!(*offset, 2);
+    #[inline]
+    fn gread_with<'a, N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>
+        (&'a self, offset: &mut I, ctx: Ctx) ->
+        result::Result<N, E>
+        where I: AddAssign, <Self as Index<RangeFrom<I>>>::Output: 'a
+    {
+        let o = *offset;
+        // self.pread_with(o, ctx).and_then(|(n, size)| {
+        //     *offset += size;
+        //     Ok(n)
+        // })
+        let len = self.measure_with(&ctx);
+        if o >= len {
+            return Err(error::Error::BadOffset(o).into())
+        }
+        N::try_from_ctx(&self[o..], ctx).and_then(|(n, size)| {
+            *offset += size;
+            Ok(n)
+        })
+    }
+
+    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`, and updates the offset.
+    /// # Example
+    /// ```rust
+    /// use scroll::Gread;
+    /// let mut bytes: Vec<u8> = vec![0, 0];
+    /// let offset = &mut 0;
+    /// let bytes_from: [u8; 2] = [0x48, 0x49];
+    /// bytes_from.gread_inout(offset, &mut bytes).unwrap();
+    /// assert_eq!(&bytes, &bytes_from);
+    /// assert_eq!(*offset, 2);
+    #[inline]
+    fn gread_inout<'a, N>(&'a self, offset: &mut I, inout: &mut [N]) -> result::Result<(), E>
+        where
+        I: AddAssign,
+        N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
+    Ctx: Default,
+    <Self as Index<RangeFrom<I>>>::Output: 'a
+    {
+        let len = inout.len();
+        for i in 0..len {
+            inout[i] = self.gread(offset)?;
+        }
+        Ok(())
+    }
+
+    /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the context `ctx`
+    /// # Example
+    /// ```rust
+    /// use scroll::{ctx, LE, Gread};
+    /// let mut bytes: Vec<u8> = vec![0, 0];
+    /// let offset = &mut 0;
+    /// let bytes_from: [u8; 2] = [0x48, 0x49];
+    /// bytes_from.gread_inout_with(offset, &mut bytes, LE).unwrap();
+    /// assert_eq!(&bytes, &bytes_from);
+    /// assert_eq!(*offset, 2);
+    #[inline]
+    fn gread_inout_with<'a, N>(&'a self, offset: &mut I, inout: &mut [N], ctx: Ctx) -> result::Result<(), E>
+        where
+        I: AddAssign,
+        N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
+    <Self as Index<RangeFrom<I>>>::Output: 'a
+    {
+        let len = inout.len();
+        for i in 0..len {
+            inout[i] = self.gread_with(offset, ctx)?;
+        }
+        Ok(())
     }
 }
 

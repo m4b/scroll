@@ -5,7 +5,7 @@ extern crate scroll;
 // #[macro_use] extern crate scroll_derive;
 
 use std::ops::{Deref,  DerefMut};
-use scroll::{ctx, Result, Cread, Pread, Gread};
+use scroll::{ctx, Result, Cread, Pread};
 use scroll::ctx::SizeWith;
 
 pub struct Section<'a> {

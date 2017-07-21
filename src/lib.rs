@@ -374,7 +374,7 @@ mod tests {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
             fn $read() {
-                use super::Gread;
+                use super::Pread;
                 let bytes: [u8; 8] = [0xf, 0xe, 0xe, 0xb, 0xd, 0xa, 0xe, 0xd];
                 let mut offset = 0;
                 let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
@@ -393,7 +393,7 @@ mod tests {
         ($read:ident, $deadbeef:expr, $typ:ty) => {
             #[test]
             fn $read() {
-                use super::Gread;
+                use super::Pread;
                 let bytes: [u8; 8] = [0u8, 0, 0, 0, 0, 0, 224, 63];
                 let mut offset = 0;
                 let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
@@ -410,7 +410,7 @@ mod tests {
         ($read:ident, $val:expr, $typ:ty) => {
             #[test]
             fn $read() {
-                use super::{LE, BE, Gread, Gwrite};
+                use super::{LE, BE, Pread, Gwrite};
                 let mut buffer = [0u8; 16];
                 let mut offset = &mut 0;
                 buffer.gwrite_with($val.clone(), offset, LE).unwrap();
@@ -446,7 +446,7 @@ mod tests {
     // useful for ferreting out problems with impls
     #[test]
     fn gread_with_iter_bytes() {
-        use super::{Gread};
+        use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let mut bytes_to = &mut bytes_to[..];
@@ -461,7 +461,7 @@ mod tests {
 
     #[test]
     fn gread_inout() {
-        use super::{Gread};
+        use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes = &bytes_from[..];
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn gread_with_byte() {
-        use super::{Gread};
+        use super::{Pread};
         let bytes: [u8; 1] = [0x7f];
         let b = &bytes[..];
         let mut offset = &mut 0;
@@ -485,7 +485,7 @@ mod tests {
     /*
     #[test]
     fn gread_slice() {
-        use super::{Gread, ctx};
+        use super::{Pread, ctx};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let mut offset = &mut 0;

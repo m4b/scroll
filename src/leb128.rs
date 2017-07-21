@@ -125,7 +125,6 @@ impl<'a> TryFromCtx<'a> for Sleb128 {
     type Size = usize;
     #[inline]
     fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
-        use greater::Gread;
         let o = 0;
         let offset = &mut 0;
         let mut result = 0;
