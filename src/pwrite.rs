@@ -1,5 +1,5 @@
 use core::result;
-use core::ops::{Index, IndexMut, RangeFrom, Add};
+use core::ops::{Index, IndexMut, RangeFrom, Add, AddAssign};
 
 use ctx::{TryIntoCtx, MeasureWith};
 use error;
@@ -53,6 +53,28 @@ pub trait Pwrite<Ctx, E, I = usize> : Index<I> + IndexMut<RangeFrom<I>> + Measur
         }
         let dst = &mut self[offset..];
         n.try_into_ctx(dst, ctx)
+    }
+    /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
+    #[inline]
+    fn gwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output,  Error = E, Size = I>>(&mut self, n: N, offset: &mut I) -> result::Result<I, E> where
+        I: AddAssign,
+        Ctx: Default {
+        let ctx = Ctx::default();
+        self.gwrite_with(n, offset, ctx)
+    }
+    /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
+    #[inline]
+    fn gwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<I, E>
+        where I: AddAssign,
+    {
+        let o = *offset;
+        match self.pwrite_with(n, o, ctx) {
+            Ok(size) => {
+                *offset += size;
+                Ok(size)
+            },
+            err => err
+        }
     }
 }
 

@@ -1,43 +1,6 @@
-use core::result;
-use core::fmt::Debug;
-use core::ops::{Add, AddAssign};
 use core::ops::{Index, IndexMut, RangeFrom};
 
-use ctx::{TryIntoCtx, FromCtx, IntoCtx, SizeWith, MeasureWith};
-use error;
-use pwrite::Pwrite;
-
-/// The Greater Write (`Gwrite`) writes a value into its mutable insides, at a mutable offset
-pub trait Gwrite<Ctx, E, I = usize>: Pwrite<Ctx, E, I>
- where Ctx: Copy,
-       E: From<error::Error<I>> + Debug,
-       I: Add + Copy + PartialOrd + AddAssign + Default + Debug,
-{
-    /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
-    #[inline]
-    fn gwrite<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output,  Error = E, Size = I>>(&mut self, n: N, offset: &mut I) -> result::Result<I, E> where Ctx: Default {
-        let ctx = Ctx::default();
-        self.gwrite_with(n, offset, ctx)
-    }
-    /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
-    #[inline]
-    fn gwrite_with<N: SizeWith<Ctx, Units = I> + TryIntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>>(&mut self, n: N, offset: &mut I, ctx: Ctx) -> result::Result<I, E> {
-        let o = *offset;
-        match self.pwrite_with(n, o, ctx) {
-            Ok(size) => {
-                *offset += size;
-                Ok(size)
-            },
-            err => err
-        }
-    }
-}
-
-impl<Ctx: Copy,
-     I: Add + Copy + PartialOrd + AddAssign + Default + Debug,
-     E: From<error::Error<I>> + Debug,
-     W: ?Sized + Index<I> + IndexMut<RangeFrom<I>> + MeasureWith<Ctx, Units = I>>
-    Gwrite<Ctx, E, I> for W {}
+use ctx::{FromCtx, IntoCtx};
 
 /// Core-read - core, no_std friendly trait for reading basic traits from byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
 ///

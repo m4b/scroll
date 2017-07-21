@@ -20,7 +20,7 @@
 //! 2. [Gread](trait.Gread.html), for reading data at an offset which automatically gets incremented by the size;
 //! 3. [Lread](trait.Lread.html), for reading data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
 //!
-//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Gwrite](trait.Gwrite.html), and [Lwrite](trait.Lwrite.html), respectively.
+//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Pwrite](trait.Pwrite.html), and [Lwrite](trait.Lwrite.html), respectively.
 //!
 //! Most familiar will likely be the `Pread` trait (inspired from the C function), which in our case takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
 //!
@@ -96,7 +96,7 @@
 //!
 //! # Advanced Uses
 //!
-//! Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread`/`Gread` and/or `Pwrite`/`Gwrite` traits.
+//! Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread` and/or `Pwrite` traits.
 //!
 //! For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a [TryFromCtx](trait.TryFromCtx.html) impl for our datatype.
@@ -105,7 +105,7 @@
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
 //! 
 //! ```rust
-//! use scroll::{self, ctx, Pread, Gread, BE, Endian};
+//! use scroll::{self, ctx, Pread, BE, Endian};
 //! 
 //! struct Data<'a> {
 //!   name: &'a str,
@@ -410,7 +410,7 @@ mod tests {
         ($read:ident, $val:expr, $typ:ty) => {
             #[test]
             fn $read() {
-                use super::{LE, BE, Pread, Gwrite};
+                use super::{LE, BE, Pread, Pwrite};
                 let mut buffer = [0u8; 16];
                 let mut offset = &mut 0;
                 buffer.gwrite_with($val.clone(), offset, LE).unwrap();

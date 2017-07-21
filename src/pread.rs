@@ -35,7 +35,7 @@ use error;
 ///
 /// # Advanced: Using Your Own Error in `TryFromCtx`
 /// ```rust
-///  use scroll::{self, ctx};
+///  use scroll::{self, ctx, Pread};
 ///  use std::error;
 ///  use std::fmt::{self, Display};
 ///  // make some kind of normal error which also can transform a scroll error ideally (quick_error, error_chain allow this automatically nowadays)
@@ -69,7 +69,6 @@ use error;
 ///      type Error = ExternalError;
 ///      type Size = usize;
 ///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<(Self, Self::Size), Self::Error> {
-///          use scroll::Gread;
 ///          if this.len() <= 2 { return Err((ExternalError {}).into()) }
 ///          let offset = &mut 0;
 ///          let n = this.gread_with(offset, le)?;
@@ -77,7 +76,6 @@ use error;
 ///      }
 ///  }
 ///
-/// use scroll::Pread;
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
 /// let foo: Result<Foo, ExternalError> = bytes.pread(0);
 /// ```
@@ -116,7 +114,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// Reads a value from `self` at `offset` with a default `Ctx`. For the primitive numeric values, this will read at the machine's endianness. Updates the offset
     /// # Example
     /// ```rust
-    /// use scroll::Gread;
+    /// use scroll::Pread;
     /// let offset = &mut 0;
     /// let bytes = [0x7fu8; 0x01];
     /// let byte = bytes.gread::<u8>(offset).unwrap();
@@ -128,7 +126,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// Reads a value from `self` at `offset` with the given `ctx`, and updates the offset.
     /// # Example
     /// ```rust
-    /// use scroll::Gread;
+    /// use scroll::Pread;
     /// let offset = &mut 0;
     /// let bytes: [u8; 2] = [0xde, 0xad];
     /// let dead: u16 = bytes.gread_with(offset, scroll::BE).unwrap();
@@ -158,7 +156,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the default context for `N`, and updates the offset.
     /// # Example
     /// ```rust
-    /// use scroll::Gread;
+    /// use scroll::Pread;
     /// let mut bytes: Vec<u8> = vec![0, 0];
     /// let offset = &mut 0;
     /// let bytes_from: [u8; 2] = [0x48, 0x49];
@@ -183,7 +181,7 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     /// Trys to write `inout.len()` `N`s into `inout` from `Self` starting at `offset`, using the context `ctx`
     /// # Example
     /// ```rust
-    /// use scroll::{ctx, LE, Gread};
+    /// use scroll::{ctx, LE, Pread};
     /// let mut bytes: Vec<u8> = vec![0, 0];
     /// let offset = &mut 0;
     /// let bytes_from: [u8; 2] = [0x48, 0x49];
