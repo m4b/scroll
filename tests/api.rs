@@ -5,7 +5,7 @@ extern crate scroll;
 // #[macro_use] extern crate scroll_derive;
 
 use std::ops::{Deref,  DerefMut};
-use scroll::{ctx, Result, Cread, Pread};
+use scroll::{ctx, Result, Pread};
 use scroll::ctx::SizeWith;
 
 pub struct Section<'a> {
@@ -177,7 +177,8 @@ struct Foo {
 
 impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-        Foo { foo: bytes.cread_with::<usize>(0, ctx), bar: bytes.cread_with::<u32>(8, ctx) }
+        unimplemented!()
+        //Foo { foo: bytes.cread_with::<usize>(0, ctx), bar: bytes.cread_with::<u32>(8, ctx) }
     }
 }
 
@@ -214,14 +215,14 @@ struct Bar {
 
 impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-        use scroll::Cread;
+        use scroll::Pread;
         Bar { foo: bytes.cread_with(0, ctx), bar: bytes.cread_with(4, ctx) }
     }
 }
 
 #[test]
 fn cread_api() {
-    use scroll::Cread;
+    use scroll::Pread;
     let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
     let foo = bytes.cread::<usize>(0);
     let bar = bytes.cread::<u32>(8);
@@ -231,7 +232,7 @@ fn cread_api() {
 
 #[test]
 fn cread_api_customtype() {
-    use scroll::Cread;
+    use scroll::Pread;
     let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
     let bar = &bytes[..].cread::<Bar>(0);
     assert_eq!(bar.foo, -1);
@@ -241,7 +242,7 @@ fn cread_api_customtype() {
 #[test]
 #[should_panic]
 fn cread_api_badindex() {
-    use scroll::Cread;
+    use scroll::Pread;
     let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0xad,0xde,];
     let _foo = bytes.cread::<i64>(1_000_000);
 }
@@ -249,7 +250,7 @@ fn cread_api_badindex() {
 #[test]
 fn cwrite_api() {
     use scroll::Cwrite;
-    use scroll::Cread;
+    use scroll::Pread;
     let mut bytes = [0x0; 0x10];
     bytes.cwrite::<usize>(42, 0);
     bytes.cwrite::<u32>(0xdeadbeef, 8);
@@ -267,7 +268,7 @@ impl scroll::ctx::IntoCtx<scroll::Endian> for Bar {
 
 #[test]
 fn cwrite_api_customtype() {
-    use scroll::{Cwrite, Cread};
+    use scroll::{Cwrite, Pread};
     let bar = Bar { foo: -1, bar: 0xdeadbeef };
     let mut bytes = [0x0; 0x10];
     &bytes[..].cwrite::<Bar>(bar, 0);
