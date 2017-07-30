@@ -10,7 +10,7 @@ pub const LE: Endian = Endian::Little;
 /// Big Endian byte order context
 pub const BE: Endian = Endian::Big;
 /// Network byte order context
-pub const NETWORK: Endian = Endian::Little;
+pub const NETWORK: Endian = Endian::Big;
 #[cfg(target_endian = "little")]
 /// The machine's native byte order
 pub const NATIVE: Endian = LE;
@@ -35,7 +35,7 @@ impl From<bool> for Endian {
 impl Endian {
     #[inline]
     pub fn network() -> Endian {
-        Endian::Little
+        NETWORK
     }
     #[inline]
     pub fn is_little (&self) -> bool {
