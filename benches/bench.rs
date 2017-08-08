@@ -5,11 +5,11 @@ extern crate scroll;
 extern crate rayon;
 //extern crate byteio;
 
+use scroll::{Cread, Cwrite, Pread, Pwrite, IOread, IOwrite, LE};
 use test::black_box;
 
 #[bench]
 fn bench_parallel_cread_with(b: &mut test::Bencher) {
-    use scroll::{Cread, LE};
     use rayon::prelude::*;
     let vec = vec![0u8; 1_000_000];
     let nums = vec![0usize; 500_000];
@@ -24,7 +24,6 @@ fn bench_parallel_cread_with(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_cread_vec(b: &mut test::Bencher) {
-    use scroll::{Cread, LE};
     let vec = vec![0u8; 1_000_000];
     b.iter(|| {
         let data = black_box(&vec[..]);
@@ -37,7 +36,6 @@ fn bench_cread_vec(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_cread(b: &mut test::Bencher) {
-    use scroll::{Cread};
     const NITER: i32 = 100_000;
     b.iter(|| {
         for _ in 1..NITER {
@@ -50,7 +48,6 @@ fn bench_cread(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_pread_ctx_vec(b: &mut test::Bencher) {
-    use scroll::{Pread};
     let vec = vec![0u8; 1_000_000];
     b.iter(|| {
         let data = black_box(&vec[..]);
@@ -63,7 +60,6 @@ fn bench_pread_ctx_vec(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_pread_with_unwrap(b: &mut test::Bencher) {
-    use scroll::{Pread, LE};
     const NITER: i32 = 100_000;
     b.iter(|| {
         for _ in 1..NITER {
@@ -76,7 +72,6 @@ fn bench_pread_with_unwrap(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_pread_vec(b: &mut test::Bencher) {
-    use scroll::{Pread, LE};
     let vec = vec![0u8; 1_000_000];
     b.iter(|| {
         let data = black_box(&vec[..]);
@@ -89,7 +84,6 @@ fn bench_pread_vec(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_pread_unwrap(b: &mut test::Bencher) {
-    use scroll::{Pread};
     const NITER: i32 = 100_000;
     b.iter(|| {
         for _ in 1..NITER {
@@ -101,21 +95,7 @@ fn bench_pread_unwrap(b: &mut test::Bencher) {
 }
 
 #[bench]
-fn bench_pread_unsafe(b: &mut test::Bencher) {
-    use scroll::{Pread, LE};
-    const NITER: i32 = 100_000;
-    b.iter(|| {
-        for _ in 1..NITER {
-            let data = black_box([1, 2]);
-            let _: u16 = black_box(data.pread_unsafe(0, LE));
-        }
-    });
-    b.bytes = 2 * NITER as u64;
-}
-
-#[bench]
 fn bench_gread_vec(b: &mut test::Bencher) {
-    use scroll::{Gread};
     let vec = vec![0u8; 1_000_000];
     b.iter(|| {
         let data = black_box(&vec[..]);
@@ -128,14 +108,13 @@ fn bench_gread_vec(b: &mut test::Bencher) {
 }
 
 #[bench]
-fn bench_gread_unsafe(b: &mut test::Bencher) {
-    use scroll::{Gread, LE};
+fn bench_gread_unwrap(b: &mut test::Bencher) {
     const NITER: i32 = 100_000;
     b.iter(|| {
         for _ in 1..NITER {
             let data = black_box([1, 2]);
             let mut offset = 0;
-            let _: u16 = black_box(data.gread_unsafe(&mut offset, LE));
+            let _: u16 = black_box(data.gread_with(&mut offset, LE).unwrap());
         }
     });
     b.bytes = 2 * NITER as u64;
@@ -143,7 +122,6 @@ fn bench_gread_unsafe(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_parallel_pread_with(b: &mut test::Bencher) {
-    use scroll::{Pread, LE};
     use rayon::prelude::*;
     let vec = vec![0u8; 1_000_000];
     let nums = vec![0usize; 500_000];
