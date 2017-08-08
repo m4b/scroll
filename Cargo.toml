@@ -14,5 +14,5 @@ default = ["std"]
 std = []
 
 [dev-dependencies]
-rayon = "0.6.0"
+rayon = "0.8.0"
 byteorder = "1.0.0"
