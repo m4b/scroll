@@ -189,19 +189,19 @@ impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
 }
 
 #[test]
-fn lread_api() {
+fn ioread_api() {
     use std::io::Cursor;
-    use scroll::Lread;
+    use scroll::IOread;
     let bytes_ = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
     let mut bytes = Cursor::new(bytes_);
-    let foo = bytes.lread::<usize>().unwrap();
-    let bar = bytes.lread::<u32>().unwrap();
+    let foo = bytes.ioread::<usize>().unwrap();
+    let bar = bytes.ioread::<u32>().unwrap();
     assert_eq!(foo, 1);
     assert_eq!(bar, 0xbeef);
-    let error = bytes.lread::<f64>();
+    let error = bytes.ioread::<f64>();
     assert!(error.is_err());
     let mut bytes = Cursor::new(bytes_);
-    let foo_ = bytes.lread::<Foo>().unwrap();
+    let foo_ = bytes.ioread::<Foo>().unwrap();
     assert_eq!(foo_.foo, foo);
     assert_eq!(foo_.bar, bar);
 }

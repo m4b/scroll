@@ -18,9 +18,9 @@
 //!
 //! 1. [Pread](trait.Pread.html), for reading (immutable) data at an offset;
 //! 2. [Gread](trait.Gread.html), for reading data at an offset which automatically gets incremented by the size;
-//! 3. [Lread](trait.Lread.html), for reading data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
+//! 3. [IOread](trait.IOread.html), for reading _simple_ data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
 //!
-//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Pwrite](trait.Pwrite.html), and [Lwrite](trait.Lwrite.html), respectively.
+//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Pwrite](trait.Pwrite.html), and [IOwrite](trait.IOwrite.html), respectively.
 //!
 //! Most familiar will likely be the `Pread` trait (inspired from the C function), which in our case takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
 //!
@@ -71,26 +71,26 @@
 //!
 //! ```rust
 //! use std::io::Cursor;
-//! use scroll::Lread;
+//! use scroll::IOread;
 //! let bytes_ = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
 //! let mut bytes = Cursor::new(bytes_);
 //!
 //! // this will bump the cursor's Seek
-//! let foo = bytes.lread::<usize>().unwrap();
+//! let foo = bytes.ioread::<usize>().unwrap();
 //! // ..ditto
-//! let bar = bytes.lread::<u32>().unwrap();
+//! let bar = bytes.ioread::<u32>().unwrap();
 //! ```
 //!
 //! Similarly, we can write to anything that implements `std::io::Write` quite naturally:
 //!
 //! ```rust
-//! use scroll::{Lwrite, LE, BE};
+//! use scroll::{IOwrite, LE, BE};
 //! use std::io::{Write, Cursor};
 //!
 //! let mut bytes = [0x0u8; 10];
 //! let mut cursor = Cursor::new(&mut bytes[..]);
 //! cursor.write_all(b"hello").unwrap();
-//! cursor.lwrite_with(0xdeadbeef as u32, BE).unwrap();
+//! cursor.iowrite_with(0xdeadbeef as u32, BE).unwrap();
 //! assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
 //! ```
 //!
