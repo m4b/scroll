@@ -53,9 +53,11 @@ use core::result;
 use error;
 use endian::Endian;
 
+/// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
     type Units;
     #[inline]
+    /// How large is `Self`, given the `ctx`?
     fn measure_with(&self, ctx: &Ctx) -> Self::Units;
 }
 
