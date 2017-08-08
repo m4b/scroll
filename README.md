@@ -23,7 +23,7 @@ Add to your `Cargo.toml`
 
 ```toml
 [dependencies]
-scroll = "0.6.0"
+scroll = "0.7.0"
 ```
 
 ### Overview
@@ -35,84 +35,103 @@ Because self is immutable, _**all** reads can be performed in parallel_ and henc
 A simple example demonstrates its flexibility:
 
 ```rust
-use scroll::{ctx, Pread};
+use scroll::{ctx, Pread, LE};
 let bytes: [u8; 4] = [0xde, 0xad, 0xbe, 0xef];
 
-// we can use the Buffer type that scroll provides, or use it on regular byte slices (or anything that impl's `AsRef<[u8]>`)
-//let buffer = scroll::Buffer::new(bytes);
-let b = &bytes[..];
+// reads a u32 out of `b` with the endianness of the host machine, at offset 0, turbofish-style
+let number: u32 = bytes.pread::<u32>(0).unwrap();
+// ...or a byte, with type ascription on the binding.
+let byte: u8 = bytes.pread(0).unwrap();
 
-// reads a u32 out of `b` with Big Endian byte order, at offset 0
-let i: u32 = b.pread_with(0, scroll::BE).unwrap();
+//If the type is known another way by the compiler, say reading into a struct field, we can omit the turbofish, and type ascription altogether!
+
+// If we want, we can explicitly add a endianness to read with by calling `pread_with`.
+// The following reads a u32 out of `b` with Big Endian byte order, at offset 0
+let be_number: u32 = bytes.pread_with(0, scroll::BE).unwrap();
 // or a u16 - specify the type either on the variable or with the beloved turbofish
-let i2 = b.pread_with::<u16>(2, scroll::BE).unwrap();
+let be_number2 = bytes.pread_with::<u16>(2, scroll::BE).unwrap();
 
-// We can also skip the ctx by calling `pread`.
-// for the primitive numbers, this will default to the host machine endianness (technically it is whatever default `Ctx` the target type is impl'd for)
-let byte: u8 = b.pread(0).unwrap();
-let i3: u32 = b.pread(0).unwrap();
+// Scroll has core friendly errors (no allocation). This will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
+let byte: scroll::Result<i64> = bytes.pread(0);
 
-// this will have the type `scroll::Error::BadOffset` because it tried to read beyond the bound
-let byte: scroll::Result<i64> = b.pread(0);
+// Scroll is extensible: as long as the type implements `TryWithCtx`, then you can read your type out of the byte array!
 
-// we can also get str and byte references from the underlying buffer/bytes using `pread_slice`
-let slice = b.pread_slice::<str>(0, 2).unwrap();
-let byte_slice: &[u8] = b.pread_slice(0, 2).unwrap();
-
-// here is an example of parsing a uleb128 custom datatype
-let leb128_bytes: [u8; 5] = [0xde | 128, 0xad | 128, 0xbe | 128, 0xef | 128, 0x1];
-// parses a uleb128 (variable length encoded integer) from the above bytes
-let uleb128: u64 = leb128_bytes.pread::<scroll::Uleb128>(0).unwrap().into();
-assert_eq!(uleb128, 0x01def96deu64);
-
-// finally, we can also parse out custom datatypes, or types with lifetimes
+// We can parse out custom datatypes, or types with lifetimes
 // if they implement the conversion trait `TryFromCtx`; here we parse a C-style \0 delimited &str (safely)
 let hello: &[u8] = b"hello_world\0more words";
 let hello_world: &str = hello.pread(0).unwrap();
 assert_eq!("hello_world", hello_world);
 
 // ... and this parses the string if its space separated!
+use scroll::ctx::*;
 let spaces: &[u8] = b"hello world some junk";
 let world: &str = spaces.pread_with(6, StrCtx::Delimiter(SPACE)).unwrap();
 assert_eq!("world", world);
 ```
 
-# Advanced Uses
+# `std::io` API
 
-Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread`/`Gread` and/or `Pwrite`/`Gwrite` traits.
-
-For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
-byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype.
-
-In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
-calling `pread::<YourDatatype>` on arrays of bytes.
+Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the `FromCtx` (_how_ to parse) and `SizeWith` (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
 
 ```rust
-use scroll::{self, ctx, Pread, BE};
+use std::io::Cursor;
+use scroll::IOread;
+let bytes_ = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
+let mut bytes = Cursor::new(bytes_);
+
+// this will bump the cursor's Seek
+let foo = bytes.ioread::<usize>().unwrap();
+// ..ditto
+let bar = bytes.ioread::<u32>().unwrap();
+```
+
+Similarly, we can write to anything that implements `std::io::Write` quite naturally:
+
+```rust
+use scroll::{IOwrite, LE, BE};
+use std::io::{Write, Cursor};
+
+let mut bytes = [0x0u8; 10];
+let mut cursor = Cursor::new(&mut bytes[..]);
+cursor.write_all(b"hello").unwrap();
+cursor.iowrite_with(0xdeadbeef as u32, BE).unwrap();
+assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
+```
+
+# Advanced Uses
+
+Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread` and/or `Pwrite` traits.
+
+For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
+byte buffer. In order to do this, we need to provide a [TryFromCtx](trait.TryFromCtx.html) impl for our datatype.
+
+In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
+calling `pread_with::<YourDatatype>` on arrays of bytes.
+
+```rust
+use scroll::{self, ctx, Pread, BE, Endian};
 
 struct Data<'a> {
   name: &'a str,
   id: u32,
 }
 
-// we could use a `(usize, endian::Scroll)` if we wanted
-#[derive(Debug, Clone, Copy, Default)]
-struct DataCtx { pub size: usize, pub endian: scroll::Endian }
-
 // note the lifetime specified here
-impl<'a> ctx::TryFromCtx<'a, (usize, DataCtx)> for Data<'a> {
+impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
   type Error = scroll::Error;
+  type Size = usize;
   // and the lifetime annotation on `&'a [u8]` here
-  fn try_from_ctx (src: &'a [u8], (offset, DataCtx {size, endian}): (usize, DataCtx))
-    -> Result<Self, Self::Error> {
-    let name = src.pread_slice::<str>(offset, size)?;
-    let id = src.pread(offset+size, endian)?;
-    Ok(Data { name: name, id: id })
+  fn try_from_ctx (src: &'a [u8], endian: Endian)
+    -> Result<(Self, Self::Size), Self::Error> {
+    let offset = &mut 0;
+    let name = src.gread::<&str>(offset)?;
+    let id = src.gread_with(offset, endian)?;
+    Ok((Data { name: name, id: id }, *offset))
   }
 }
 
-let bytes = scroll::Buffer::new(b"UserName\x01\x02\x03\x04");
-let data = bytes.pread::<Data>(0, DataCtx { size: 8, endian: BE }).unwrap();
+let bytes = b"UserName\x00\x01\x02\x03\x04";
+let data = bytes.pread_with::<Data>(0, BE).unwrap();
 assert_eq!(data.id, 0x01020304);
 assert_eq!(data.name.to_string(), "UserName".to_string());
 ```
@@ -120,11 +139,5 @@ assert_eq!(data.name.to_string(), "UserName".to_string());
 Please see the official documentation, or a simple [example](examples/data_ctx.rs) for more.
 
 # Contributing
-
-There are several open issues right now which I'd like clarified/closed before releasing on crates.io. Keep in mind, the primary use case is an immutable byte parser/reader, which `Pread` implements, and which I want backwards compability at this point.
-
-In fact, if you look at the tests, most of them actually are just testing the APIs remain unbroken (still compiling), which is very easy to do with something this generic.
-
-However, I believe there are some really interesting ideas to pursue, particularly in terms of the more generic contexts that scroll allows.
 
 Any ideas, thoughts, or contributions are welcome!
