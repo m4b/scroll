@@ -26,6 +26,8 @@
 //!
 //! Because self is immutable, _**all** reads can be performed in parallel_ and hence are trivially parallelizable.
 //!
+//! For most usecases, you can use [scroll_derive](https://docs.rs/scroll_derive) to automatically add `derive(Pread, Pwrite, IOread, IOwrite, SizeWith)` annotations to your types, and you should be ready to roll.  For more complex usescases, you can implement the conversion traits yourself, see the [context module](ctx/index.html) for more information.
+//!
 //! # Example
 //!
 //! A simple example demonstrates its flexibility:

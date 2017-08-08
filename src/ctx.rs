@@ -6,7 +6,7 @@
 //!
 //! The implementor only needs to specify the error type, and the type of their size, and then implement the parsing/marshalling logic given a byte sequence, starting at the offset `pread`, et. al was called at, with the context you have implemented it for.
 //!
-//! Returning the size allows dynamic content (e.g., `&str`s) to be parsed alongside fixed size content (e.g., `u64`). The parsing context is any information you the implementor need to correctly parse out your datatype - this could be the endianness of the type, more offsets, or other complex data. The only requirement is that your `Ctx` be `Copy`, and hence encouragements lightweight contexts (but this isn't required of course).
+//! Returning the size allows dynamic content (e.g., `&str`s) to be parsed alongside fixed size content (e.g., `u64`). The parsing context is any information you the implementor need to correctly parse out your datatype - this could be the endianness of the type, more offsets, or other complex data. The only requirement is that your `Ctx` be `Copy`, and hence encourages lightweight contexts (but this isn't required of course).
 //!
 //!
 //! # Example
