@@ -1,39 +1,22 @@
 //! Generic context-aware conversion traits, for automatic _downstream_ extension of `Pread`, et. al
 //!
 //! # Discussion
-//! **TODO**: UPDATE THIS
 //!
-//! Let us postulate that there is a deep relationship between trying to make something from something else, and
-//! the generic concept of "parsing" or "reading".
+//! Implementors of `TryFromCtx` automatically grant any client user of `pread, pwrite, gread, gwrite` the ability to parse their structure out of the source it has been implemented for, typically `&[u8]`.
 //!
-//! Further let us suppose that central to this notion is also the importance of codified failure, in addition to a
-//! _context_ in which this reading/parsing/from-ing occurs.
+//! The implementor only needs to specify the error type, and the type of their size, and then implement the parsing/marshalling logic given a byte sequence, starting at the offset `pread`, et. al was called at, with the context you have implemented it for.
 //!
-//! A context in this case is a set of values, preconditions, etc., which make the parsing meaningful for a particular type of input.
+//! Returning the size allows dynamic content (e.g., `&str`s) to be parsed alongside fixed size content (e.g., `u64`). The parsing context is any information you the implementor need to correctly parse out your datatype - this could be the endianness of the type, more offsets, or other complex data. The only requirement is that your `Ctx` be `Copy`, and hence encouragements lightweight contexts (but this isn't required of course).
 //!
-//! For example, to make this more concrete, when parsing an array of bytes, for a concrete numeric type, say `u32`,
-//! we might be interested in parsing this value at a given offset in a "big endian" byte order.
-//! Consequently, we might say our context is a 2-tuple, `(offset, endianness)`.
-//!
-//! Another example might be parsing a `&str` from a stream of bytes, which would require both an offset and a size.
-//! Still another might be parsing a list of ELF dynamic table entries from a byte array - which requires both something called
-//! a "load bias" and an array of program headers _maybe_ pointing to their location.
-//!
-//! Scroll builds on this idea by providing a generic context as a parameter to conversion traits
-//! (the parsing `Ctx`, akin to a "contextual continuation"), which is typically sufficient to model a large amount of data constructs using this single conversion trait, but with different `Ctx` implementations.
-//! In particular, parsing a u64, a leb128, a byte, a custom datatype, can all be modelled using a single trait - `TryFromCtx<Ctx, This, Error = E>`. What this enables is a _single method_ for parsing disparate datatypes out of a given type, with a given context - **without** re-implementing the reader functions, and all done at compile time, without runtime dispatch!
-//!
-//! Consequently, instead of "hand specializing" function traits by appending `pread_<type>`,
-//! almost all of the complexity of `Pread` and its sister trait `Gread` can be collapsed
-//! into two methods (`pread_with` and `pread_slice`).
 //!
 //! # Example
-//! **TODO**: THIS IS NOT TRUE ANYMORE
 //!
 //! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
-//! do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
-//! calling `pread_with::<YourDatatype>` on arrays of bytes.
+//! do this for the `[u8]` target, with a "parsing contex",  `YourCtx`, you will automatically get access to
+//! calling `pread_with::<YourDatatype>(offset, your_ctx)` on arrays of bytes.
+//!
+//! In the example below, we implement `TryFromCtx` using the `Endian` parsing context provided by `scroll`, which is used to specifying the endianness at which numbers should be parsed, but you could provide anything, as long as it implements `Copy`.
 //!
 //! ```rust
 //! use scroll::{self, ctx, Endian, Pread, BE};
