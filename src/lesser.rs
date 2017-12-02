@@ -147,7 +147,7 @@ pub trait IOwrite<Ctx: Copy>: Write
     fn iowrite_with<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N, ctx: Ctx) -> Result<()> {
         let mut buf = [0u8; 256];
         let size = N::size_with(&ctx);
-        let mut buf = &mut buf[0..size];
+        let buf = &mut buf[0..size];
         n.into_ctx(buf, ctx);
         self.write_all(buf)?;
         Ok(())

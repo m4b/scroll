@@ -188,7 +188,7 @@ mod tests {
             fn $write() {
                 use super::{Pwrite, Pread, BE};
                 let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-                let mut b = &mut bytes[..];
+                let b = &mut bytes[..];
                 b.pwrite_with::<$read>($deadbeef, 0, LE).unwrap();
                 assert_eq!(b.pread_with::<$read>(0, LE).unwrap(), $deadbeef);
                 b.pwrite_with::<$read>($deadbeef, 0, BE).unwrap();
@@ -357,7 +357,7 @@ mod tests {
         use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-        let mut bytes_to = &mut bytes_to[..];
+        let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
         for i in 0..bytes_from.len() {
             bytes_to[i] = bytes_from.pread(i).unwrap();
@@ -414,9 +414,9 @@ mod tests {
             fn $read() {
                 use super::{LE, BE, Pread, Pwrite};
                 let mut buffer = [0u8; 16];
-                let mut offset = &mut 0;
+                let offset = &mut 0;
                 buffer.gwrite_with($val.clone(), offset, LE).unwrap();
-                let mut o2 = &mut 0;
+                let o2 = &mut 0;
                 let val: $typ = buffer.gread_with(o2, LE).unwrap();
                 assert_eq!(val, $val);
                 assert_eq!(*offset, ::std::mem::size_of::<$typ>());
@@ -451,7 +451,7 @@ mod tests {
         use super::{Pread};
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-        let mut bytes_to = &mut bytes_to[..];
+        let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
         let mut offset = &mut 0;
         for i in 0..bytes_from.len() {
@@ -467,7 +467,7 @@ mod tests {
         let mut bytes_to: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes = &bytes_from[..];
-        let mut offset = &mut 0;
+        let offset = &mut 0;
         bytes.gread_inout(offset, &mut bytes_to[..]).unwrap();
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
@@ -478,7 +478,7 @@ mod tests {
         use super::{Pread};
         let bytes: [u8; 1] = [0x7f];
         let b = &bytes[..];
-        let mut offset = &mut 0;
+        let offset = &mut 0;
         let byte: u8 = b.gread(offset).unwrap();
         assert_eq!(0x7f, byte);
         assert_eq!(*offset, 1);
@@ -490,7 +490,7 @@ mod tests {
         use super::ctx::{StrCtx};
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
-        let mut offset = &mut 0;
+        let offset = &mut 0;
         let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
