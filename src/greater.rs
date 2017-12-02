@@ -60,7 +60,7 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
     /// use scroll::Cread;
     ///
     /// let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
-    /// let foo = bytes.cread::<usize>(0);
+    /// let foo = bytes.cread::<i64>(0);
     /// let bar = bytes.cread::<u32>(8);
     /// assert_eq!(foo, 1);
     /// assert_eq!(bar, 0xbeef);
@@ -108,9 +108,9 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// ```
     /// use scroll::{Cwrite, Cread};
     /// let mut bytes = [0x0; 0x10];
-    /// bytes.cwrite::<usize>(42, 0);
+    /// bytes.cwrite::<i64>(42, 0);
     /// bytes.cwrite::<u32>(0xdeadbeef, 8);
-    /// assert_eq!(bytes.cread::<usize>(0), 42);
+    /// assert_eq!(bytes.cread::<i64>(0), 42);
     /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
     #[inline]
     fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) where Ctx: Default {
@@ -124,9 +124,9 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// ```
     /// use scroll::{Cwrite, Cread, LE, BE};
     /// let mut bytes = [0x0; 0x10];
-    /// bytes.cwrite_with::<usize>(42, 0, LE);
+    /// bytes.cwrite_with::<i64>(42, 0, LE);
     /// bytes.cwrite_with::<u32>(0xdeadbeef, 8, BE);
-    /// assert_eq!(bytes.cread::<usize>(0), 42);
+    /// assert_eq!(bytes.cread::<i64>(0), 42);
     /// assert_eq!(bytes.cread::<u32>(8), 0xefbeadde);
     #[inline]
     fn cwrite_with<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I, ctx: Ctx) {

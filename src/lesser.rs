@@ -15,13 +15,13 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 ///
 /// #[repr(packed)]
 /// struct Foo {
-///     foo: usize,
+///     foo: i64,
 ///     bar: u32,
 /// }
 ///
 /// impl ctx::FromCtx<scroll::Endian> for Foo {
 ///     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-///         Foo { foo: bytes.pread_with::<usize>(0, ctx).unwrap(), bar: bytes.pread_with::<u32>(8, ctx).unwrap() }
+///         Foo { foo: bytes.pread_with::<i64>(0, ctx).unwrap(), bar: bytes.pread_with::<u32>(8, ctx).unwrap() }
 ///     }
 /// }
 ///
@@ -35,7 +35,7 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 ///
 /// let bytes_ = [0x0b,0x0b,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
 /// let mut bytes = Cursor::new(bytes_);
-/// let foo = bytes.ioread::<usize>().unwrap();
+/// let foo = bytes.ioread::<i64>().unwrap();
 /// let bar = bytes.ioread::<u32>().unwrap();
 /// assert_eq!(foo, 0xb0b);
 /// assert_eq!(bar, 0xbeef);

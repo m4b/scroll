@@ -78,7 +78,7 @@
 //! let mut bytes = Cursor::new(bytes_);
 //!
 //! // this will bump the cursor's Seek
-//! let foo = bytes.ioread::<usize>().unwrap();
+//! let foo = bytes.ioread::<u64>().unwrap();
 //! // ..ditto
 //! let bar = bytes.ioread::<u32>().unwrap();
 //! ```
@@ -222,7 +222,10 @@ mod tests {
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let byte: u16 = b.pread(0).unwrap();
+        #[cfg(target_endian = "little")]
         assert_eq!(0xef7e, byte);
+        #[cfg(target_endian = "big")]
+        assert_eq!(0x7eef, byte);
     }
 
     #[test]

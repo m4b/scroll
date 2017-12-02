@@ -171,13 +171,13 @@ fn lifetime_passthrough() {
 #[derive(Default)]
 #[repr(packed)]
 struct Foo {
-    foo: usize,
+    foo: i64,
     bar: u32,
 }
 
 impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-        Foo { foo: bytes.cread_with::<usize>(0, ctx), bar: bytes.cread_with::<u32>(8, ctx) }
+        Foo { foo: bytes.cread_with::<i64>(0, ctx), bar: bytes.cread_with::<u32>(8, ctx) }
     }
 }
 
@@ -194,7 +194,7 @@ fn ioread_api() {
     use scroll::IOread;
     let bytes_ = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
     let mut bytes = Cursor::new(bytes_);
-    let foo = bytes.ioread::<usize>().unwrap();
+    let foo = bytes.ioread::<i64>().unwrap();
     let bar = bytes.ioread::<u32>().unwrap();
     assert_eq!(foo, 1);
     assert_eq!(bar, 0xbeef);
@@ -223,7 +223,7 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
 fn cread_api() {
     use scroll::Cread;
     let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
-    let foo = bytes.cread::<usize>(0);
+    let foo = bytes.cread::<u64>(0);
     let bar = bytes.cread::<u32>(8);
     assert_eq!(foo, 1);
     assert_eq!(bar, 0xbeef);
@@ -251,9 +251,9 @@ fn cwrite_api() {
     use scroll::Cwrite;
     use scroll::Cread;
     let mut bytes = [0x0; 0x10];
-    bytes.cwrite::<usize>(42, 0);
+    bytes.cwrite::<u64>(42, 0);
     bytes.cwrite::<u32>(0xdeadbeef, 8);
-    assert_eq!(bytes.cread::<usize>(0), 42);
+    assert_eq!(bytes.cread::<u64>(0), 42);
     assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
 }
 
