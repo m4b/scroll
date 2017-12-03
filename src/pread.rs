@@ -27,8 +27,9 @@ use error;
 /// }
 ///
 /// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
-/// let foo = bytes.pread::<Foo>(0).unwrap();
+/// let foo = bytes.pread_with::<Foo>(0, scroll::LE).unwrap();
 /// assert_eq!(Foo(0xadde), foo);
+///
 /// let foo2 = bytes.pread_with::<Foo>(0, scroll::BE).unwrap();
 /// assert_eq!(Foo(0xdeadu16), foo2);
 /// ```

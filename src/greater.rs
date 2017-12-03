@@ -9,7 +9,7 @@ use ctx::{FromCtx, IntoCtx};
 /// # Example
 ///
 /// ```rust
-/// use scroll::{ctx, Cread};
+/// use scroll::{ctx, Cread, LE};
 ///
 /// #[repr(packed)]
 /// struct Bar {
@@ -25,7 +25,7 @@ use ctx::{FromCtx, IntoCtx};
 /// }
 ///
 /// let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
-/// let bar = bytes.cread::<Bar>(0);
+/// let bar = bytes.cread_with::<Bar>(0, LE);
 /// assert_eq!(bar.foo, -1);
 /// assert_eq!(bar.bar, 0xdeadbeef);
 /// ```
@@ -52,7 +52,9 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
     fn cread_with<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I, ctx: Ctx) -> N {
         N::from_ctx(&self[offset..], ctx)
     }
-    /// Reads a value implementing `FromCtx` from `Self` at `offset`
+    /// Reads a value implementing `FromCtx` from `Self` at `offset`,
+    /// with the **target machine**'s endianness.
+    /// For the primitive types, this will be the **target machine**'s endianness.
     ///
     /// # Example
     ///
@@ -62,8 +64,15 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
     /// let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
     /// let foo = bytes.cread::<i64>(0);
     /// let bar = bytes.cread::<u32>(8);
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(foo, 1);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(foo, 0x100_0000_0000_0000);
+    ///
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bar, 0xbeef);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(bar, 0xefbe);
     /// ```
     #[inline]
     fn cread<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I) -> N where Ctx: Default {
@@ -97,21 +106,30 @@ impl<Ctx: Copy, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for
 /// }
 ///
 /// let bar = Bar { foo: -1, bar: 0xdeadbeef };
-/// let mut bytes = [0x0; 0x10];
+/// let mut bytes = [0x0; 16];
 /// bytes.cwrite::<Bar>(bar, 0);
 /// ```
 pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// Writes `n` into `Self` at `offset`; uses default context.
+    /// For the primitive types, this will be the **target machine**'s endianness.
     ///
     /// # Example
     ///
     /// ```
     /// use scroll::{Cwrite, Cread};
-    /// let mut bytes = [0x0; 0x10];
+    /// let mut bytes = [0x0; 16];
     /// bytes.cwrite::<i64>(42, 0);
     /// bytes.cwrite::<u32>(0xdeadbeef, 8);
+    ///
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.cread::<i64>(0), 42);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(bytes.cread::<i64>(0), 3026418949592973312);
+    ///
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(bytes.cread::<u32>(8), 0xefbeadde);
     #[inline]
     fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) where Ctx: Default {
         let ctx = Ctx::default();
@@ -126,8 +144,8 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// let mut bytes = [0x0; 0x10];
     /// bytes.cwrite_with::<i64>(42, 0, LE);
     /// bytes.cwrite_with::<u32>(0xdeadbeef, 8, BE);
-    /// assert_eq!(bytes.cread::<i64>(0), 42);
-    /// assert_eq!(bytes.cread::<u32>(8), 0xefbeadde);
+    /// assert_eq!(bytes.cread_with::<i64>(0, LE), 42);
+    /// assert_eq!(bytes.cread_with::<u32>(8, LE), 0xefbeadde);
     #[inline]
     fn cwrite_with<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I, ctx: Ctx) {
         n.into_ctx(self.index_mut(offset..), ctx)

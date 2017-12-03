@@ -11,7 +11,7 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 /// # Example
 /// ```rust
 /// use std::io::Cursor;
-/// use scroll::{self, ctx, Pread, IOread};
+/// use scroll::{self, ctx, LE, Pread, IOread};
 ///
 /// #[repr(packed)]
 /// struct Foo {
@@ -35,14 +35,14 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 ///
 /// let bytes_ = [0x0b,0x0b,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
 /// let mut bytes = Cursor::new(bytes_);
-/// let foo = bytes.ioread::<i64>().unwrap();
-/// let bar = bytes.ioread::<u32>().unwrap();
+/// let foo = bytes.ioread_with::<i64>(LE).unwrap();
+/// let bar = bytes.ioread_with::<u32>(LE).unwrap();
 /// assert_eq!(foo, 0xb0b);
 /// assert_eq!(bar, 0xbeef);
-/// let error = bytes.ioread::<f64>();
+/// let error = bytes.ioread_with::<f64>(LE);
 /// assert!(error.is_err());
 /// let mut bytes = Cursor::new(bytes_);
-/// let foo_ = bytes.ioread::<Foo>().unwrap();
+/// let foo_ = bytes.ioread_with::<Foo>(LE).unwrap();
 /// assert_eq!(foo_.foo, foo);
 /// assert_eq!(foo_.bar, bar);
 /// ```
@@ -59,7 +59,11 @@ pub trait IOread<Ctx: Copy> : Read
     /// let bytes = [0xef, 0xbe];
     /// let mut bytes = Cursor::new(&bytes[..]);
     /// let beef = bytes.ioread::<u16>().unwrap();
+    ///
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(0xbeef, beef);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(0xefeb, beef);
     /// ```
     #[inline]
     fn ioread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> Result<N> where Ctx: Default {
@@ -119,7 +123,11 @@ pub trait IOwrite<Ctx: Copy>: Write
     /// let mut bytes = [0x0u8; 4];
     /// let mut bytes = Cursor::new(&mut bytes[..]);
     /// bytes.iowrite(0xdeadbeef as u32).unwrap();
+    ///
+    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.into_inner(), [0xef, 0xbe, 0xad, 0xde,]);
+    /// #[cfg(target_endian = "big")]
+    /// assert_eq!(bytes.into_inner(), [0xde, 0xad, 0xbe, 0xef,]);
     /// ```
     #[inline]
     fn iowrite<N: SizeWith<Ctx, Units = usize> + IntoCtx<Ctx>>(&mut self, n: N) -> Result<()> where Ctx: Default {
