@@ -138,6 +138,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "derive")]
+#[allow(unused_imports)]
+#[macro_use]
+extern crate scroll_derive;
+
+#[cfg(feature = "derive")]
+#[doc(hidden)]
+pub use scroll_derive::*;
+
 #[cfg(feature = "std")]
 extern crate core;
 
