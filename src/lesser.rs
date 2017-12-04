@@ -63,7 +63,7 @@ pub trait IOread<Ctx: Copy> : Read
     /// #[cfg(target_endian = "little")]
     /// assert_eq!(0xbeef, beef);
     /// #[cfg(target_endian = "big")]
-    /// assert_eq!(0xefeb, beef);
+    /// assert_eq!(0xefbe, beef);
     /// ```
     #[inline]
     fn ioread<N: FromCtx<Ctx> + SizeWith<Ctx, Units = usize>>(&mut self) -> Result<N> where Ctx: Default {

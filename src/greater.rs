@@ -72,7 +72,7 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
     /// #[cfg(target_endian = "little")]
     /// assert_eq!(bar, 0xbeef);
     /// #[cfg(target_endian = "big")]
-    /// assert_eq!(bar, 0xefbe);
+    /// assert_eq!(bar, 0xefbe0000);
     /// ```
     #[inline]
     fn cread<'a, N: FromCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&'a self, offset: I) -> N where Ctx: Default {
@@ -121,15 +121,8 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// bytes.cwrite::<i64>(42, 0);
     /// bytes.cwrite::<u32>(0xdeadbeef, 8);
     ///
-    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.cread::<i64>(0), 42);
-    /// #[cfg(target_endian = "big")]
-    /// assert_eq!(bytes.cread::<i64>(0), 3026418949592973312);
-    ///
-    /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
-    /// #[cfg(target_endian = "big")]
-    /// assert_eq!(bytes.cread::<u32>(8), 0xefbeadde);
     #[inline]
     fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) where Ctx: Default {
         let ctx = Ctx::default();
