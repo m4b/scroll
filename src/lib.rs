@@ -169,6 +169,12 @@ pub use leb128::*;
 #[cfg(feature = "std")]
 pub use lesser::*;
 
+#[doc(hidden)]
+pub mod export {
+    pub use ::core::result;
+    pub use ::core::mem;
+}
+
 #[cfg(test)]
 mod tests {
     #[allow(overflowing_literals)]
