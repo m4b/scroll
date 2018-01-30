@@ -1,6 +1,6 @@
 [package]
 name = "scroll"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["m4b <m4b.github.io@gmail.com>"]
 readme = "README.md"
 keywords = ["bytes", "endian", "immutable", "pread", "pwrite"]
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/scroll"
 description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 
 [dependencies]
-scroll_derive = { version = "0.8", optional = true }
+scroll_derive = { version = "0.8.1", optional = true }
 
 [features]
 default = ["std"]
