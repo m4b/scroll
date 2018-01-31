@@ -15,7 +15,7 @@ scroll_derive = { version = "0.8.1", optional = true }
 [features]
 default = ["std"]
 std = []
-derive = ["std", "scroll_derive"]
+derive = ["scroll_derive"]
 
 [dev-dependencies]
 rayon = "0.9.0"
