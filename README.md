@@ -79,6 +79,43 @@ fn main() {
 }
 ```
 
+### Deriving `Pread` and `Pwrite`
+
+Scroll implements a custom derive that can provide `Pread` and `Pwrite` implementations for your types.
+
+``` rust
+#[macro_use]
+extern crate scroll;
+
+use scroll::{Pread, Pwrite, BE};
+
+#[derive(Pread, Pwrite)]
+struct Data {
+    one: u32,
+    two: u16,
+    three: u8,
+}
+
+fn parse() -> Result<(), scroll::Error> {
+    let bytes: [u8; 7] = [0xde, 0xad, 0xbe, 0xef, 0xfa, 0xce, 0xff];
+    // Read a single `Data` at offset zero in big-endian byte order.
+    let data: Data = bytes.pread_with(0, BE)?;
+    assert_eq!(data.one, 0xdeadbeef);
+    assert_eq!(data.two, 0xface);
+    assert_eq!(data.three, 0xff);
+
+    // Write it back to a buffer
+    let mut out: [u8; 7] = [0; 7];
+    out.pwrite_with(data, 0, BE)?;
+    assert_eq!(bytes, out);
+    Ok(())
+}
+
+fn main() {
+  parse().unwrap();
+}
+```
+
 # `std::io` API
 
 Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the `FromCtx` (_how_ to parse) and `SizeWith` (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
