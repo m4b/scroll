@@ -43,8 +43,11 @@ use ctx::{FromCtx, IntoCtx, SizeWith};
 /// assert!(error.is_err());
 /// let mut bytes = Cursor::new(bytes_);
 /// let foo_ = bytes.ioread_with::<Foo>(LE).unwrap();
-/// assert_eq!(foo_.foo, foo);
-/// assert_eq!(foo_.bar, bar);
+/// // Remember that you need to copy out fields from packed structs
+/// // with a `{}` block instead of borrowing them directly
+/// // ref: https://github.com/rust-lang/rust/issues/46043
+/// assert_eq!({foo_.foo}, foo);
+/// assert_eq!({foo_.bar}, bar);
 /// ```
 ///
 pub trait IOread<Ctx: Copy> : Read

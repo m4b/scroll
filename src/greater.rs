@@ -26,8 +26,11 @@ use ctx::{FromCtx, IntoCtx};
 ///
 /// let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
 /// let bar = bytes.cread_with::<Bar>(0, LE);
-/// assert_eq!(bar.foo, -1);
-/// assert_eq!(bar.bar, 0xdeadbeef);
+/// // Remember that you need to copy out fields from packed structs
+/// // with a `{}` block instead of borrowing them directly
+/// // ref: https://github.com/rust-lang/rust/issues/46043
+/// assert_eq!({bar.foo}, -1);
+/// assert_eq!({bar.bar}, 0xdeadbeef);
 /// ```
 pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
  where
