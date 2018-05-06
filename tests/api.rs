@@ -1,5 +1,9 @@
 // this exists primarily to test various API usages of scroll; e.g., must compile
 
+// guard against potential undefined behaviour when borrowing from
+// packed structs. See https://github.com/rust-lang/rust/issues/46043
+#![deny(safe_packed_borrows)]
+
 extern crate scroll;
 
 // #[macro_use] extern crate scroll_derive;
@@ -202,8 +206,8 @@ fn ioread_api() {
     assert!(error.is_err());
     let mut bytes = Cursor::new(bytes_);
     let foo_ = bytes.ioread_with::<Foo>(LE).unwrap();
-    assert_eq!(foo_.foo, foo);
-    assert_eq!(foo_.bar, bar);
+    assert_eq!({foo_.foo}, foo);
+    assert_eq!({foo_.bar}, bar);
 }
 
 #[repr(packed)]
@@ -234,8 +238,8 @@ fn cread_api_customtype() {
     use scroll::{LE, Cread};
     let bytes = [0xff, 0xff, 0xff, 0xff, 0xef,0xbe,0xad,0xde,];
     let bar = &bytes[..].cread_with::<Bar>(0, LE);
-    assert_eq!(bar.foo, -1);
-    assert_eq!(bar.bar, 0xdeadbeef);
+    assert_eq!({bar.foo}, -1);
+    assert_eq!({bar.bar}, 0xdeadbeef);
 }
 
 #[test]
@@ -272,7 +276,7 @@ fn cwrite_api_customtype() {
     let mut bytes = [0x0; 16];
     &bytes[..].cwrite::<Bar>(bar, 0);
     let bar = bytes.cread::<Bar>(0);
-    assert_eq!(bar.foo, -1);
-    assert_eq!(bar.bar, 0xdeadbeef);
+    assert_eq!({bar.foo}, -1);
+    assert_eq!({bar.bar}, 0xdeadbeef);
 }
 
