@@ -20,7 +20,7 @@
 //! 2. [Gread](trait.Gread.html), for reading data at an offset which automatically gets incremented by the size;
 //! 3. [IOread](trait.IOread.html), for reading _simple_ data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
 //!
-//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Pwrite](trait.Pwrite.html), and [IOwrite](trait.IOwrite.html), respectively.
+//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Gwrite](trait.Gwrite.html), and [IOwrite](trait.IOwrite.html), respectively.
 //!
 //! Most familiar will likely be the `Pread` trait (inspired from the C function), which in our case takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
 //!
