@@ -548,6 +548,40 @@ impl<'a> TryFromCtx<'a> for CString {
     }
 }
 
+#[cfg(feature = "std")]
+impl<'a> TryIntoCtx for &'a CStr {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
+        let data = self.to_bytes_with_nul();
+
+        if dst.len() < data.len() {
+            Err(error::Error::TooBig {
+                size: dst.len(),
+                len: data.len(),
+            })
+        } else {
+            unsafe {
+                copy_nonoverlapping(data.as_ptr(), dst.as_mut_ptr(), data.len());
+            }
+
+            Ok(data.len())
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl TryIntoCtx for CString {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
+        self.as_c_str().try_into_ctx(dst, _ctx)
+    }
+}
+
+
 // example of marshalling to bytes, let's wait until const is an option
 // impl FromCtx for [u8; 10] {
 //     fn from_ctx(bytes: &[u8], _ctx: Endian) -> Self {
@@ -575,5 +609,23 @@ mod tests {
         assert_eq!(bytes_read, as_bytes.len());
         assert_eq!(got, src.as_c_str());
     }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn round_trip_a_c_str() {
+        let src = CString::new("Hello World").unwrap();
+        let src = src.as_c_str();
+        let as_bytes = src.to_bytes_with_nul();
+
+        let mut buffer = vec![0; as_bytes.len()];
+        let bytes_written = src.try_into_ctx(&mut buffer, ()).unwrap();
+        assert_eq!(bytes_written, as_bytes.len());
+
+        let (got, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(&buffer, ()).unwrap();
+
+        assert_eq!(bytes_read, as_bytes.len());
+        assert_eq!(got, src);
+    }
 }
+
 
