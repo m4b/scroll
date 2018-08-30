@@ -50,6 +50,9 @@ use core::mem::size_of;
 use core::str;
 use core::result;
 
+#[cfg(feature = "std")]
+use std::ffi::{CStr, CString};
+
 use error;
 use endian::Endian;
 
@@ -513,6 +516,38 @@ impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     }
 }
 
+#[cfg(feature = "std")]
+impl<'a> TryFromCtx<'a> for &'a CStr {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+        let null_byte = match src.iter().position(|b| *b == 0) {
+            Some(ix) => ix,
+            None => return Err(error::Error::BadInput {
+                size: 0,
+                msg: "The input doesn't contain a null byte",
+            })
+        };
+
+        let data = src.get(..null_byte+1).unwrap();
+
+        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(data) };
+        Ok((cstr, null_byte+1))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> TryFromCtx<'a> for CString {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+        let (raw, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(src, _ctx)?;
+        Ok((raw.to_owned(), bytes_read))
+    }
+}
+
 // example of marshalling to bytes, let's wait until const is an option
 // impl FromCtx for [u8; 10] {
 //     fn from_ctx(bytes: &[u8], _ctx: Endian) -> Self {
@@ -524,3 +559,21 @@ impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
 //         dst
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn parse_a_cstr() {
+        let src = CString::new("Hello World").unwrap();
+        let as_bytes = src.as_bytes_with_nul();
+
+        let (got, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(as_bytes, ()).unwrap();
+
+        assert_eq!(bytes_read, as_bytes.len());
+        assert_eq!(got, src.as_c_str());
+    }
+}
+
