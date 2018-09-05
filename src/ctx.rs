@@ -530,9 +530,7 @@ impl<'a> TryFromCtx<'a> for &'a CStr {
             })
         };
 
-        let data = src.get(..null_byte+1).unwrap();
-
-        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(data) };
+        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..null_byte+1]) };
         Ok((cstr, null_byte+1))
     }
 }
