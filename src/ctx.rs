@@ -50,6 +50,9 @@ use core::mem::size_of;
 use core::str;
 use core::result;
 
+#[cfg(feature = "std")]
+use std::ffi::{CStr, CString};
+
 use error;
 use endian::Endian;
 
@@ -513,6 +516,70 @@ impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     }
 }
 
+#[cfg(feature = "std")]
+impl<'a> TryFromCtx<'a> for &'a CStr {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+        let null_byte = match src.iter().position(|b| *b == 0) {
+            Some(ix) => ix,
+            None => return Err(error::Error::BadInput {
+                size: 0,
+                msg: "The input doesn't contain a null byte",
+            })
+        };
+
+        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..null_byte+1]) };
+        Ok((cstr, null_byte+1))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> TryFromCtx<'a> for CString {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+        let (raw, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(src, _ctx)?;
+        Ok((raw.to_owned(), bytes_read))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'a> TryIntoCtx for &'a CStr {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
+        let data = self.to_bytes_with_nul();
+
+        if dst.len() < data.len() {
+            Err(error::Error::TooBig {
+                size: dst.len(),
+                len: data.len(),
+            })
+        } else {
+            unsafe {
+                copy_nonoverlapping(data.as_ptr(), dst.as_mut_ptr(), data.len());
+            }
+
+            Ok(data.len())
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl TryIntoCtx for CString {
+    type Error = error::Error;
+    type Size = usize;
+    #[inline]
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
+        self.as_c_str().try_into_ctx(dst, _ctx)
+    }
+}
+
+
 // example of marshalling to bytes, let's wait until const is an option
 // impl FromCtx for [u8; 10] {
 //     fn from_ctx(bytes: &[u8], _ctx: Endian) -> Self {
@@ -524,3 +591,39 @@ impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
 //         dst
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn parse_a_cstr() {
+        let src = CString::new("Hello World").unwrap();
+        let as_bytes = src.as_bytes_with_nul();
+
+        let (got, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(as_bytes, ()).unwrap();
+
+        assert_eq!(bytes_read, as_bytes.len());
+        assert_eq!(got, src.as_c_str());
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn round_trip_a_c_str() {
+        let src = CString::new("Hello World").unwrap();
+        let src = src.as_c_str();
+        let as_bytes = src.to_bytes_with_nul();
+
+        let mut buffer = vec![0; as_bytes.len()];
+        let bytes_written = src.try_into_ctx(&mut buffer, ()).unwrap();
+        assert_eq!(bytes_written, as_bytes.len());
+
+        let (got, bytes_read) = <&CStr as TryFromCtx>::try_from_ctx(&buffer, ()).unwrap();
+
+        assert_eq!(bytes_read, as_bytes.len());
+        assert_eq!(got, src);
+    }
+}
+
+
