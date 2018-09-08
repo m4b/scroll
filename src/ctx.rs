@@ -163,6 +163,8 @@ macro_rules! signed_to_unsigned {
     (u32) => {u32};
     (i64) => {u64};
     (u64) => {u64};
+    (i128) => {u128};
+    (u128) => {u128};
     (f32) => {u32};
     (f64) => {u64};
 }
@@ -274,6 +276,8 @@ ctx_impl!(u32, 4);
 ctx_impl!(i32, 4);
 ctx_impl!(u64, 8);
 ctx_impl!(i64, 8);
+ctx_impl!(u128, 16);
+ctx_impl!(i128, 16);
 
 macro_rules! from_ctx_float_impl {
     ($typ:tt, $size:expr) => {
@@ -318,6 +322,8 @@ into_ctx_impl!(u32, 4);
 into_ctx_impl!(i32, 4);
 into_ctx_impl!(u64, 8);
 into_ctx_impl!(i64, 8);
+into_ctx_impl!(u128, 16);
+into_ctx_impl!(i128, 16);
 
 macro_rules! into_ctx_float_impl {
     ($typ:tt, $size:expr) => {
@@ -440,6 +446,8 @@ sizeof_impl!(u32);
 sizeof_impl!(i32);
 sizeof_impl!(u64);
 sizeof_impl!(i64);
+sizeof_impl!(u128);
+sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);
 sizeof_impl!(usize);
