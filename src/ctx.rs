@@ -188,6 +188,12 @@ macro_rules! into_ctx_impl {
                 write_into!($typ, $size, self, dst, le);
             }
         }
+        impl<'a> IntoCtx<Endian> for &'a $typ {
+            #[inline]
+            fn into_ctx(self, dst: &mut [u8], le: Endian) {
+                (*self).into_ctx(dst, le)
+            }
+        }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             type Size = usize;
@@ -199,6 +205,14 @@ macro_rules! into_ctx_impl {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
                 }
+            }
+        }
+        impl<'a> TryIntoCtx<Endian> for &'a $typ {
+            type Error = error::Error;
+            type Size = usize;
+            #[inline]
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
+                (*self).try_into_ctx(dst, le)
             }
         }
     }
@@ -295,7 +309,6 @@ macro_rules! from_ctx_float_impl {
                 }
             }
         }
-
         impl<'a> TryFromCtx<'a, Endian> for $typ where $typ: FromCtx<Endian> {
             type Error = error::Error;
             type Size = usize;
@@ -334,6 +347,12 @@ macro_rules! into_ctx_float_impl {
                 write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
             }
         }
+        impl<'a> IntoCtx<Endian> for &'a $typ {
+            #[inline]
+            fn into_ctx(self, dst: &mut [u8], le: Endian) {
+                (*self).into_ctx(dst, le)
+            }
+        }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             type Size = usize;
@@ -345,6 +364,14 @@ macro_rules! into_ctx_float_impl {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
                 }
+            }
+        }
+        impl<'a> TryIntoCtx<Endian> for &'a $typ {
+            type Error = error::Error;
+            type Size = usize;
+            #[inline]
+            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
+                (*self).try_into_ctx(dst, le)
             }
         }
     }
