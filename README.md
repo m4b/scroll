@@ -116,6 +116,13 @@ fn main() {
 }
 ```
 
+This feature is not enabled by default, you must enable the `derive` feature in Cargo.toml to use it:
+
+```toml
+[dependencies]
+scroll = { version = "0.9.0", features = ["derive"] }
+```
+
 # `std::io` API
 
 Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the `FromCtx` (_how_ to parse) and `SizeWith` (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
