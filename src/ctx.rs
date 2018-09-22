@@ -305,7 +305,7 @@ macro_rules! from_ctx_float_impl {
                         src.as_ptr(),
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
                         $size);
-                    transmute((if le.is_little() { data.to_le() } else { data.to_be() }))
+                    transmute(if le.is_little() { data.to_le() } else { data.to_be() })
                 }
             }
         }
@@ -491,7 +491,7 @@ impl FromCtx<Endian> for usize {
                 src.as_ptr(),
                 &mut data as *mut usize as *mut u8,
                 size);
-            transmute((if le.is_little() { data.to_le() } else { data.to_be() }))
+            transmute(if le.is_little() { data.to_le() } else { data.to_be() })
         }
     }
 }
