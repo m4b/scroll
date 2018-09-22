@@ -23,7 +23,7 @@ Add to your `Cargo.toml`
 
 ```toml
 [dependencies]
-scroll = "0.9.0"
+scroll = "0.9"
 ```
 
 ### Overview
@@ -116,11 +116,11 @@ fn main() {
 }
 ```
 
-This feature is not enabled by default, you must enable the `derive` feature in Cargo.toml to use it:
+This feature is **not** enabled by default, you must enable the `derive` feature in Cargo.toml to use it:
 
 ```toml
 [dependencies]
-scroll = { version = "0.9.0", features = ["derive"] }
+scroll = { version = "0.9", features = ["derive"] }
 ```
 
 # `std::io` API
