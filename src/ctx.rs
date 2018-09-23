@@ -290,7 +290,9 @@ ctx_impl!(u32, 4);
 ctx_impl!(i32, 4);
 ctx_impl!(u64, 8);
 ctx_impl!(i64, 8);
+#[cfg(rust_1_26)]
 ctx_impl!(u128, 16);
+#[cfg(rust_1_26)]
 ctx_impl!(i128, 16);
 
 macro_rules! from_ctx_float_impl {
@@ -335,7 +337,9 @@ into_ctx_impl!(u32, 4);
 into_ctx_impl!(i32, 4);
 into_ctx_impl!(u64, 8);
 into_ctx_impl!(i64, 8);
+#[cfg(rust_1_26)]
 into_ctx_impl!(u128, 16);
+#[cfg(rust_1_26)]
 into_ctx_impl!(i128, 16);
 
 macro_rules! into_ctx_float_impl {
@@ -473,7 +477,9 @@ sizeof_impl!(u32);
 sizeof_impl!(i32);
 sizeof_impl!(u64);
 sizeof_impl!(i64);
+#[cfg(rust_1_26)]
 sizeof_impl!(u128);
+#[cfg(rust_1_26)]
 sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);

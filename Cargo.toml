@@ -12,6 +12,9 @@ description = "A suite of powerful, extensible, generic, endian-aware Read/Write
 [dependencies]
 scroll_derive = { version = "0.9", optional = true }
 
+[build-dependencies]
+rustc_version = "0.2"
+
 [features]
 default = ["std"]
 std = []
