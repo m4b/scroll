@@ -22,7 +22,7 @@ impl Uleb128 {
     /// Read a variable length u64 from `bytes` at `offset`
     pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<u64> {
         let tmp = bytes.pread::<Uleb128>(*offset)?;
-        *offset = *offset + tmp.size();
+        *offset += tmp.size();
         Ok(tmp.into())
     }
 }
@@ -58,7 +58,7 @@ impl Sleb128 {
     pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<i64> {
         use Pread;
         let tmp = bytes.pread::<Sleb128>(*offset)?;
-        *offset = *offset + tmp.size();
+        *offset += tmp.size();
         Ok(tmp.into())
     }
 }
@@ -107,14 +107,14 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
                 return Err(error::Error::BadInput{ size: src.len(), msg: "failed to parse"})
             }
 
-            let low_bits = mask_continuation(byte) as u64;
+            let low_bits = u64::from(mask_continuation(byte));
             result |= low_bits << shift;
 
             count += 1;
             shift += 7;
 
             if byte & CONTINUATION_BIT == 0 {
-                return Ok((Uleb128 { value: result, count: count }, count));
+                return Ok((Uleb128 { value: result, count }, count));
             }
         }
     }
@@ -138,7 +138,7 @@ impl<'a> TryFromCtx<'a> for Sleb128 {
                 return Err(error::Error::BadInput{size: src.len(), msg: "failed to parse"})
             }
 
-            let low_bits = mask_continuation(byte) as i64;
+            let low_bits = i64::from(mask_continuation(byte));
             result |= low_bits << shift;
             shift += 7;
 
@@ -152,7 +152,7 @@ impl<'a> TryFromCtx<'a> for Sleb128 {
             result |= !0 << shift;
         }
         let count = *offset - o;
-        Ok((Sleb128{ value: result, count: count }, count))
+        Ok((Sleb128{ value: result, count }, count))
     }
 }
 

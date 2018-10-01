@@ -172,9 +172,8 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
     Ctx: Default,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
-        let len = inout.len();
-        for i in 0..len {
-            inout[i] = self.gread(offset)?;
+        for i in inout.iter_mut() {
+            *i = self.gread(offset)?;
         }
         Ok(())
     }
@@ -196,9 +195,8 @@ pub trait Pread<Ctx, E, I = usize> : Index<I> + Index<RangeFrom<I>> + MeasureWit
         N: TryFromCtx<'a, Ctx, <Self as Index<RangeFrom<I>>>::Output, Error = E, Size = I>,
     <Self as Index<RangeFrom<I>>>::Output: 'a
     {
-        let len = inout.len();
-        for i in 0..len {
-            inout[i] = self.gread_with(offset, ctx)?;
+        for i in inout.iter_mut() {
+            *i = self.gread_with(offset, ctx)?;
         }
         Ok(())
     }
