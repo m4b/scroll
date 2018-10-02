@@ -81,7 +81,7 @@ fn main() {
 
 ### Deriving `Pread` and `Pwrite`
 
-Scroll implements a custom derive that can provide `Pread` and `Pwrite` implementations for your types.
+Scroll implements a custom derive that can provide `Pread` and `Pwrite` implementations for your structs.
 
 ``` rust
 #[macro_use]
