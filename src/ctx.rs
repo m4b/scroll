@@ -59,7 +59,6 @@ use endian::Endian;
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
     type Units;
-    #[inline]
     /// How large is `Self`, given the `ctx`?
     fn measure_with(&self, ctx: &Ctx) -> Self::Units;
 }
@@ -109,16 +108,19 @@ impl Default for StrCtx {
 impl StrCtx {
     pub fn len(&self) -> usize {
         match *self {
-            StrCtx::Delimiter(_) => 1,
+            StrCtx::Delimiter(_) |
             StrCtx::DelimiterUntil(_, _) => 1,
             StrCtx::Length(_) => 0,
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        if let StrCtx::Length(_) = *self { true } else { false }
     }
 }
 
 /// Reads `Self` from `This` using the context `Ctx`; must _not_ fail
 pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
-    #[inline]
     fn from_ctx(this: &This, ctx: Ctx) -> Self;
 }
 
@@ -126,7 +128,6 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     type Size;
-    #[inline]
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<(Self, Self::Size), Self::Error>;
 }
 
@@ -150,7 +151,6 @@ pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 /// 2. Allow a context based size, which is useful for 32/64 bit variants for various containers, etc.
 pub trait SizeWith<Ctx = ()> {
     type Units;
-    #[inline]
     fn size_with(ctx: &Ctx) -> Self::Units;
 }
 
@@ -450,9 +450,9 @@ impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
     type Size = usize;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], ctx: ()) -> error::Result<Self::Size> {
+    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
         let bytes = self.as_bytes();
-        TryIntoCtx::try_into_ctx(bytes, dst, ctx)
+        TryIntoCtx::try_into_ctx(bytes, dst, ())
     }
 }
 
@@ -497,7 +497,7 @@ impl FromCtx<Endian> for usize {
                 src.as_ptr(),
                 &mut data as *mut usize as *mut u8,
                 size);
-            transmute(if le.is_little() { data.to_le() } else { data.to_be() })
+            if le.is_little() { data.to_le() } else { data.to_be() }
         }
     }
 }
@@ -509,7 +509,7 @@ impl<'a> TryFromCtx<'a, Endian> for usize where usize: FromCtx<Endian> {
     fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<(Self, Self::Size), Self::Error> {
         let size = ::core::mem::size_of::<usize>();
         if size > src.len () {
-            Err(error::Error::TooBig{size: size, len: src.len()})
+            Err(error::Error::TooBig{size, len: src.len()})
         } else {
             Ok((FromCtx::from_ctx(src, le), size))
         }
@@ -522,7 +522,7 @@ impl<'a> TryFromCtx<'a, usize> for &'a[u8] {
     #[inline]
     fn try_from_ctx(src: &'a [u8], size: usize) -> result::Result<(Self, Self::Size), Self::Error> {
         if size > src.len () {
-            Err(error::Error::TooBig{size: size, len: src.len()})
+            Err(error::Error::TooBig{size, len: src.len()})
         } else {
             Ok((&src[..size], size))
         }
@@ -549,7 +549,7 @@ impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<Self::Size> {
         let size = ::core::mem::size_of::<usize>();
         if size > dst.len() {
-            Err(error::Error::TooBig{size: size, len: dst.len()})
+            Err(error::Error::TooBig{size, len: dst.len()})
         } else {
             <usize as IntoCtx<Endian>>::into_ctx(self, dst, le);
             Ok(size)
@@ -571,7 +571,7 @@ impl<'a> TryFromCtx<'a> for &'a CStr {
             })
         };
 
-        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..null_byte+1]) };
+        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..=null_byte]) };
         Ok((cstr, null_byte+1))
     }
 }
@@ -616,7 +616,7 @@ impl TryIntoCtx for CString {
     type Size = usize;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<Self::Size> {
-        self.as_c_str().try_into_ctx(dst, _ctx)
+        self.as_c_str().try_into_ctx(dst, ())
     }
 }
 
