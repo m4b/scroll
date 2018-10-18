@@ -93,9 +93,8 @@ fn mask_continuation(byte: u8) -> u8 {
 
 impl<'a> TryFromCtx<'a> for Uleb128 {
     type Error = error::Error;
-    type Size = usize;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
         use pread::Pread;
         let mut result = 0;
         let mut shift = 0;
@@ -122,9 +121,8 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
 
 impl<'a> TryFromCtx<'a> for Sleb128 {
     type Error = error::Error;
-    type Size = usize;
     #[inline]
-    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, Self::Size), Self::Error> {
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
         let o = 0;
         let offset = &mut 0;
         let mut result = 0;

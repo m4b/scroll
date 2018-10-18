@@ -35,7 +35,6 @@ impl<'a> Section<'a> {
 }
 
 impl<'a> ctx::SizeWith for Section<'a> {
-    type Units = usize;
     fn size_with(_ctx: &()) -> usize {
         4
     }
@@ -61,8 +60,7 @@ pub struct Section32 {
 
 impl<'a> ctx::TryFromCtx<'a, ()> for Section<'a> {
     type Error = scroll::Error;
-    type Size = usize;
-    fn try_from_ctx(_bytes: &'a [u8], _ctx: ()) -> ::std::result::Result<(Self, Self::Size), Self::Error> {
+    fn try_from_ctx(_bytes: &'a [u8], _ctx: ()) -> ::std::result::Result<(Self, usize), Self::Error> {
         //let section = Section::from_ctx(bytes, bytes.pread_with::<Section32>(offset, ctx)?);
         let section = unsafe { ::std::mem::uninitialized::<Section>()};
         Ok((section, ::std::mem::size_of::<Section>()))
@@ -106,7 +104,6 @@ impl<'a> Segment<'a> {
 }
 
 impl<'a> ctx::SizeWith for Segment<'a> {
-    type Units = usize;
     fn size_with(_ctx: &()) -> usize {
         4
     }
@@ -186,8 +183,7 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
 }
 
 impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
-    type Units = usize;
-    fn size_with(_: &scroll::Endian) -> Self::Units {
+    fn size_with(_: &scroll::Endian) -> usize {
         ::std::mem::size_of::<Foo>()
     }
 }

@@ -8,12 +8,12 @@ use std::error;
 
 #[derive(Debug)]
 /// A custom Scroll error
-pub enum Error<T = usize> {
+pub enum Error {
     /// The type you tried to read was too big
-    TooBig { size: T, len: T },
+    TooBig { size: usize, len: usize },
     /// The requested offset to read/write at is invalid
-    BadOffset(T),
-    BadInput{ size: T, msg: &'static str },
+    BadOffset(usize),
+    BadInput{ size: usize, msg: &'static str },
     #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
     Custom(String),
