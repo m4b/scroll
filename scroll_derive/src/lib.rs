@@ -91,22 +91,14 @@ fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro
     }).collect();
     
     quote! {
-        impl<'a> ::scroll::ctx::TryIntoCtx<::scroll::Endian> for &'a #name {
+        impl ::scroll::ctx::TryIntoCtx<::scroll::Endian> for #name {
             type Error = ::scroll::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
+            fn try_into_ctx(&self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
                 use ::scroll::Pwrite;
                 let offset = &mut 0;
                 #(#items;)*;
                 Ok(*offset)
-            }
-        }
-
-        impl ::scroll::ctx::TryIntoCtx<::scroll::Endian> for #name {
-            type Error = ::scroll::Error;
-            #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
-                (&self).try_into_ctx(dst, ctx)
             }
         }
     }
@@ -275,14 +267,14 @@ fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::T
                 quote! {
                     let size = ::scroll::export::mem::size_of::<#arrty>();
                     for i in 0..self.#ident.len() {
-                        dst.cwrite_with(self.#ident[i], *offset, ctx);
+                        dst.cwrite_with(&self.#ident[i], *offset, ctx);
                         *offset += size;
                     }
                 }
             },
             _ => {
                 quote! {
-                    dst.cwrite_with(self.#ident, *offset, ctx);
+                    dst.cwrite_with(&self.#ident, *offset, ctx);
                     *offset += #size;
                 }
             }
@@ -290,20 +282,13 @@ fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::T
     }).collect();
 
     quote! {
-        impl<'a> ::scroll::ctx::IntoCtx<::scroll::Endian> for &'a #name {
+        impl ::scroll::ctx::IntoCtx<::scroll::Endian> for #name {
             #[inline]
-            fn into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) {
+            fn into_ctx(&self, dst: &mut [u8], ctx: ::scroll::Endian) {
                 use ::scroll::Cwrite;
                 let offset = &mut 0;
                 #(#items;)*;
                 ()
-            }
-        }
-
-        impl ::scroll::ctx::IntoCtx<::scroll::Endian> for #name {
-            #[inline]
-            fn into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) {
-                (&self).into_ctx(dst, ctx)
             }
         }
     }

@@ -203,9 +203,9 @@ mod tests {
                 use super::{Pwrite, Pread, BE};
                 let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
                 let b = &mut bytes[..];
-                b.pwrite_with::<$read>($deadbeef, 0, LE).unwrap();
+                b.pwrite_with::<$read>(&$deadbeef, 0, LE).unwrap();
                 assert_eq!(b.pread_with::<$read>(0, LE).unwrap(), $deadbeef);
-                b.pwrite_with::<$read>($deadbeef, 0, BE).unwrap();
+                b.pwrite_with::<$read>(&$deadbeef, 0, BE).unwrap();
                 assert_eq!(b.pread_with::<$read>(0, BE).unwrap(), $deadbeef);
             }
         }
@@ -303,13 +303,13 @@ mod tests {
         use super::ctx::*;
         let astring: &str = "lol hello_world lal\0ala imabytes";
         let mut buffer = [0u8; 33];
-        buffer.pwrite(astring, 0).unwrap();
+        buffer.pwrite(&astring, 0).unwrap();
         {
             let hello_world = buffer.pread_with::<&str>(4, StrCtx::Delimiter(SPACE)).unwrap();
             assert_eq!(hello_world, "hello_world");
         }
         let bytes: &[u8] = b"more\0bytes";
-        buffer.pwrite(bytes, 0).unwrap();
+        buffer.pwrite(&bytes, 0).unwrap();
         let more = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL)).unwrap();
         assert_eq!(more, "more");
         let bytes = bytes.pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL)).unwrap();
@@ -349,10 +349,10 @@ mod tests {
 
     impl super::ctx::TryIntoCtx<super::Endian> for Foo {
         type Error = ExternalError;
-        fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<usize, Self::Error> {
+        fn try_into_ctx(&self, this: &mut [u8], le: super::Endian) -> Result<usize, Self::Error> {
             use super::Pwrite;
             if this.len() < 2 { return Err((ExternalError {}).into()) }
-            this.pwrite_with(self.0, 0, le)?;
+            this.pwrite_with(&self.0, 0, le)?;
             Ok(2)
         }
     }
@@ -430,14 +430,14 @@ mod tests {
                 use super::{LE, BE, Pread, Pwrite};
                 let mut buffer = [0u8; 16];
                 let offset = &mut 0;
-                buffer.gwrite_with($val.clone(), offset, LE).unwrap();
+                buffer.gwrite_with(&$val, offset, LE).unwrap();
                 let o2 = &mut 0;
                 let val: $typ = buffer.gread_with(o2, LE).unwrap();
                 assert_eq!(val, $val);
                 assert_eq!(*offset, ::std::mem::size_of::<$typ>());
                 assert_eq!(*o2, ::std::mem::size_of::<$typ>());
                 assert_eq!(*o2, *offset);
-                buffer.gwrite_with($val.clone(), offset, BE).unwrap();
+                buffer.gwrite_with(&$val, offset, BE).unwrap();
                 let val: $typ = buffer.gread_with(o2, BE).unwrap();
                 assert_eq!(val, $val);
             }

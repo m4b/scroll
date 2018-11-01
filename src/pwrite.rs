@@ -18,23 +18,23 @@ use error;
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
 ///     // you can write using your own context too... see `leb128.rs`
-///     fn try_into_ctx(self, this: &mut [u8], le: Endian) -> Result<usize, Self::Error> {
+///     fn try_into_ctx(&self, this: &mut [u8], le: Endian) -> Result<usize, Self::Error> {
 ///         if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
-///         this.pwrite_with(self.0, 0, le)?;
+///         this.pwrite_with(&self.0, 0, le)?;
 ///         Ok(2)
 ///     }
 /// }
 /// // now we can write a `Foo` into some buffer (in this case, a byte buffer, because that's what we implemented it for above)
 ///
 /// let mut bytes: [u8; 4] = [0, 0, 0, 0];
-/// bytes.pwrite_with(Foo(0x7f), 1, LE).unwrap();
+/// bytes.pwrite_with(&Foo(0x7f), 1, LE).unwrap();
 ///
 pub trait Pwrite<Ctx, E> : Index<usize> + IndexMut<RangeFrom<usize>> + MeasureWith<Ctx>
  where
        Ctx: Copy,
        E: From<error::Error>,
 {
-    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: N, offset: usize) -> result::Result<usize, E> where Ctx: Default {
+    fn pwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: &N, offset: usize) -> result::Result<usize, E> where Ctx: Default {
         self.pwrite_with(n, offset, Ctx::default())
     }
     /// Write `N` at offset `I` with context `Ctx`
@@ -42,9 +42,9 @@ pub trait Pwrite<Ctx, E> : Index<usize> + IndexMut<RangeFrom<usize>> + MeasureWi
     /// ```
     /// use scroll::{Pwrite, Pread, LE};
     /// let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-    /// bytes.pwrite_with::<u32>(0xbeefbeef, 0, LE).unwrap();
+    /// bytes.pwrite_with::<u32>(&0xbeefbeef, 0, LE).unwrap();
     /// assert_eq!(bytes.pread_with::<u32>(0, LE).unwrap(), 0xbeefbeef);
-    fn pwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: N, offset: usize, ctx: Ctx) -> result::Result<usize, E> {
+    fn pwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: &N, offset: usize, ctx: Ctx) -> result::Result<usize, E> {
         let len = self.measure_with(&ctx);
         if offset >= len {
             return Err(error::Error::BadOffset(offset).into())
@@ -54,14 +54,14 @@ pub trait Pwrite<Ctx, E> : Index<usize> + IndexMut<RangeFrom<usize>> + MeasureWi
     }
     /// Write `n` into `self` at `offset`, with a default `Ctx`. Updates the offset.
     #[inline]
-    fn gwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: N, offset: &mut usize) -> result::Result<usize, E> where
+    fn gwrite<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: &N, offset: &mut usize) -> result::Result<usize, E> where
         Ctx: Default {
         let ctx = Ctx::default();
         self.gwrite_with(n, offset, ctx)
     }
     /// Write `n` into `self` at `offset`, with the `ctx`. Updates the offset.
     #[inline]
-    fn gwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: N, offset: &mut usize, ctx: Ctx) -> result::Result<usize, E> {
+    fn gwrite_with<N: TryIntoCtx<Ctx, <Self as Index<RangeFrom<usize>>>::Output, Error = E>>(&mut self, n: &N, offset: &mut usize, ctx: Ctx) -> result::Result<usize, E> {
         let o = *offset;
         match self.pwrite_with(n, o, ctx) {
             Ok(size) => {

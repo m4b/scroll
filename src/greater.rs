@@ -101,16 +101,16 @@ impl<Ctx: Copy, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for
 /// }
 ///
 /// impl ctx::IntoCtx<scroll::Endian> for Bar {
-///     fn into_ctx(self, bytes: &mut [u8], ctx: scroll::Endian) {
+///     fn into_ctx(&self, bytes: &mut [u8], ctx: scroll::Endian) {
 ///         use scroll::Cwrite;
-///         bytes.cwrite_with(self.foo, 0, ctx);
-///         bytes.cwrite_with(self.bar, 4, ctx);
+///         bytes.cwrite_with(&self.foo, 0, ctx);
+///         bytes.cwrite_with(&self.bar, 4, ctx);
 ///     }
 /// }
 ///
 /// let bar = Bar { foo: -1, bar: 0xdeadbeef };
 /// let mut bytes = [0x0; 16];
-/// bytes.cwrite::<Bar>(bar, 0);
+/// bytes.cwrite::<Bar>(&bar, 0);
 /// ```
 pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// Writes `n` into `Self` at `offset`; uses default context.
@@ -121,15 +121,15 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// ```
     /// use scroll::{Cwrite, Cread};
     /// let mut bytes = [0x0; 16];
-    /// bytes.cwrite::<i64>(42, 0);
-    /// bytes.cwrite::<u32>(0xdeadbeef, 8);
+    /// bytes.cwrite::<i64>(&42, 0);
+    /// bytes.cwrite::<u32>(&0xdeadbeef, 8);
     ///
     /// assert_eq!(bytes.cread::<i64>(0), 42);
     /// assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
     #[inline]
-    fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I) where Ctx: Default {
+    fn cwrite<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: &N, offset: I) where Ctx: Default {
         let ctx = Ctx::default();
-        n.into_ctx(self.index_mut(offset..), ctx)
+        n.into_ctx(self.index_mut(  offset..), ctx)
     }
     /// Writes `n` into `Self` at `offset` with `ctx`
     ///
@@ -138,12 +138,12 @@ pub trait Cwrite<Ctx: Copy, I = usize>: Index<I> + IndexMut<RangeFrom<I>> {
     /// ```
     /// use scroll::{Cwrite, Cread, LE, BE};
     /// let mut bytes = [0x0; 0x10];
-    /// bytes.cwrite_with::<i64>(42, 0, LE);
-    /// bytes.cwrite_with::<u32>(0xdeadbeef, 8, BE);
+    /// bytes.cwrite_with::<i64>(&42, 0, LE);
+    /// bytes.cwrite_with::<u32>(&0xdeadbeef, 8, BE);
     /// assert_eq!(bytes.cread_with::<i64>(0, LE), 42);
     /// assert_eq!(bytes.cread_with::<u32>(8, LE), 0xefbeadde);
     #[inline]
-    fn cwrite_with<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: N, offset: I, ctx: Ctx) {
+    fn cwrite_with<N: IntoCtx<Ctx, <Self as Index<RangeFrom<I>>>::Output>>(&mut self, n: &N, offset: I, ctx: Ctx) {
         n.into_ctx(self.index_mut(offset..), ctx)
     }
 }

@@ -127,14 +127,14 @@ pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + S
 }
 
 /// Writes `Self` into `This` using the context `Ctx`
-pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
-    fn into_ctx(self, &mut This, ctx: Ctx);
+pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
+    fn into_ctx(&self, &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
-pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
+pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
     type Error;
-    fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
+    fn try_into_ctx(&self, &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
 }
 
 /// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
@@ -176,34 +176,21 @@ macro_rules! into_ctx_impl {
     ($typ:tt, $size:expr) => {
         impl IntoCtx<Endian> for $typ {
             #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: Endian) {
+            fn into_ctx(&self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
                 write_into!($typ, $size, self, dst, le);
-            }
-        }
-        impl<'a> IntoCtx<Endian> for &'a $typ {
-            #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: Endian) {
-                (*self).into_ctx(dst, le)
             }
         }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
+            fn try_into_ctx(&self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
                 if $size > dst.len () {
                     Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
                 }
-            }
-        }
-        impl<'a> TryIntoCtx<Endian> for &'a $typ {
-            type Error = error::Error;
-            #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
-                (*self).try_into_ctx(dst, le)
             }
         }
     }
@@ -334,34 +321,21 @@ macro_rules! into_ctx_float_impl {
     ($typ:tt, $size:expr) => {
         impl IntoCtx<Endian> for $typ {
             #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: Endian) {
+            fn into_ctx(&self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
-                write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
-            }
-        }
-        impl<'a> IntoCtx<Endian> for &'a $typ {
-            #[inline]
-            fn into_ctx(self, dst: &mut [u8], le: Endian) {
-                (*self).into_ctx(dst, le)
+                write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(*self), dst, le);
             }
         }
         impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
             type Error = error::Error;
             #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
+            fn try_into_ctx(&self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
                 if $size > dst.len () {
                     Err(error::Error::TooBig{size: $size, len: dst.len()})
                 } else {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
                 }
-            }
-        }
-        impl<'a> TryIntoCtx<Endian> for &'a $typ {
-            type Error = error::Error;
-            #[inline]
-            fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
-                (*self).try_into_ctx(dst, le)
             }
         }
     }
@@ -410,10 +384,10 @@ impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
     }
 }
 
-impl<'a> TryIntoCtx for &'a [u8] {
+impl TryIntoCtx for [u8] {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
+    fn try_into_ctx(&self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
         let src_len = self.len() as isize;
         let dst_len = dst.len() as isize;
         // if src_len < 0 || dst_len < 0 || offset < 0 {
@@ -429,14 +403,32 @@ impl<'a> TryIntoCtx for &'a [u8] {
 }
 
 // TODO: make TryIntoCtx use StrCtx for awesomeness
+impl TryIntoCtx for str {
+    type Error = error::Error;
+    #[inline]
+    fn try_into_ctx(&self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
+        let bytes = self.as_bytes();
+        TryIntoCtx::try_into_ctx(&bytes, dst, ())
+    }
+}
+
+// Implement borrowed versions for these types for convenience
+impl<'a> TryIntoCtx for &'a [u8] {
+    type Error = error::Error;
+    #[inline]
+    fn try_into_ctx(&self, dst: &mut [u8], ctx: ()) -> error::Result<usize> {
+        (*self).try_into_ctx(dst, ctx)
+    }
+}
+
 impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
-        let bytes = self.as_bytes();
-        TryIntoCtx::try_into_ctx(bytes, dst, ())
+    fn try_into_ctx(&self, dst: &mut [u8], ctx: ()) -> error::Result<usize> {
+        (*self).try_into_ctx(dst, ctx)
     }
 }
+
 
 // TODO: we can make this compile time without size_of call, but compiler probably does that anyway
 macro_rules! sizeof_impl {
@@ -510,7 +502,7 @@ impl<'a> TryFromCtx<'a, usize> for &'a[u8] {
 
 impl IntoCtx<Endian> for usize {
     #[inline]
-    fn into_ctx(self, dst: &mut [u8], le: Endian) {
+    fn into_ctx(&self, dst: &mut [u8], le: Endian) {
         let size = ::core::mem::size_of::<Self>();
         assert!(dst.len() >= size);
         let mut data = if le.is_little() { self.to_le() } else { self.to_be() };
@@ -524,7 +516,7 @@ impl IntoCtx<Endian> for usize {
 impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
+    fn try_into_ctx(&self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
         let size = ::core::mem::size_of::<usize>();
         if size > dst.len() {
             Err(error::Error::TooBig{size, len: dst.len()})
@@ -564,10 +556,10 @@ impl<'a> TryFromCtx<'a> for CString {
 }
 
 #[cfg(feature = "std")]
-impl<'a> TryIntoCtx for &'a CStr {
+impl TryIntoCtx for CStr {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
+    fn try_into_ctx(&self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
         let data = self.to_bytes_with_nul();
 
         if dst.len() < data.len() {
@@ -589,7 +581,7 @@ impl<'a> TryIntoCtx for &'a CStr {
 impl TryIntoCtx for CString {
     type Error = error::Error;
     #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
+    fn try_into_ctx(&self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
         self.as_c_str().try_into_ctx(dst, ())
     }
 }

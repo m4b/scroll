@@ -19,7 +19,7 @@ fn test_data (){
     assert_eq!(data.id, 0xdeadbeefu32);
     assert_eq!(data.timestamp, 0.5f64);
     let mut bytes2 = vec![0; ::std::mem::size_of::<Data>()];
-    bytes2.pwrite_with(data, 0, LE).unwrap();
+    bytes2.pwrite_with(&data, 0, LE).unwrap();
     let data: Data = bytes.pread_with(0, LE).unwrap();
     let data2: Data = bytes2.pread_with(0, LE).unwrap();
     assert_eq!(data, data2);
@@ -83,7 +83,7 @@ fn test_iowrite (){
     assert_eq!(bytes_null, bytes);
 
     let mut bytes_null = [0u8; 8];
-    bytes_null.cwrite_with(data, 0, LE);
+    bytes_null.cwrite_with(&data, 0, LE);
     println!("bytes_null: {:?}", &bytes_null);
     println!("bytes     : {:?}", &bytes);
     assert_eq!(bytes_null, bytes);

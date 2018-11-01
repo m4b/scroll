@@ -206,7 +206,6 @@ fn ioread_api() {
     assert_eq!({foo_.bar}, bar);
 }
 
-#[repr(packed)]
 struct Bar {
     foo: i32,
     bar: u32,
@@ -251,17 +250,18 @@ fn cwrite_api() {
     use scroll::Cwrite;
     use scroll::Cread;
     let mut bytes = [0x0; 16];
-    bytes.cwrite::<u64>(42, 0);
-    bytes.cwrite::<u32>(0xdeadbeef, 8);
+    bytes.cwrite::<u64>(&42, 0);
+    bytes.cwrite::<u32>(&0xdeadbeef, 8);
     assert_eq!(bytes.cread::<u64>(0), 42);
     assert_eq!(bytes.cread::<u32>(8), 0xdeadbeef);
 }
 
 impl scroll::ctx::IntoCtx<scroll::Endian> for Bar {
-    fn into_ctx(self, bytes: &mut [u8], ctx: scroll::Endian) {
+    fn into_ctx(&self, bytes: &mut [u8], ctx: scroll::Endian) {
         use scroll::Cwrite;
-        bytes.cwrite_with(self.foo, 0, ctx);
-        bytes.cwrite_with(self.bar, 4, ctx);
+        let Self{foo, bar} = *self;
+        bytes.cwrite_with(&foo, 0, ctx);
+        bytes.cwrite_with(&bar, 4, ctx);
     }
 }
 
@@ -269,8 +269,8 @@ impl scroll::ctx::IntoCtx<scroll::Endian> for Bar {
 fn cwrite_api_customtype() {
     use scroll::{Cwrite, Cread};
     let bar = Bar { foo: -1, bar: 0xdeadbeef };
-    let mut bytes = [0x0; 16];
-    &bytes[..].cwrite::<Bar>(bar, 0);
+    let mut bytes = [0u8; 16];
+    &bytes[..].cwrite::<Bar>(&bar, 0);
     let bar = bytes.cread::<Bar>(0);
     assert_eq!({bar.foo}, -1);
     assert_eq!({bar.bar}, 0xdeadbeef);
