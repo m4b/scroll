@@ -21,9 +21,9 @@ https://docs.rs/scroll
 
 Add to your `Cargo.toml`
 
-```toml
+```toml, no_test
 [dependencies]
-scroll = "0.9"
+scroll = "0.10"
 ```
 
 ### Overview
@@ -83,7 +83,9 @@ fn main() {
 
 Scroll implements a custom derive that can provide `Pread` and `Pwrite` implementations for your structs.
 
-``` rust
+```no_test
+#[macro_use]
+extern crate scroll_derive;
 #[macro_use]
 extern crate scroll;
 
@@ -118,9 +120,9 @@ fn main() {
 
 This feature is **not** enabled by default, you must enable the `derive` feature in Cargo.toml to use it:
 
-```toml
+```toml, no_test
 [dependencies]
-scroll = { version = "0.9", features = ["derive"] }
+scroll = { version = "0.10", features = ["derive"] }
 ```
 
 # `std::io` API
