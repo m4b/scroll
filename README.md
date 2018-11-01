@@ -194,10 +194,9 @@ struct Data<'a> {
 // note the lifetime specified here
 impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
   type Error = scroll::Error;
-  type Size = usize;
   // and the lifetime annotation on `&'a [u8]` here
   fn try_from_ctx (src: &'a [u8], endian: Endian)
-    -> Result<(Self, Self::Size), Self::Error> {
+    -> Result<(Self, usize), Self::Error> {
     let offset = &mut 0;
     let name = src.gread::<&str>(offset)?;
     let id = src.gread_with(offset, endian)?;

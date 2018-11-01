@@ -117,10 +117,9 @@
 //! // note the lifetime specified here
 //! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
-//!   type Size = usize;
 //!   // and the lifetime annotation on `&'a [u8]` here
 //!   fn try_from_ctx (src: &'a [u8], endian: Endian)
-//!     -> Result<(Self, Self::Size), Self::Error> {
+//!     -> Result<(Self, usize), Self::Error> {
 //!     let offset = &mut 0;
 //!     let name = src.gread::<&str>(offset)?;
 //!     let id = src.gread_with(offset, endian)?;
@@ -350,8 +349,7 @@ mod tests {
 
     impl super::ctx::TryIntoCtx<super::Endian> for Foo {
         type Error = ExternalError;
-        type Size = usize;
-        fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<Self::Size, Self::Error> {
+        fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<usize, Self::Error> {
             use super::Pwrite;
             if this.len() < 2 { return Err((ExternalError {}).into()) }
             this.pwrite_with(self.0, 0, le)?;
@@ -361,8 +359,7 @@ mod tests {
 
     impl<'a> super::ctx::TryFromCtx<'a, super::Endian> for Foo {
         type Error = ExternalError;
-        type Size = usize;
-        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<(Self, Self::Size), Self::Error> {
+        fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<(Self, usize), Self::Error> {
             use super::Pread;
             if this.len() > 2 { return Err((ExternalError {}).into()) }
             let n = this.pread_with(0, le)?;
