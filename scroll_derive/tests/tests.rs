@@ -158,3 +158,32 @@ fn test_nested_struct() {
     assert_eq!(read, size);
     assert_eq!(b, b2);
 }
+
+#[derive(Debug,Copy,Clone,Pwrite,Pread,IOwrite,IOread)]
+#[repr(packed)]
+struct PackedStruct {
+    a: u8,
+    b: u32,
+}
+
+#[test]
+fn cwrite_packed_struct() {
+    use scroll::{Cwrite, Cread};
+    let mut bytes = [0u8; 5];
+    &bytes[..].cwrite(&PackedStruct{ a: 1, b: 2 }, 0);
+
+    let PackedStruct{ a, b } = bytes.cread(0);
+    assert_eq!(a, 1);
+    assert_eq!(b, 2);
+}
+
+#[test]
+fn pwrite_packed_struct() {
+    use scroll::{Pwrite, Pread};
+    let mut bytes = [0u8; 5];
+    &bytes[..].pwrite(&PackedStruct{ a: 1, b: 2 }, 0).unwrap();
+
+    let PackedStruct{ a, b } = bytes.pread(0).unwrap();
+    assert_eq!(a, 1);
+    assert_eq!(b, 2);
+}
