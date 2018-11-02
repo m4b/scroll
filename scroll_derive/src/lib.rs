@@ -8,6 +8,38 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 
+fn is_repr_packed(ast: &syn::DeriveInput) -> bool {
+    use proc_macro2::{Delimiter,TokenTree};
+
+    ast.attrs.iter()
+        .find(|attr| {
+            // find an Attribute with ident == "repr"
+            attr.path.segments.len() == 1 &&
+                &attr.path.segments[0].ident.to_string() == "repr"
+        })
+        .map(|repr| {
+            // if found, see if it's "(packed)"
+            // this doesn't seem ideal, but it does work
+            match repr.tts.clone().into_iter().next() {
+                Some(TokenTree::Group(group)) => {
+                    if group.delimiter() == Delimiter::Parenthesis {
+                        match group.stream().into_iter().next() {
+                            Some(TokenTree::Ident(ident)) => {
+                                &ident.to_string() == "packed"
+                            }
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    }
+                },
+                _ => false,
+            }
+        })
+        // in the absence of #[repr], we're not packed
+        .unwrap_or(false)
+}
+
 fn impl_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
     let items: Vec<_> = fields.named.iter().map(|f| {
         let ident = &f.ident;
@@ -70,21 +102,35 @@ pub fn derive_pread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
+fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed, is_packed: bool) -> proc_macro2::TokenStream {
     let items: Vec<_> = fields.named.iter().map(|f| {
         let ident = &f.ident;
         let ty = &f.ty;
         match *ty {
             syn::Type::Array(_) => {
-                quote! {
-                    for i in 0..self.#ident.len() {
-                        dst.gwrite_with(&self.#ident[i], offset, ctx)?;
+                if is_packed {
+                    quote! {
+                        for i in 0..self.#ident.len() {
+                            dst.gwrite_with(&{self.#ident[i]}, offset, ctx)?;
+                        }
+                    }
+                } else {
+                    quote! {
+                        for i in 0..self.#ident.len() {
+                            dst.gwrite_with(&self.#ident[i], offset, ctx)?;
+                        }
                     }
                 }
             },
             _ => {
-                quote! {
-                    dst.gwrite_with(&self.#ident, offset, ctx)?
+                if is_packed {
+                    quote! {
+                        dst.gwrite_with(&{self.#ident}, offset, ctx)?
+                    }
+                } else {
+                    quote! {
+                        dst.gwrite_with(&self.#ident, offset, ctx)?
+                    }
                 }
             }
         }
@@ -110,7 +156,7 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_try_into_ctx(name, fields)
+                    impl_try_into_ctx(name, fields, is_repr_packed(&ast))
                 },
                 _ => {
                     panic!("Pwrite can only be derived for a regular struct with public fields")
@@ -256,7 +302,7 @@ pub fn derive_ioread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
+fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed, is_packed: bool) -> proc_macro2::TokenStream {
     let items: Vec<_> = fields.named.iter().map(|f| {
         let ident = &f.ident;
         let ty = &f.ty;
@@ -264,18 +310,35 @@ fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::T
         match *ty {
             syn::Type::Array(ref array) => {
                 let arrty = &array.elem;
-                quote! {
-                    let size = ::scroll::export::mem::size_of::<#arrty>();
-                    for i in 0..self.#ident.len() {
-                        dst.cwrite_with(&self.#ident[i], *offset, ctx);
-                        *offset += size;
+                if is_packed {
+                    quote! {
+                        let size = ::scroll::export::mem::size_of::<#arrty>();
+                        for i in 0..self.#ident.len() {
+                            dst.cwrite_with(&{self.#ident[i]}, *offset, ctx);
+                            *offset += size;
+                        }
+                    }
+                } else {
+                    quote! {
+                        let size = ::scroll::export::mem::size_of::<#arrty>();
+                        for i in 0..self.#ident.len() {
+                            dst.cwrite_with(&self.#ident[i], *offset, ctx);
+                            *offset += size;
+                        }
                     }
                 }
             },
             _ => {
-                quote! {
-                    dst.cwrite_with(&self.#ident, *offset, ctx);
-                    *offset += #size;
+                if is_packed {
+                    quote! {
+                        dst.cwrite_with(&{self.#ident}, *offset, ctx);
+                        *offset += #size;
+                    }
+                } else {
+                    quote! {
+                        dst.cwrite_with(&self.#ident, *offset, ctx);
+                        *offset += #size;
+                    }
                 }
             }
         }
@@ -300,7 +363,7 @@ fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_into_ctx(name, fields)
+                    impl_into_ctx(name, fields, is_repr_packed(&ast))
                 },
                 _ => {
                     panic!("IOwrite can only be derived for a regular struct with public fields")
