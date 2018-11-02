@@ -124,7 +124,7 @@ pub trait IOwrite<Ctx: Copy>: Write
     ///
     /// let mut bytes = [0x0u8; 4];
     /// let mut bytes = Cursor::new(&mut bytes[..]);
-    /// bytes.iowrite(0xdeadbeef as u32).unwrap();
+    /// bytes.iowrite(&(0xdeadbeef as u32)).unwrap();
     ///
     /// #[cfg(target_endian = "little")]
     /// assert_eq!(bytes.into_inner(), [0xef, 0xbe, 0xad, 0xde,]);
@@ -132,7 +132,7 @@ pub trait IOwrite<Ctx: Copy>: Write
     /// assert_eq!(bytes.into_inner(), [0xde, 0xad, 0xbe, 0xef,]);
     /// ```
     #[inline]
-    fn iowrite<N: SizeWith<Ctx> + IntoCtx<Ctx>>(&mut self, n: N) -> Result<()> where Ctx: Default {
+    fn iowrite<N: SizeWith<Ctx> + IntoCtx<Ctx>>(&mut self, n: &N) -> Result<()> where Ctx: Default {
         let ctx = Ctx::default();
         self.iowrite_with(n, ctx)
     }
@@ -150,11 +150,11 @@ pub trait IOwrite<Ctx: Copy>: Write
     /// let mut bytes = [0x0u8; 10];
     /// let mut cursor = Cursor::new(&mut bytes[..]);
     /// cursor.write_all(b"hello").unwrap();
-    /// cursor.iowrite_with(0xdeadbeef as u32, BE).unwrap();
+    /// cursor.iowrite_with(&(0xdeadbeef as u32), BE).unwrap();
     /// assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
     /// ```
     #[inline]
-    fn iowrite_with<N: SizeWith<Ctx> + IntoCtx<Ctx>>(&mut self, n: N, ctx: Ctx) -> Result<()> {
+    fn iowrite_with<N: SizeWith<Ctx> + IntoCtx<Ctx>>(&mut self, n: &N, ctx: Ctx) -> Result<()> {
         let mut buf = [0u8; 256];
         let size = N::size_with(&ctx);
         let buf = &mut buf[0..size];

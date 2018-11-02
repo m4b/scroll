@@ -92,7 +92,7 @@
 //! let mut bytes = [0x0u8; 10];
 //! let mut cursor = Cursor::new(&mut bytes[..]);
 //! cursor.write_all(b"hello").unwrap();
-//! cursor.iowrite_with(0xdeadbeef as u32, BE).unwrap();
+//! cursor.iowrite_with(&(0xdeadbeef as u32), BE).unwrap();
 //! assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
 //! ```
 //!

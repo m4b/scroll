@@ -163,7 +163,7 @@ fn write_io() -> Result<(), scroll::Error> {
     let mut bytes = [0x0u8; 10];
     let mut cursor = Cursor::new(&mut bytes[..]);
     cursor.write_all(b"hello")?;
-    cursor.iowrite_with(0xdeadbeef as u32, BE)?;
+    cursor.iowrite_with(&(0xdeadbeef as u32), BE)?;
     assert_eq!(cursor.into_inner(), [0x68, 0x65, 0x6c, 0x6c, 0x6f, 0xde, 0xad, 0xbe, 0xef, 0x0]);
     Ok(())
 }
