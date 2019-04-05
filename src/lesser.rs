@@ -1,5 +1,5 @@
 use std::io::{Result, Read, Write};
-use ctx::{FromCtx, IntoCtx, SizeWith};
+use crate::ctx::{FromCtx, IntoCtx, SizeWith};
 
 /// An extension trait to `std::io::Read` streams; this only deserializes simple types, like `u8`, `i32`, `f32`, `usize`, etc.
 ///

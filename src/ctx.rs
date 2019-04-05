@@ -52,8 +52,8 @@ use core::result;
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
-use error;
-use endian::Endian;
+use crate::error;
+use crate::endian::Endian;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -128,13 +128,13 @@ pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + S
 
 /// Writes `Self` into `This` using the context `Ctx`
 pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
-    fn into_ctx(self, &mut This, ctx: Ctx);
+    fn into_ctx(self, _: &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
-    fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
+    fn try_into_ctx(self, _: &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
 }
 
 /// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions

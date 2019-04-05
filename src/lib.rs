@@ -102,18 +102,18 @@
 //!
 //! For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
 //! byte buffer. In order to do this, we need to provide a [TryFromCtx](trait.TryFromCtx.html) impl for our datatype.
-//! 
+//!
 //! In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
-//! 
+//!
 //! ```rust
 //! use scroll::{self, ctx, Pread, BE, Endian};
-//! 
+//!
 //! struct Data<'a> {
 //!   name: &'a str,
 //!   id: u32,
 //! }
-//! 
+//!
 //! // note the lifetime specified here
 //! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
 //!   type Error = scroll::Error;
@@ -126,7 +126,7 @@
 //!     Ok((Data { name: name, id: id }, *offset))
 //!   }
 //! }
-//! 
+//!
 //! let bytes = b"UserName\x00\x01\x02\x03\x04";
 //! let data = bytes.pread_with::<Data>(0, BE).unwrap();
 //! assert_eq!(data.id, 0x01020304);
@@ -139,12 +139,7 @@
 
 #[cfg(feature = "derive")]
 #[allow(unused_imports)]
-#[macro_use]
-extern crate scroll_derive;
-
-#[cfg(feature = "derive")]
-#[doc(hidden)]
-pub use scroll_derive::*;
+use scroll_derive::{Pread, Pwrite, SizeWith, IOread, IOwrite};
 
 #[cfg(feature = "std")]
 extern crate core;
@@ -159,14 +154,14 @@ mod leb128;
 #[cfg(feature = "std")]
 mod lesser;
 
-pub use endian::*;
-pub use pread::*;
-pub use pwrite::*;
-pub use greater::*;
-pub use error::*;
-pub use leb128::*;
+pub use crate::endian::*;
+pub use crate::pread::*;
+pub use crate::pwrite::*;
+pub use crate::greater::*;
+pub use crate::error::*;
+pub use crate::leb128::*;
 #[cfg(feature = "std")]
-pub use lesser::*;
+pub use crate::lesser::*;
 
 #[doc(hidden)]
 pub mod export {
