@@ -1,8 +1,8 @@
 use core::result;
 use core::ops::{Index, RangeFrom};
 
-use ctx::{TryFromCtx, MeasureWith};
-use error;
+use crate::ctx::{TryFromCtx, MeasureWith};
+use crate::error;
 
 /// A very generic, contextual pread interface in Rust. Allows completely parallelized reads, as `Self` is immutable
 ///

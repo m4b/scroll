@@ -2,9 +2,7 @@
 
 extern crate proc_macro;
 extern crate proc_macro2;
-#[macro_use]
-extern crate quote;
-extern crate syn;
+use quote::quote;
 
 use proc_macro::TokenStream;
 
@@ -31,7 +29,7 @@ fn impl_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::Tok
             }
         }
     }).collect();
-    
+
     quote! {
         impl<'a> ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian> for #name where #name: 'a {
             type Error = ::scroll::Error;
@@ -89,7 +87,7 @@ fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro
             }
         }
     }).collect();
-    
+
     quote! {
         impl<'a> ::scroll::ctx::TryIntoCtx<::scroll::Endian> for &'a #name {
             type Error = ::scroll::Error;

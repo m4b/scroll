@@ -52,8 +52,8 @@ use core::result;
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
-use error;
-use endian::Endian;
+use crate::error;
+use crate::endian::Endian;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -128,13 +128,13 @@ pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + S
 
 /// Writes `Self` into `This` using the context `Ctx`
 pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
-    fn into_ctx(self, &mut This, ctx: Ctx);
+    fn into_ctx(self, _: &mut This, ctx: Ctx);
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
-    fn try_into_ctx(self, &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
+    fn try_into_ctx(self, _: &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
 }
 
 /// Gets the size of `Self` with a `Ctx`, and in `Self::Units`. Implementors can then call `Gread` related functions
@@ -279,9 +279,7 @@ ctx_impl!(u32, 4);
 ctx_impl!(i32, 4);
 ctx_impl!(u64, 8);
 ctx_impl!(i64, 8);
-#[cfg(rust_1_26)]
 ctx_impl!(u128, 16);
-#[cfg(rust_1_26)]
 ctx_impl!(i128, 16);
 
 macro_rules! from_ctx_float_impl {
@@ -325,9 +323,7 @@ into_ctx_impl!(u32, 4);
 into_ctx_impl!(i32, 4);
 into_ctx_impl!(u64, 8);
 into_ctx_impl!(i64, 8);
-#[cfg(rust_1_26)]
 into_ctx_impl!(u128, 16);
-#[cfg(rust_1_26)]
 into_ctx_impl!(i128, 16);
 
 macro_rules! into_ctx_float_impl {
@@ -458,9 +454,7 @@ sizeof_impl!(u32);
 sizeof_impl!(i32);
 sizeof_impl!(u64);
 sizeof_impl!(i64);
-#[cfg(rust_1_26)]
 sizeof_impl!(u128);
-#[cfg(rust_1_26)]
 sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);

@@ -1,9 +1,9 @@
 use core::u8;
 use core::convert::{From, AsRef};
 use core::result;
-use Pread;
-use ctx::TryFromCtx;
-use error;
+use crate::Pread;
+use crate::ctx::TryFromCtx;
+use crate::error;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An unsigned leb128 integer
@@ -56,7 +56,7 @@ impl Sleb128 {
     #[inline]
     /// Read a variable length i64 from `bytes` at `offset`
     pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<i64> {
-        use Pread;
+        use crate::Pread;
         let tmp = bytes.pread::<Sleb128>(*offset)?;
         *offset += tmp.size();
         Ok(tmp.into())
@@ -95,7 +95,7 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
-        use pread::Pread;
+        use crate::pread::Pread;
         let mut result = 0;
         let mut shift = 0;
         let mut count = 0;

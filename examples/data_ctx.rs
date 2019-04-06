@@ -1,5 +1,3 @@
-extern crate scroll;
-
 use scroll::{ctx, Endian, Pread, BE};
 
 #[derive(Debug)]
