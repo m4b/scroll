@@ -4,8 +4,6 @@
 // packed structs. See https://github.com/rust-lang/rust/issues/46043
 #![deny(safe_packed_borrows)]
 
-extern crate scroll;
-
 // #[macro_use] extern crate scroll_derive;
 
 use std::ops::{Deref,  DerefMut};

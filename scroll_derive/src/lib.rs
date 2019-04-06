@@ -1,7 +1,7 @@
 #![recursion_limit="1024"]
 
 extern crate proc_macro;
-extern crate proc_macro2;
+use proc_macro2;
 use quote::quote;
 
 use proc_macro::TokenStream;
