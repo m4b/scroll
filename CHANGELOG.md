@@ -5,6 +5,7 @@ Before 1.0, this project does not adhere to [Semantic Versioning](http://semver.
 
 ## [0.10.0] - unreleased
 ### Added
+ - scroll is now 2018 compliant, thanks @lzutao: https://github.com/m4b/scroll/pull/49
  - scroll_derive now lives in scroll repo itself
 ### Removed
  - BREAKING: removed units/size generics in SizeWith, thanks @willglynn: https://github.com/m4b/scroll/pull/45
