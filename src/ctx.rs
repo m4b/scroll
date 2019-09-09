@@ -43,17 +43,17 @@
 //!
 //! ```
 
-use core::ptr::copy_nonoverlapping;
-use core::mem::transmute;
 use core::mem::size_of;
-use core::str;
+use core::mem::transmute;
+use core::ptr::copy_nonoverlapping;
 use core::result;
+use core::str;
 
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
-use crate::error;
 use crate::endian::Endian;
+use crate::error;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -104,14 +104,17 @@ impl Default for StrCtx {
 impl StrCtx {
     pub fn len(&self) -> usize {
         match *self {
-            StrCtx::Delimiter(_) |
-            StrCtx::DelimiterUntil(_, _) => 1,
+            StrCtx::Delimiter(_) | StrCtx::DelimiterUntil(_, _) => 1,
             StrCtx::Length(_) => 0,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        if let StrCtx::Length(_) = *self { true } else { false }
+        if let StrCtx::Length(_) = *self {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -121,7 +124,10 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
-pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + Sized {
+pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]>
+where
+    Self: 'a + Sized,
+{
     type Error;
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<(Self, usize), Self::Error>;
 }
@@ -148,28 +154,56 @@ pub trait SizeWith<Ctx = ()> {
 }
 
 macro_rules! signed_to_unsigned {
-    (i8) =>  {u8 };
-    (u8) =>  {u8 };
-    (i16) => {u16};
-    (u16) => {u16};
-    (i32) => {u32};
-    (u32) => {u32};
-    (i64) => {u64};
-    (u64) => {u64};
-    (i128) => {u128};
-    (u128) => {u128};
-    (f32) => {u32};
-    (f64) => {u64};
+    (i8) => {
+        u8
+    };
+    (u8) => {
+        u8
+    };
+    (i16) => {
+        u16
+    };
+    (u16) => {
+        u16
+    };
+    (i32) => {
+        u32
+    };
+    (u32) => {
+        u32
+    };
+    (i64) => {
+        u64
+    };
+    (u64) => {
+        u64
+    };
+    (i128) => {
+        u128
+    };
+    (u128) => {
+        u128
+    };
+    (f32) => {
+        u32
+    };
+    (f64) => {
+        u64
+    };
 }
 
 macro_rules! write_into {
-    ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => ({
+    ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => {{
         unsafe {
             assert!($dst.len() >= $size);
-            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() { $n.to_le() } else { $n.to_be() });
+            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() {
+                $n.to_le()
+            } else {
+                $n.to_be()
+            });
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
-    });
+    }};
 }
 
 macro_rules! into_ctx_impl {
@@ -187,12 +221,18 @@ macro_rules! into_ctx_impl {
                 (*self).into_ctx(dst, le)
             }
         }
-        impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
+        impl TryIntoCtx<Endian> for $typ
+        where
+            $typ: IntoCtx<Endian>,
+        {
             type Error = error::Error;
             #[inline]
             fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
-                if $size > dst.len () {
-                    Err(error::Error::TooBig{size: $size, len: dst.len()})
+                if $size > dst.len() {
+                    Err(error::Error::TooBig {
+                        size: $size,
+                        len: dst.len(),
+                    })
                 } else {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
@@ -206,7 +246,7 @@ macro_rules! into_ctx_impl {
                 (*self).try_into_ctx(dst, le)
             }
         }
-    }
+    };
 }
 
 macro_rules! from_ctx_impl {
@@ -220,25 +260,42 @@ macro_rules! from_ctx_impl {
                     copy_nonoverlapping(
                         src.as_ptr(),
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
-                        $size);
+                        $size,
+                    );
                 }
-                (if le.is_little() { data.to_le() } else { data.to_be() }) as $typ
+                (if le.is_little() {
+                    data.to_le()
+                } else {
+                    data.to_be()
+                }) as $typ
             }
         }
 
-        impl<'a> TryFromCtx<'a, Endian> for $typ where $typ: FromCtx<Endian> {
+        impl<'a> TryFromCtx<'a, Endian> for $typ
+        where
+            $typ: FromCtx<Endian>,
+        {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<(Self, usize), Self::Error> {
-                if $size > src.len () {
-                    Err(error::Error::TooBig{size: $size, len: src.len()})
+            fn try_from_ctx(
+                src: &'a [u8],
+                le: Endian,
+            ) -> result::Result<(Self, usize), Self::Error> {
+                if $size > src.len() {
+                    Err(error::Error::TooBig {
+                        size: $size,
+                        len: src.len(),
+                    })
                 } else {
                     Ok((FromCtx::from_ctx(&src, le), $size))
                 }
             }
         }
         // as ref
-        impl<'a, T> FromCtx<Endian, T> for $typ where T: AsRef<[u8]> {
+        impl<'a, T> FromCtx<Endian, T> for $typ
+        where
+            T: AsRef<[u8]>,
+        {
             #[inline]
             fn from_ctx(src: &T, le: Endian) -> Self {
                 let src = src.as_ref();
@@ -248,13 +305,22 @@ macro_rules! from_ctx_impl {
                     copy_nonoverlapping(
                         src.as_ptr(),
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
-                        $size);
+                        $size,
+                    );
                 }
-                (if le.is_little() { data.to_le() } else { data.to_be() }) as $typ
+                (if le.is_little() {
+                    data.to_le()
+                } else {
+                    data.to_be()
+                }) as $typ
             }
         }
 
-        impl<'a, T> TryFromCtx<'a, Endian, T> for $typ where $typ: FromCtx<Endian, T>, T: AsRef<[u8]> {
+        impl<'a, T> TryFromCtx<'a, Endian, T> for $typ
+        where
+            $typ: FromCtx<Endian, T>,
+            T: AsRef<[u8]>,
+        {
             type Error = error::Error;
             #[inline]
             fn try_from_ctx(src: &'a T, le: Endian) -> result::Result<(Self, usize), Self::Error> {
@@ -268,11 +334,11 @@ macro_rules! from_ctx_impl {
 macro_rules! ctx_impl {
     ($typ:tt, $size:expr) => {
         from_ctx_impl!($typ, $size);
-     };
+    };
 }
 
-ctx_impl!(u8,  1);
-ctx_impl!(i8,  1);
+ctx_impl!(u8, 1);
+ctx_impl!(i8, 1);
 ctx_impl!(u16, 2);
 ctx_impl!(i16, 2);
 ctx_impl!(u32, 4);
@@ -293,30 +359,44 @@ macro_rules! from_ctx_float_impl {
                     copy_nonoverlapping(
                         src.as_ptr(),
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
-                        $size);
-                    transmute(if le.is_little() { data.to_le() } else { data.to_be() })
+                        $size,
+                    );
+                    transmute(if le.is_little() {
+                        data.to_le()
+                    } else {
+                        data.to_be()
+                    })
                 }
             }
         }
-        impl<'a> TryFromCtx<'a, Endian> for $typ where $typ: FromCtx<Endian> {
+        impl<'a> TryFromCtx<'a, Endian> for $typ
+        where
+            $typ: FromCtx<Endian>,
+        {
             type Error = error::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<(Self, usize), Self::Error> {
-                if $size > src.len () {
-                    Err(error::Error::TooBig{size: $size, len: src.len()})
+            fn try_from_ctx(
+                src: &'a [u8],
+                le: Endian,
+            ) -> result::Result<(Self, usize), Self::Error> {
+                if $size > src.len() {
+                    Err(error::Error::TooBig {
+                        size: $size,
+                        len: src.len(),
+                    })
                 } else {
                     Ok((FromCtx::from_ctx(src, le), $size))
                 }
             }
         }
-    }
+    };
 }
 
 from_ctx_float_impl!(f32, 4);
 from_ctx_float_impl!(f64, 8);
 
-into_ctx_impl!(u8,  1);
-into_ctx_impl!(i8,  1);
+into_ctx_impl!(u8, 1);
+into_ctx_impl!(i8, 1);
 into_ctx_impl!(u16, 2);
 into_ctx_impl!(i16, 2);
 into_ctx_impl!(u32, 4);
@@ -332,7 +412,13 @@ macro_rules! into_ctx_float_impl {
             #[inline]
             fn into_ctx(self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
-                write_into!(signed_to_unsigned!($typ), $size, transmute::<$typ, signed_to_unsigned!($typ)>(self), dst, le);
+                write_into!(
+                    signed_to_unsigned!($typ),
+                    $size,
+                    transmute::<$typ, signed_to_unsigned!($typ)>(self),
+                    dst,
+                    le
+                );
             }
         }
         impl<'a> IntoCtx<Endian> for &'a $typ {
@@ -341,12 +427,18 @@ macro_rules! into_ctx_float_impl {
                 (*self).into_ctx(dst, le)
             }
         }
-        impl TryIntoCtx<Endian> for $typ where $typ: IntoCtx<Endian> {
+        impl TryIntoCtx<Endian> for $typ
+        where
+            $typ: IntoCtx<Endian>,
+        {
             type Error = error::Error;
             #[inline]
             fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
-                if $size > dst.len () {
-                    Err(error::Error::TooBig{size: $size, len: dst.len()})
+                if $size > dst.len() {
+                    Err(error::Error::TooBig {
+                        size: $size,
+                        len: dst.len(),
+                    })
                 } else {
                     <$typ as IntoCtx<Endian>>::into_ctx(self, dst, le);
                     Ok($size)
@@ -360,7 +452,7 @@ macro_rules! into_ctx_float_impl {
                 (*self).try_into_ctx(dst, le)
             }
         }
-    }
+    };
 }
 
 into_ctx_float_impl!(f32, 4);
@@ -376,10 +468,12 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
             StrCtx::Delimiter(delimiter) => src.iter().take_while(|c| **c != delimiter).count(),
             StrCtx::DelimiterUntil(delimiter, len) => {
                 if len > src.len() {
-                    return Err(error::Error::TooBig{size: len, len: src.len()});
+                    return Err(error::Error::TooBig {
+                        size: len,
+                        len: src.len(),
+                    });
                 };
-                src
-                    .iter()
+                src.iter()
                     .take_while(|c| **c != delimiter)
                     .take(len)
                     .count()
@@ -387,17 +481,26 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
         };
 
         if len > src.len() {
-            return Err(error::Error::TooBig{size: len, len: src.len()});
+            return Err(error::Error::TooBig {
+                size: len,
+                len: src.len(),
+            });
         };
 
         match str::from_utf8(&src[..len]) {
             Ok(res) => Ok((res, len + ctx.len())),
-            Err(_) => Err(error::Error::BadInput{size: src.len(), msg: "invalid utf8"})
+            Err(_) => Err(error::Error::BadInput {
+                size: src.len(),
+                msg: "invalid utf8",
+            }),
         }
     }
 }
 
-impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str where T: AsRef<[u8]> {
+impl<'a, T> TryFromCtx<'a, StrCtx, T> for &'a str
+where
+    T: AsRef<[u8]>,
+{
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a T, ctx: StrCtx) -> result::Result<(Self, usize), Self::Error> {
@@ -416,7 +519,10 @@ impl<'a> TryIntoCtx for &'a [u8] {
         //     return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
         // }
         if src_len > dst_len {
-            Err(error::Error::TooBig{ size: self.len(), len: dst.len()})
+            Err(error::Error::TooBig {
+                size: self.len(),
+                len: dst.len(),
+            })
         } else {
             unsafe { copy_nonoverlapping(self.as_ptr(), dst.as_mut_ptr(), src_len as usize) };
             Ok(self.len())
@@ -443,7 +549,7 @@ macro_rules! sizeof_impl {
                 size_of::<$ty>()
             }
         }
-    }
+    };
 }
 
 sizeof_impl!(u8);
@@ -468,34 +574,44 @@ impl FromCtx<Endian> for usize {
         assert!(src.len() >= size);
         let mut data: usize = 0;
         unsafe {
-            copy_nonoverlapping(
-                src.as_ptr(),
-                &mut data as *mut usize as *mut u8,
-                size);
-            if le.is_little() { data.to_le() } else { data.to_be() }
+            copy_nonoverlapping(src.as_ptr(), &mut data as *mut usize as *mut u8, size);
+            if le.is_little() {
+                data.to_le()
+            } else {
+                data.to_be()
+            }
         }
     }
 }
 
-impl<'a> TryFromCtx<'a, Endian> for usize where usize: FromCtx<Endian> {
+impl<'a> TryFromCtx<'a, Endian> for usize
+where
+    usize: FromCtx<Endian>,
+{
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<(Self, usize), Self::Error> {
         let size = ::core::mem::size_of::<usize>();
-        if size > src.len () {
-            Err(error::Error::TooBig{size, len: src.len()})
+        if size > src.len() {
+            Err(error::Error::TooBig {
+                size,
+                len: src.len(),
+            })
         } else {
             Ok((FromCtx::from_ctx(src, le), size))
         }
     }
 }
 
-impl<'a> TryFromCtx<'a, usize> for &'a[u8] {
+impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a [u8], size: usize) -> result::Result<(Self, usize), Self::Error> {
-        if size > src.len () {
-            Err(error::Error::TooBig{size, len: src.len()})
+        if size > src.len() {
+            Err(error::Error::TooBig {
+                size,
+                len: src.len(),
+            })
         } else {
             Ok((&src[..size], size))
         }
@@ -507,7 +623,11 @@ impl IntoCtx<Endian> for usize {
     fn into_ctx(self, dst: &mut [u8], le: Endian) {
         let size = ::core::mem::size_of::<Self>();
         assert!(dst.len() >= size);
-        let mut data = if le.is_little() { self.to_le() } else { self.to_be() };
+        let mut data = if le.is_little() {
+            self.to_le()
+        } else {
+            self.to_be()
+        };
         let data = &mut data as *mut usize as *mut u8;
         unsafe {
             copy_nonoverlapping(data, dst.as_mut_ptr(), size);
@@ -515,13 +635,19 @@ impl IntoCtx<Endian> for usize {
     }
 }
 
-impl TryIntoCtx<Endian> for usize where usize: IntoCtx<Endian> {
+impl TryIntoCtx<Endian> for usize
+where
+    usize: IntoCtx<Endian>,
+{
     type Error = error::Error;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
         let size = ::core::mem::size_of::<usize>();
         if size > dst.len() {
-            Err(error::Error::TooBig{size, len: dst.len()})
+            Err(error::Error::TooBig {
+                size,
+                len: dst.len(),
+            })
         } else {
             <usize as IntoCtx<Endian>>::into_ctx(self, dst, le);
             Ok(size)
@@ -536,14 +662,16 @@ impl<'a> TryFromCtx<'a> for &'a CStr {
     fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
         let null_byte = match src.iter().position(|b| *b == 0) {
             Some(ix) => ix,
-            None => return Err(error::Error::BadInput {
-                size: 0,
-                msg: "The input doesn't contain a null byte",
-            })
+            None => {
+                return Err(error::Error::BadInput {
+                    size: 0,
+                    msg: "The input doesn't contain a null byte",
+                })
+            }
         };
 
         let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..=null_byte]) };
-        Ok((cstr, null_byte+1))
+        Ok((cstr, null_byte + 1))
     }
 }
 
@@ -587,7 +715,6 @@ impl TryIntoCtx for CString {
         self.as_c_str().try_into_ctx(dst, ())
     }
 }
-
 
 // example of marshalling to bytes, let's wait until const is an option
 // impl FromCtx for [u8; 10] {
@@ -634,5 +761,3 @@ mod tests {
         assert_eq!(got, src);
     }
 }
-
-
