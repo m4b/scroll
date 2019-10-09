@@ -14,9 +14,9 @@ fn impl_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::Tok
             syn::Type::Array(ref array) => {
                 match array.len {
                     syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
-                        let size = int.value();
+                        let size = int.base10_parse::<usize>().unwrap();
                         quote! {
-                            #ident: { let mut __tmp: #ty = [0; #size as usize]; src.gread_inout_with(offset, &mut __tmp, ctx)?; __tmp }
+                            #ident: { let mut __tmp: #ty = [0; #size]; src.gread_inout_with(offset, &mut __tmp, ctx)?; __tmp }
                         }
                     },
                     _ => panic!("Pread derive with bad array constexpr")
@@ -142,7 +142,7 @@ fn size_with(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::Token
                 let elem = &array.elem;
                 match array.len {
                     syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
-                        let size = int.value() as usize;
+                        let size = int.base10_parse::<usize>().unwrap();
                         quote! {
                             (#size * <#elem>::size_with(ctx))
                         }
@@ -200,11 +200,11 @@ fn impl_cread_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro
                 let arrty = &array.elem;
                 match array.len {
                     syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
-                        let size = int.value();
+                        let size = int.base10_parse::<usize>().unwrap();
                         let incr = quote! { ::scroll::export::mem::size_of::<#arrty>() };
                         quote! {
                             #ident: {
-                                let mut __tmp: #ty = [0; #size as usize];
+                                let mut __tmp: #ty = [0; #size];
                                 for i in 0..__tmp.len() {
                                     __tmp[i] = src.cread_with(*offset, ctx);
                                     *offset += #incr;

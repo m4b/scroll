@@ -1,6 +1,6 @@
 [package]
 name = "scroll_derive"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["m4b <m4b.github.io@gmail.com>", "Ted Mielczarek <ted@mielczarek.org>"]
 readme = "README.md"
 edition = "2018"
@@ -14,9 +14,9 @@ description = "A macros 1.1 derive implementation for Pread and Pwrite traits fr
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "0.4"
-quote = "0.6"
-syn = "0.15"
+proc-macro2 = "1"
+quote = "1"
+syn = "1"
 
 [dev-dependencies.scroll]
 version = "0.10"
