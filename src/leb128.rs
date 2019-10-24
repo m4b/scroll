@@ -56,7 +56,6 @@ impl Sleb128 {
     #[inline]
     /// Read a variable length i64 from `bytes` at `offset`
     pub fn read(bytes: &[u8], offset: &mut usize) -> error::Result<i64> {
-        use crate::Pread;
         let tmp = bytes.pread::<Sleb128>(*offset)?;
         *offset += tmp.size();
         Ok(tmp.into())
@@ -95,7 +94,6 @@ impl<'a> TryFromCtx<'a> for Uleb128 {
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
-        use crate::pread::Pread;
         let mut result = 0;
         let mut shift = 0;
         let mut count = 0;

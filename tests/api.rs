@@ -212,7 +212,6 @@ struct Bar {
 
 impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
-        use scroll::Cread;
         Bar { foo: bytes.cread_with(0, ctx), bar: bytes.cread_with(4, ctx) }
     }
 }

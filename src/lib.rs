@@ -327,7 +327,7 @@ mod tests {
         fn description(&self) -> &str {
             "ExternalError"
         }
-        fn cause(&self) -> Option<&error::Error> { None}
+        fn cause(&self) -> Option<&dyn error::Error> { None}
     }
 
     impl From<super::Error> for ExternalError {

@@ -33,13 +33,13 @@ impl error::Error for Error {
             Error::IO(_) => { "IO" }
         }
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::TooBig{ .. } => { None }
             Error::BadOffset(_) => { None }
             Error::BadInput{ .. } => { None }
             Error::Custom(_) => { None }
-            Error::IO(ref io) => { io.cause() }
+            Error::IO(ref io) => { io.source() }
         }
     }
 }

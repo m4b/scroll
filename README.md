@@ -35,8 +35,6 @@ Because self is immutable, _**all** reads can be performed in parallel_ and henc
 A simple example demonstrates its flexibility:
 
 ```rust
-extern crate scroll;
-
 use scroll::{ctx, Pread, LE};
 
 fn parse() -> Result<(), scroll::Error> {
@@ -86,8 +84,6 @@ Scroll implements a custom derive that can provide `Pread` and `Pwrite` implemen
 ```no_test
 #[macro_use]
 extern crate scroll_derive;
-#[macro_use]
-extern crate scroll;
 
 use scroll::{Pread, Pwrite, BE};
 
@@ -130,8 +126,6 @@ scroll = { version = "0.10", features = ["derive"] }
 Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the `FromCtx` (_how_ to parse) and `SizeWith` (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
 
 ```rust
-extern crate scroll;
-
 use std::io::Cursor;
 use scroll::IOread;
 
@@ -154,8 +148,6 @@ fn main() {
 Similarly, we can write to anything that implements `std::io::Write` quite naturally:
 
 ```rust
-extern crate scroll;
-
 use scroll::{IOwrite, LE, BE};
 use std::io::{Write, Cursor};
 
@@ -184,8 +176,6 @@ In particular, if we do this for the `[u8]` target, using the convention `(usize
 calling `pread_with::<YourDatatype>` on arrays of bytes.
 
 ```rust
-extern crate scroll;
-
 use scroll::{ctx, Pread, BE, Endian};
 
 struct Data<'a> {
