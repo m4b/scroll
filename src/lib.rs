@@ -139,7 +139,7 @@
 
 #[cfg(feature = "derive")]
 #[allow(unused_imports)]
-use scroll_derive::{Pread, Pwrite, SizeWith, IOread, IOwrite};
+pub use scroll_derive::{Pread, Pwrite, SizeWith, IOread, IOwrite};
 
 #[cfg(feature = "std")]
 extern crate core;
