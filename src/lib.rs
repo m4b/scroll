@@ -169,6 +169,19 @@ pub mod export {
     pub use ::core::mem;
 }
 
+
+#[allow(unused)]
+macro_rules! doc_comment {
+    ($x:expr) => {
+        #[doc = $x]
+        #[doc(hidden)]
+        mod readme_tests {}
+    };
+}
+
+#[cfg(feature = "derive")]
+doc_comment!(include_str!("../README.md"));
+
 #[cfg(test)]
 mod tests {
     #[allow(overflowing_literals)]
