@@ -158,6 +158,28 @@ fn test_nested_struct() {
     assert_eq!(b, b2);
 }
 
+#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)] 
+#[repr(C)]
+struct Data8<T, Y> {
+    ids: [T; 3],
+    xyz: Y
+}
+
+#[test]
+fn test_generics() {
+    let mut bytes = [0xde, 0xed, 0xef, 0x10, 0x10];
+    let data: Data8<u8, u16> = bytes.pread_with(0, LE).unwrap();
+    assert_eq!(data.ids, [0xde, 0xed, 0xef]);
+    assert_eq!(data.xyz, 0x1010);
+    let data: Data8<u8, u16> = bytes.cread_with(0, LE);
+    assert_eq!(data.ids, [0xde, 0xed, 0xef]);
+    assert_eq!(data.xyz, 0x1010);
+    let size = Data8::<u8, u16>::size_with(&LE);
+    let written = bytes.pwrite_with(&data, 0, LE).unwrap();
+    assert_eq!(written, size);
+}
+
+
 #[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
 struct Data9(u8, u16);
 
