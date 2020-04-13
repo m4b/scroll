@@ -56,7 +56,7 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                     impl_struct(name, &fields.unnamed)
                 },
                 _ => {
-                    panic!("Pread can only be derived for a regular struct with public fields")
+                    panic!("Pread can not be derived for unit structs")
                 }
             }
         },
@@ -125,7 +125,7 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                     impl_try_into_ctx(name, &fields.unnamed)
                 },
                 _ => {
-                    panic!("Pwrite can only be derived for a regular struct with public fields")
+                    panic!("Pwrite can not be derived for unit structs")
                 }
             }
         },
@@ -186,7 +186,7 @@ fn impl_size_with(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 },
                 _ => {
                     
-                    panic!("SizeWith can only be derived for a regular struct with public fields")
+                    panic!("SizeWith can not be derived for unit structs")
                 }
             }
         },
@@ -260,7 +260,7 @@ fn impl_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                     impl_cread_struct(name, &fields.unnamed)
                 },
                 _ => {
-                    panic!("IOread can only be derived for a regular struct with public fields")
+                    panic!("IOread can not be derived for unit structs")
                 }
             }
         },
@@ -332,7 +332,7 @@ fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                     impl_into_ctx(name, &fields.unnamed)
                 },
                 _ => {
-                    panic!("IOwrite can only be derived for a regular struct with public fields")
+                    panic!("IOwrite can not be derived for unit structs")
                 }
             }
         },
