@@ -6,9 +6,9 @@ use quote::quote;
 
 use proc_macro::TokenStream;
 
-fn impl_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields.named.iter().map(|f| {
-        let ident = &f.ident;
+fn impl_struct(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> proc_macro2::TokenStream {
+    let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
+        let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
         match *ty {
             syn::Type::Array(ref array) => {
@@ -50,7 +50,10 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_struct(name, fields)
+                    impl_struct(name, &fields.named)
+                },
+                syn::Fields::Unnamed(ref fields) => {
+                    impl_struct(name, &fields.unnamed)
                 },
                 _ => {
                     panic!("Pread can only be derived for a regular struct with public fields")
@@ -68,9 +71,9 @@ pub fn derive_pread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields.named.iter().map(|f| {
-        let ident = &f.ident;
+fn impl_try_into_ctx(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> proc_macro2::TokenStream {
+    let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
+        let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
         match *ty {
             syn::Type::Array(_) => {
@@ -116,7 +119,10 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_try_into_ctx(name, fields)
+                    impl_try_into_ctx(name, &fields.named)
+                },
+                syn::Fields::Unnamed(ref fields) => {
+                    impl_try_into_ctx(name, &fields.unnamed)
                 },
                 _ => {
                     panic!("Pwrite can only be derived for a regular struct with public fields")
@@ -134,8 +140,8 @@ pub fn derive_pwrite(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn size_with(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields.named.iter().map(|f| {
+fn size_with(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> proc_macro2::TokenStream {
+    let items: Vec<_> = fields.iter().map(|f| {
         let ty = &f.ty;
         match *ty {
             syn::Type::Array(ref array) => {
@@ -173,9 +179,13 @@ fn impl_size_with(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    size_with(name, fields)
+                    size_with(name, &fields.named)
+                },
+                syn::Fields::Unnamed(ref fields) => {
+                    size_with(name, &fields.unnamed)
                 },
                 _ => {
+                    
                     panic!("SizeWith can only be derived for a regular struct with public fields")
                 }
             }
@@ -191,9 +201,9 @@ pub fn derive_sizewith(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_cread_struct(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields.named.iter().map(|f| {
-        let ident = &f.ident;
+fn impl_cread_struct(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> proc_macro2::TokenStream {
+    let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
+        let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
         match *ty {
             syn::Type::Array(ref array) => {
@@ -244,7 +254,10 @@ fn impl_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_cread_struct(name, fields)
+                    impl_cread_struct(name, &fields.named)
+                },
+                syn::Fields::Unnamed(ref fields) => {
+                    impl_cread_struct(name, &fields.unnamed)
                 },
                 _ => {
                     panic!("IOread can only be derived for a regular struct with public fields")
@@ -262,9 +275,9 @@ pub fn derive_ioread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_into_ctx(name: &syn::Ident, fields: &syn::FieldsNamed) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields.named.iter().map(|f| {
-        let ident = &f.ident;
+fn impl_into_ctx(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> proc_macro2::TokenStream {
+    let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
+        let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
         let size = quote! { ::scroll::export::mem::size_of::<#ty>() };
         match *ty {
@@ -313,7 +326,10 @@ fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         syn::Data::Struct(ref data) => {
             match data.fields {
                 syn::Fields::Named(ref fields) => {
-                    impl_into_ctx(name, fields)
+                    impl_into_ctx(name, &fields.named)
+                },
+                syn::Fields::Unnamed(ref fields) => {
+                    impl_into_ctx(name, &fields.unnamed)
                 },
                 _ => {
                     panic!("IOwrite can only be derived for a regular struct with public fields")

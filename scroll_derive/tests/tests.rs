@@ -157,3 +157,20 @@ fn test_nested_struct() {
     assert_eq!(read, size);
     assert_eq!(b, b2);
 }
+
+#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
+struct Data9(u8, u16);
+
+#[test]
+fn test_newtype() {
+    let mut bytes = [0xde, 0x10, 0x10];
+    let data: Data9 = bytes.pread_with(0, LE).unwrap();
+    assert_eq!(data.0, 0xde);
+    assert_eq!(data.1, 0x1010);
+    let data: Data9 = bytes.cread_with(0, LE);
+    assert_eq!(data.0, 0xde);
+    assert_eq!(data.1, 0x1010);
+    let size = Data9::size_with(&LE);
+    let written = bytes.pwrite_with(&data, 0, LE).unwrap();
+    assert_eq!(written, size);
+}
