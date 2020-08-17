@@ -4,7 +4,7 @@ use crate::ctx::{FromCtx, IntoCtx};
 
 /// Core-read - core, no_std friendly trait for reading basic traits from byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
 ///
-/// If your type implements [FromCtx](trait.FromCtx.html) then you can `cread::<YourType>(offset)`.
+/// If your type implements [FromCtx](ctx/trait.FromCtx.html) then you can `cread::<YourType>(offset)`.
 ///
 /// # Example
 ///
@@ -87,7 +87,7 @@ pub trait Cread<Ctx, I = usize> : Index<I> + Index<RangeFrom<I>>
 impl<Ctx: Copy, I, R: ?Sized + Index<I> + Index<RangeFrom<I>>> Cread<Ctx, I> for R {}
 
 /// Core-write - core, no_std friendly trait for writing basic types into byte buffers. Cannot fail unless the buffer is too small, in which case an assert fires and the program panics.
-/// Similar to [Cread](trait.Cread.html), if your type implements [IntoCtx](trait.IntoCtx.html) then you can `cwrite(your_type, offset)`.
+/// Similar to [Cread](trait.Cread.html), if your type implements [IntoCtx](ctx/trait.IntoCtx.html) then you can `cwrite(your_type, offset)`.
 ///
 /// # Example
 ///
