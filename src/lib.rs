@@ -14,15 +14,14 @@
 //!
 //! Scroll is a library for efficiently and easily reading/writing types from byte arrays. All the builtin types are supported, e.g., `u32`, `i8`, etc., where the type is specified as a type parameter, or type inferred when possible. In addition, it supports zero-copy reading of string slices, or any other kind of slice.  The library can be used in a no_std context as well; the [Error](enum.Error.html) type only has the `IO` and `String` variants if the default features are used, and is `no_std` safe when compiled without default features.
 //!
-//! There are 3 traits for reading that you can import:
+//! There are 2 traits for reading that you can import:
 //!
-//! 1. [Pread](trait.Pread.html), for reading (immutable) data at an offset;
-//! 2. [Gread](trait.Gread.html), for reading data at an offset which automatically gets incremented by the size;
-//! 3. [IOread](trait.IOread.html), for reading _simple_ data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
+//! 1. [Pread](trait.Pread.html), for reading (immutable) data at an offset (potentially incrementing said offset using [gread](trait.Pread.html#method.gread));
+//! 2. [IOread](trait.IOread.html), for reading _simple_ data out of a `std::io::Read` based interface, e.g., a stream. (**Note**: only available when compiled with `std`)
 //!
-//! Each of these interfaces also have their corresponding writer versions as well, e.g., [Pwrite](trait.Pwrite.html), [Gwrite](trait.Gwrite.html), and [IOwrite](trait.IOwrite.html), respectively.
+//! Each of these interfaces also have their corresponding writer versions as well, i.e. [Pwrite](trait.Pwrite.html) and [IOwrite](trait.IOwrite.html), respectively.
 //!
-//! Most familiar will likely be the `Pread` trait (inspired from the C function), which in our case takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
+//! Most familiar will likely be the `pread` method from the `Pread` trait (inspired from the C function), which in our case takes an immutable reference to self, an immutable offset to read at, (and _optionally_ a parsing context, more on that later), and then returns the deserialized value.
 //!
 //! Because self is immutable, _**all** reads can be performed in parallel_ and hence are trivially parallelizable.
 //!
@@ -69,7 +68,7 @@
 //!
 //! # `std::io` API
 //!
-//! Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the [FromCtx](trait.FromCtx.html) (_how_ to parse) and [SizeWith](ctx/trait.SizeWith.html) (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
+//! Scroll can also read/write simple types from a `std::io::Read` or `std::io::Write` implementor. The  built-in numeric types are taken care of for you.  If you want to read a custom type, you need to implement the [FromCtx](ctx/trait.FromCtx.html) (_how_ to parse) and [SizeWith](ctx/trait.SizeWith.html) (_how_ big the parsed thing will be) traits.  You must compile with default features. For example:
 //!
 //! ```rust
 //! use std::io::Cursor;
@@ -101,7 +100,7 @@
 //! Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread` and/or `Pwrite` traits.
 //!
 //! For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
-//! byte buffer. In order to do this, we need to provide a [TryFromCtx](trait.TryFromCtx.html) impl for our datatype.
+//! byte buffer. In order to do this, we need to provide a [TryFromCtx](ctx/trait.TryFromCtx.html) impl for our datatype.
 //!
 //! In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
 //! calling `pread_with::<YourDatatype>` on arrays of bytes.
