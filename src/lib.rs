@@ -89,7 +89,7 @@
 //!
 //!
 //! // We can parse out custom datatypes, or types with lifetimes, as long as they implement
-//! // conversion trait `TryFromCtx/FromCtx`.
+//! // the conversion traits `TryFromCtx/FromCtx`.
 //! // Here we use the default context for &str which parses are C-style '\0'-delimited string.
 //! let hello: &[u8] = b"hello world\0more words";
 //! let hello_world: &str = hello.pread(0).unwrap();
@@ -145,44 +145,66 @@
 //! assert_eq!(cursor.into_inner(), [0xde, 0xad, 0xbe, 0xef, 0x0]);
 //! ```
 //!
-//! # Advanced Uses
+//! ## Complex use cases
 //!
-//! Scroll is designed to be highly configurable - it allows you to implement various context (`Ctx`) sensitive traits, which then grants the implementor _automatic_ uses of the `Pread` and/or `Pwrite` traits.
+//! Scoll is designed to be highly adaptable while providing a strong abstraction between the types
+//! being read/written and the data container containing them.
 //!
-//! For example, suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
-//! byte buffer. In order to do this, we need to provide a [TryFromCtx](ctx/trait.TryFromCtx.html) impl for our datatype.
-//!
-//! In particular, if we do this for the `[u8]` target, using the convention `(usize, YourCtx)`, you will automatically get access to
-//! calling `pread_with::<YourDatatype>` on arrays of bytes.
+//! In this example we'll define a custom Data and allow it to be read from an arbitrary byte
+//! buffer.
 //!
 //! ```rust
-//! use scroll::{self, ctx, Pread, BE, Endian};
+//! use scroll::{self, ctx, Pread, Endian};
+//! use scroll::ctx::StrCtx;
 //!
-//! struct Data<'a> {
-//!   name: &'a str,
+//! // Our custom context type. In a more complex situation you could for example store details on
+//! // how to write or read your type, field-sizes or other information.
+//! #[derive(Copy, Clone)]
+//! struct Context(Endian);
+//!
+//! // Our custom data type
+//! struct Data<'zerocopy> {
+//!   // This is only a reference to the actual data; we make use of scroll's zero-copy capability
+//!   name: &'zerocopy str,
 //!   id: u32,
 //! }
 //!
-//! // note the lifetime specified here
-//! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
+//! // To allow for safe zero-copying scroll allows to specify lifetimes explicitly:
+//! // The context 
+//! impl<'a> ctx::TryFromCtx<'a, Context> for Data<'a> {
+//!   // If necessary you can set a custom error type here, which will be returned by Pread/Pwrite
 //!   type Error = scroll::Error;
-//!   // and the lifetime annotation on `&'a [u8]` here
-//!   fn try_from_ctx (src: &'a [u8], endian: Endian)
-//!     -> Result<(Self, usize), Self::Error> {
+//!
+//!   // Using the explicit lifetime specification again you ensure that read data doesn't outlife
+//!   // its source buffer without having to resort to copying.
+//!   fn try_from_ctx (src: &'a [u8], ctx: Context)
+//!     // the `usize` returned here is the amount of bytes read.
+//!     -> Result<(Self, usize), Self::Error> 
+//!   {
 //!     let offset = &mut 0;
-//!     let name = src.gread::<&str>(offset)?;
-//!     let id = src.gread_with(offset, endian)?;
+//!
+//!     let id = src.gread_with(offset, ctx.0)?;
+//!
+//!     // In a more serious application you would validate data here of course.
+//!     let namelen: u16 = src.gread_with(offset, ctx.0)?;
+//!     let name = src.gread_with::<&str>(offset, StrCtx::Length(namelen as usize))?;
+//!
 //!     Ok((Data { name: name, id: id }, *offset))
 //!   }
 //! }
 //!
-//! let bytes = b"UserName\x00\x01\x02\x03\x04";
-//! let data = bytes.pread_with::<Data>(0, BE).unwrap();
+//! // In lieu of a complex byte buffer we hearken back to the venerable &[u8]; do note however
+//! // that the implementation of TryFromCtx did not specify such. In fact any type that implements
+//! // Pread can now read `Data` as it implements TryFromCtx.
+//! let bytes = b"\x01\x02\x03\x04\x00\x08UserName";
+//! let data: Data = bytes.pread_with(0, Context(Endian::Big)).unwrap();
+//!
 //! assert_eq!(data.id, 0x01020304);
 //! assert_eq!(data.name.to_string(), "UserName".to_string());
 //! ```
 //!
-//! Please see the [Pread documentation examples](trait.Pread.html#implementing-your-own-reader)
+//! For further explanation of the traits and how to implement them manually refer to
+//! [Pread](trait.Pread.html) and [TryFromCtx](ctx/trait.TryFromCtx.html).
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
