@@ -1,46 +1,183 @@
 //! Generic context-aware conversion traits, for automatic _downstream_ extension of `Pread`, et. al
 //!
-//! # Discussion
+//! The context traits are arguably the center piece of the scroll crate. In simple terms they
+//! define how to actually read respectively write a data type from a container, being able to
+//! take context into account.
 //!
-//! Implementors of `TryFromCtx` automatically grant any client user of `pread, pwrite, gread, gwrite` the ability to parse their structure out of the source it has been implemented for, typically `&[u8]`.
+//! ### Reading
 //!
-//! The implementor only needs to specify the error type, and the type of their size, and then implement the parsing/marshalling logic given a byte sequence, starting at the offset `pread`, et. al was called at, with the context you have implemented it for.
+//! Types implementing [TryFromCtx](trait.TryFromCtx.html) and it's infallible cousing [FromCtx](trait.FromCtx.html)
+//! allow an user of [Pread::pread](../trait.Pread.html#method.pread) or respectively
+//! [Cread::cread](../trait.Cread.html#method.cread) and
+//! [IOread::ioread](../trait.IOread.html#method.ioread) to read that data type from a data source one
+//! of `*read` traits has been implemented for.
+//! 
+//! Implementations of `TryFromCtx` specify a source (called `This`) and an `Error` type for failed
+//! reads. The source defines the kind of container the type can be read from, and defaults to
+//! `[u8]` respetively any type that implements `AsRef<[u8]>`.
 //!
-//! Returning the size allows dynamic content (e.g., `&str`s) to be parsed alongside fixed size content (e.g., `u64`). The parsing context is any information you the implementor need to correctly parse out your datatype - this could be the endianness of the type, more offsets, or other complex data. The only requirement is that your `Ctx` be `Copy`, and hence encourages lightweight contexts (but this isn't required of course).
+//! `FromCtx` is slightly more restricted; it requires the implementer to use `[u8]` as source and
+//! not fail, thus does not allow for an `Error` type.
 //!
+//! Types chosen here are of relevance to `Pread` implementations; of course only a container which
+//! can produce a source of the type `This` can be used to read a `TryFromCtx` requiring it and the
+//! `Error` type returned in `Err` of `Pread::pread`'s Result.
+//!
+//! ### Writing
+//!
+//! [TryIntoCtx](trait.TryIntoCtx.html) and the infallible [IntoCtx](trait.IntoCtx.html) work
+//! similarly to the above traits, allowing [Pwrite::pwrite](../trait.Pwrite.html#method.pwrite) or
+//! respectively [Cwrite::cwrite](../trait.Cwrite.html#method.cwrite) and
+//! [IOwrite::iowrite](../trait.IOwrite.html#method.iowrite) to write data into a byte sink on of
+//! the `*write` traits has been implemented for.
+//!
+//! `IntoCtx` is similarly restricted as `FromCtx` is to `TryFromCtx`. And equally the types chosen
+//! affect usable `Pwrite` implementation.
+//!
+//! ### Context
+//!
+//! Each of the traits passes along a `Ctx` to the marshalling logic. This context type contains
+//! any additional information that may be required to successfully parse or write the data:
+//! Examples would be endianness to use, field lengths of a serialized struct, or delimiters to use
+//! when reading/writing `&str`. The context type can be any type but must derive
+//! [Copy](https://doc.rust-lang.org/std/marker/trait.Copy.html). In addition if you want to use
+//! the `*read`-methods instead of the `*read_with` ones you must also implement
+//! [default::Default](https://doc.rust-lang.org/std/default/trait.Default.html).
 //!
 //! # Example
 //!
-//! Suppose we have a datatype and we want to specify how to parse or serialize this datatype out of some arbitrary
-//! byte buffer. In order to do this, we need to provide a `TryFromCtx` impl for our datatype. In particular, if we
-//! do this for the `[u8]` target, with a "parsing contex",  `YourCtx`, you will automatically get access to
-//! calling `pread_with::<YourDatatype>(offset, your_ctx)` on arrays of bytes.
-//!
-//! In the example below, we implement `TryFromCtx` using the `Endian` parsing context provided by `scroll`, which is used to specifying the endianness at which numbers should be parsed, but you could provide anything, as long as it implements `Copy`.
+//! Let's expand on the [previous example](../index.html#complex-use-cases).
 //!
 //! ```rust
-//! use scroll::{self, ctx, Endian, Pread, BE};
+//! use scroll::{self, ctx, Pread, Endian};
+//! use scroll::ctx::StrCtx;
 //!
-//! struct Data<'a> {
-//!   name: &'a str,
-//!   id: u32,
+//! #[derive(Copy, Clone, PartialEq, Eq)]
+//! enum FieldSize {
+//!     U32,
+//!     U64
 //! }
 //!
-//! impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
-//!   type Error = scroll::Error;
-//!   fn try_from_ctx (src: &'a [u8], ctx: Endian)
-//!     -> Result<(Self, usize), Self::Error> {
-//!     let name = src.pread::<&str>(0)?;
-//!     let id = src.pread_with(name.len() + 1, ctx)?;
-//!     Ok((Data { name: name, id: id }, name.len() + 1 + 4))
+//! // Our custom context type. As said above it has to derive Copy.
+//! #[derive(Copy, Clone)]
+//! struct Context {
+//!     fieldsize: FieldSize,
+//!     endianess: Endian,
+//! }
+//!
+//! // Our custom data type
+//! struct Data<'b> {
+//!   // These u64 are encoded either as 32-bit or 64-bit wide ints. Which one it is is defined in
+//!   // the Context.
+//!   // Also, let's imagine they have a strict relationship: A < B < C otherwise the struct is
+//!   // invalid.
+//!   field_a: u64,
+//!   field_b: u64,
+//!   field_c: u64,
+//!
+//!   // Both of these are marshalled with a prefixed length.
+//!   name: &'b str,
+//!   value: &'b [u8],
+//! }
+//!
+//! #[derive(Debug)]
+//! enum Error {
+//!     // We'll return this custom error if the field* relationship doesn't hold
+//!     BadFieldMatchup,
+//!     Scroll(scroll::Error),
+//! }
+//!
+//! impl<'a> ctx::TryFromCtx<'a, Context> for Data<'a> {
+//!   type Error = Error;
+//!
+//!   // Using the explicit lifetime specification again you ensure that read data doesn't outlife
+//!   // its source buffer without having to resort to copying.
+//!   fn try_from_ctx (src: &'a [u8], ctx: Context)
+//!     // the `usize` returned here is the amount of bytes read.
+//!     -> Result<(Self, usize), Self::Error> 
+//!   {
+//!     // The offset counter; gread and gread_with increment a given counter automatically so we
+//!     // don't have to manually care.
+//!     let offset = &mut 0;
+//!
+//!     let field_a;
+//!     let field_b;
+//!     let field_c;
+//!
+//!     // Switch the amount of bytes read depending on the parsing context
+//!     if ctx.fieldsize == FieldSize::U32 {
+//!       field_a = src.gread_with::<u32>(offset, ctx.endianess)? as u64;
+//!       field_b = src.gread_with::<u32>(offset, ctx.endianess)? as u64;
+//!       field_c = src.gread_with::<u32>(offset, ctx.endianess)? as u64;
+//!     } else {
+//!       field_a = src.gread_with::<u64>(offset, ctx.endianess)?;
+//!       field_b = src.gread_with::<u64>(offset, ctx.endianess)?;
+//!       field_c = src.gread_with::<u64>(offset, ctx.endianess)?;
+//!     }
+//!
+//!     // You can use type ascribition or turbofish operators, whichever you prefer.
+//!     let namelen = src.gread_with::<u16>(offset, ctx.endianess)? as usize;
+//!     let name: &str = src.gread_with(offset, scroll::ctx::StrCtx::Length(namelen))?;
+//!
+//!     let vallen = src.gread_with::<u16>(offset, ctx.endianess)? as usize;
+//!     let value = &src[*offset..(*offset+vallen)];
+//!
+//!     // Let's sanity check those fields, shall we?
+//!     if ! (field_a < field_b && field_b < field_c) {
+//!       return Err(Error::BadFieldMatchup);
+//!     }
+//!
+//!     Ok((Data { field_a, field_b, field_c, name, value }, *offset))
 //!   }
 //! }
 //!
-//! let bytes = b"UserName\x00\x01\x02\x03\x04";
-//! let data = bytes.pread_with::<Data>(0, BE).unwrap();
-//! assert_eq!(data.id, 0x01020304);
-//! assert_eq!(data.name.to_string(), "UserName".to_string());
+//! // In lieu of a complex byte buffer we hearken back to the venerable &[u8]; do note however
+//! // that the implementation of TryFromCtx did not specify such. In fact any type that implements
+//! // Pread can now read `Data` as it implements TryFromCtx.
+//! let bytes = b"\x00\x02\x03\x04\x01\x02\x03\x04\xde\xad\xbe\xef\x00\x08UserName\x00\x02\xCA\xFE";
 //!
+//! // We define an appropiate context, and get going
+//! let contextA = Context {
+//!     fieldsize: FieldSize::U32,
+//!     endianess: Endian::Big,
+//! };
+//! let data: Data = bytes.pread_with(0, contextA).unwrap();
+//!
+//! assert_eq!(data.field_a, 0x00020304);
+//! assert_eq!(data.field_b, 0x01020304);
+//! assert_eq!(data.field_c, 0xdeadbeef);
+//! assert_eq!(data.name, "UserName");
+//! assert_eq!(data.value, [0xCA, 0xFE]);
+//!
+//! // Here we have a context with a different FieldSize, changing parsing information at runtime.
+//! let contextB = Context {
+//!     fieldsize: FieldSize::U64,
+//!     endianess: Endian::Big,
+//! };
+//!
+//! // Which will of course error with a malformed input for the context
+//! let err: Result<Data, Error> = bytes.pread_with(0, contextB);
+//! assert!(err.is_err());
+//!
+//! let bytes_long = [0x00,0x00,0x00,0x00,0x00,0x02,0x03,0x04,0x00,0x00,0x00,0x00,0x01,0x02,0x03,
+//!                   0x04,0x00,0x00,0x00,0x00,0xde,0xad,0xbe,0xef,0x00,0x08,0x55,0x73,0x65,0x72,
+//!                   0x4e,0x61,0x6d,0x65,0x00,0x02,0xCA,0xFE];
+//!
+//! let data: Data = bytes_long.pread_with(0, contextB).unwrap();
+//!
+//! assert_eq!(data.field_a, 0x00020304);
+//! assert_eq!(data.field_b, 0x01020304);
+//! assert_eq!(data.field_c, 0xdeadbeef);
+//! assert_eq!(data.name, "UserName");
+//! assert_eq!(data.value, [0xCA, 0xFE]);
+//!
+//! // Ergonomic conversion, not relevant really.
+//! use std::convert::From;
+//! impl From<scroll::Error> for Error {
+//!   fn from(error: scroll::Error) -> Error {
+//!     Error::Scroll(error)
+//!   }
+//! }
 //! ```
 
 use core::ptr::copy_nonoverlapping;

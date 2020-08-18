@@ -19,9 +19,10 @@
 //!
 //! Scroll sets down a number of traits:
 //!
-//! [FromCtx](ctx/trait.FromCtx.html), [IntoCtx](ctx/trait.IntoCtx.html) and
-//! [TryFromCtx](ctx/trait.TryFromCtx.html); to be implemented on custom types to allow reading,
-//! writing, and potentially fallible reading respectively.
+//! [FromCtx](ctx/trait.FromCtx.html), [IntoCtx](ctx/trait.IntoCtx.html),
+//! [TryFromCtx](ctx/trait.TryFromCtx.html) and [TryIntoCtx](ctx/trait.TryIntoCtx.html) — further
+//! explained in the [ctx module](ctx/index.html); to be implemented on custom types to allow
+//! reading, writing, and potentially fallible reading/writing respectively.
 //!
 //! [Pread](trait.Pread.html) and [Pwrite](trait.Pwrite.html) which are implemented on data
 //! containers such as byte arrays to define how to read or respectively write types implementing
@@ -159,6 +160,7 @@
 //!
 //! // Our custom context type. In a more complex situation you could for example store details on
 //! // how to write or read your type, field-sizes or other information.
+//! // In this simple example we could also do without using a custom context in the first place.
 //! #[derive(Copy, Clone)]
 //! struct Context(Endian);
 //!
@@ -193,9 +195,9 @@
 //!   }
 //! }
 //!
-//! // In lieu of a complex byte buffer we hearken back to the venerable &[u8]; do note however
-//! // that the implementation of TryFromCtx did not specify such. In fact any type that implements
-//! // Pread can now read `Data` as it implements TryFromCtx.
+//! // In lieu of a complex byte buffer we hearken back to a simple &[u8]; the default source
+//! // of TryFromCtx. However, any type that implements Pread to produce a &[u8] can now read
+//! // `Data` thanks to it's implementation of TryFromCtx.
 //! let bytes = b"\x01\x02\x03\x04\x00\x08UserName";
 //! let data: Data = bytes.pread_with(0, Context(Endian::Big)).unwrap();
 //!
