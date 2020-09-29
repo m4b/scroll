@@ -258,6 +258,78 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 }
 
 /// Tries to read `Self` from `This` using the context `Ctx`
+///
+/// # Implementing Your Own Reader
+/// If you want to implement your own reader for a type `Foo` from some kind of buffer (say
+/// `[u8]`), then you need to implement
+///
+/// ```rust
+/// use scroll::{self, ctx, Pread};
+/// #[derive(Debug, PartialEq, Eq)]
+/// pub struct Foo(u16);
+///
+/// impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
+///      type Error = scroll::Error;
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<(Self, usize), Self::Error> {
+///          if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
+///          let n = this.pread_with(0, le)?;
+///          Ok((Foo(n), 2))
+///      }
+/// }
+///
+/// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
+/// let foo = bytes.pread_with::<Foo>(0, scroll::LE).unwrap();
+/// assert_eq!(Foo(0xadde), foo);
+///
+/// let foo2 = bytes.pread_with::<Foo>(0, scroll::BE).unwrap();
+/// assert_eq!(Foo(0xdeadu16), foo2);
+/// ```
+///
+/// # Advanced: Using Your Own Error in `TryFromCtx`
+/// ```rust
+///  use scroll::{self, ctx, Pread};
+///  use std::error;
+///  use std::fmt::{self, Display};
+///  // make some kind of normal error which also can transform a scroll error ideally (quick_error, error_chain allow this automatically nowadays)
+///  #[derive(Debug)]
+///  pub struct ExternalError {}
+///
+///  impl Display for ExternalError {
+///      fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+///          write!(fmt, "ExternalError")
+///      }
+///  }
+///
+///  impl error::Error for ExternalError {
+///      fn description(&self) -> &str {
+///          "ExternalError"
+///      }
+///      fn cause(&self) -> Option<&error::Error> { None}
+///  }
+///
+///  impl From<scroll::Error> for ExternalError {
+///      fn from(err: scroll::Error) -> Self {
+///          match err {
+///              _ => ExternalError{},
+///          }
+///      }
+///  }
+///  #[derive(Debug, PartialEq, Eq)]
+///  pub struct Foo(u16);
+///
+///  impl<'a> ctx::TryFromCtx<'a, scroll::Endian> for Foo {
+///      type Error = ExternalError;
+///      fn try_from_ctx(this: &'a [u8], le: scroll::Endian) -> Result<(Self, usize), Self::Error> {
+///          if this.len() <= 2 { return Err((ExternalError {}).into()) }
+///          let offset = &mut 0;
+///          let n = this.gread_with(offset, le)?;
+///          Ok((Foo(n), *offset))
+///      }
+///  }
+///
+/// let bytes: [u8; 4] = [0xde, 0xad, 0, 0];
+/// let foo: Result<Foo, ExternalError> = bytes.pread(0);
+/// ```
 pub trait TryFromCtx<'a, Ctx: Copy = (), This: ?Sized = [u8]> where Self: 'a + Sized {
     type Error;
     fn try_from_ctx(from: &'a This, ctx: Ctx) -> Result<(Self, usize), Self::Error>;
@@ -269,6 +341,29 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 }
 
 /// Tries to write `Self` into `This` using the context `Ctx`
+/// To implement writing into an arbitrary byte buffer, implement `TryIntoCtx`
+/// # Example
+/// ```rust
+/// use scroll::{self, ctx, LE, Endian, Pwrite};
+/// #[derive(Debug, PartialEq, Eq)]
+/// pub struct Foo(u16);
+///
+/// // this will use the default `DefaultCtx = scroll::Endian` and `I = usize`...
+/// impl ctx::TryIntoCtx<Endian> for Foo {
+///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
+///     type Error = scroll::Error;
+///     // you can write using your own context too... see `leb128.rs`
+///     fn try_into_ctx(self, this: &mut [u8], le: Endian) -> Result<usize, Self::Error> {
+///         if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
+///         this.pwrite_with(self.0, 0, le)?;
+///         Ok(2)
+///     }
+/// }
+/// // now we can write a `Foo` into some buffer (in this case, a byte buffer, because that's what we implemented it for above)
+///
+/// let mut bytes: [u8; 4] = [0, 0, 0, 0];
+/// bytes.pwrite_with(Foo(0x7f), 1, LE).unwrap();
+/// ```
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
     fn try_into_ctx(self, _: &mut This, ctx: Ctx) -> Result<usize, Self::Error>;
