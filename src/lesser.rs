@@ -1,15 +1,15 @@
 use std::io::{Result, Read, Write};
 use crate::ctx::{FromCtx, IntoCtx, SizeWith};
 
-/// An extension trait to `std::io::Read` streams; mainly targeted at reading known-size primitive
-/// types. 
+/// An extension trait to `std::io::Read` streams; mainly targeted at reading primitive types with
+/// a known size.
 ///
 /// Requires types to implement [`FromCtx`](ctx/trait.FromCtx.html) and [`SizeWith`](ctx/trait.SizeWith.html).
 ///
-/// **NB** You should probably add `repr(packed)` or `repr(C)` and be very careful how you
-/// implement [`SizeWith`](ctx/trait.SizeWith.html), otherwise you will get IO errors failing to
-/// fill entire buffer (the size you specified in `SizeWith`), or out of bound errors (depending on
-/// your impl) in `from_ctx`
+/// **NB** You should probably add `repr(C)` and be very careful how you implement
+/// [`SizeWith`](ctx/trait.SizeWith.html), otherwise you will get IO errors failing to fill entire
+/// buffer (the size you specified in `SizeWith`), or out of bound errors (depending on your impl)
+/// in `from_ctx`.
 ///
 /// Warning: Currently ioread/write uses a small 256-byte buffer and can not read/write larger types
 ///
