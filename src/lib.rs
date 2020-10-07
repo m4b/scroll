@@ -97,6 +97,8 @@
 //! assert_eq!("hello world", hello_world);
 //!
 //! // We can again provide a custom context; for example to parse Space-delimited strings.
+//! // As you can see while we still call `pread` changing the context can influence the output —
+//! // instead of splitting at '\0' we split at spaces
 //! let hello2: &[u8] = b"hello world\0more words";
 //! let world: &str = hello2.pread_with(6, ctx::StrCtx::Delimiter(ctx::SPACE)).unwrap();
 //! assert_eq!("world\0more", world);
