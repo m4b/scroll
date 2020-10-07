@@ -1,23 +1,23 @@
 //! Generic context-aware conversion traits, for automatic _downstream_ extension of `Pread`, et. al
 //!
 //! The context traits are arguably the center piece of the scroll crate. In simple terms they
-//! define how to actually read respectively write a data type from a container, being able to
+//! define how to actually read and write, respectively, a data type from a container, being able to
 //! take context into account.
 //!
 //! ### Reading
 //!
-//! Types implementing [TryFromCtx](trait.TryFromCtx.html) and it's infallible cousing [FromCtx](trait.FromCtx.html)
-//! allow an user of [Pread::pread](../trait.Pread.html#method.pread) or respectively
+//! Types implementing [TryFromCtx](trait.TryFromCtx.html) and it's infallible cousin [FromCtx](trait.FromCtx.html)
+//! allow a user of [Pread::pread](../trait.Pread.html#method.pread) or respectively
 //! [Cread::cread](../trait.Cread.html#method.cread) and
 //! [IOread::ioread](../trait.IOread.html#method.ioread) to read that data type from a data source one
-//! of `*read` traits has been implemented for.
+//! of the `*read` traits has been implemented for.
 //! 
 //! Implementations of `TryFromCtx` specify a source (called `This`) and an `Error` type for failed
 //! reads. The source defines the kind of container the type can be read from, and defaults to
-//! `[u8]` respetively any type that implements `AsRef<[u8]>`.
+//! `[u8]` for any type that implements `AsRef<[u8]>`.
 //!
 //! `FromCtx` is slightly more restricted; it requires the implementer to use `[u8]` as source and
-//! not fail, thus does not allow for an `Error` type.
+//! never fail, and thus does not have an `Error` type.
 //!
 //! Types chosen here are of relevance to `Pread` implementations; of course only a container which
 //! can produce a source of the type `This` can be used to read a `TryFromCtx` requiring it and the
@@ -28,8 +28,8 @@
 //! [TryIntoCtx](trait.TryIntoCtx.html) and the infallible [IntoCtx](trait.IntoCtx.html) work
 //! similarly to the above traits, allowing [Pwrite::pwrite](../trait.Pwrite.html#method.pwrite) or
 //! respectively [Cwrite::cwrite](../trait.Cwrite.html#method.cwrite) and
-//! [IOwrite::iowrite](../trait.IOwrite.html#method.iowrite) to write data into a byte sink on of
-//! the `*write` traits has been implemented for.
+//! [IOwrite::iowrite](../trait.IOwrite.html#method.iowrite) to write data into a byte sink for
+//! which one of the `*write` traits has been implemented for.
 //!
 //! `IntoCtx` is similarly restricted as `FromCtx` is to `TryFromCtx`. And equally the types chosen
 //! affect usable `Pwrite` implementation.
@@ -261,7 +261,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 ///
 /// # Implementing Your Own Reader
 /// If you want to implement your own reader for a type `Foo` from some kind of buffer (say
-/// `[u8]`), then you need to implement
+/// `[u8]`), then you need to implement this trait
 ///
 /// ```rust
 /// use scroll::{self, ctx, Pread};
@@ -290,7 +290,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 ///  use scroll::{self, ctx, Pread};
 ///  use std::error;
 ///  use std::fmt::{self, Display};
-///  // make some kind of normal error which also can transform a scroll error ideally (quick_error, error_chain allow this automatically nowadays)
+///  // make some kind of normal error which also can transformed from a scroll error
 ///  #[derive(Debug)]
 ///  pub struct ExternalError {}
 ///
@@ -348,11 +348,11 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
 ///
-/// // this will use the default `DefaultCtx = scroll::Endian` and `I = usize`...
+/// // this will use the default `DefaultCtx = scroll::Endian`
 /// impl ctx::TryIntoCtx<Endian> for Foo {
 ///     // you can use your own error here too, but you will then need to specify it in fn generic parameters
 ///     type Error = scroll::Error;
-///     // you can write using your own context too... see `leb128.rs`
+///     // you can write using your own context type, see `leb128.rs`
 ///     fn try_into_ctx(self, this: &mut [u8], le: Endian) -> Result<usize, Self::Error> {
 ///         if this.len() < 2 { return Err((scroll::Error::Custom("whatever".to_string())).into()) }
 ///         this.pwrite_with(self.0, 0, le)?;
