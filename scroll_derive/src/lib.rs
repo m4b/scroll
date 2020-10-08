@@ -6,28 +6,39 @@ use quote::quote;
 
 use proc_macro::TokenStream;
 
-fn impl_struct(name: &syn::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>, generics: &syn::Generics) -> proc_macro2::TokenStream {
+fn impl_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_macro2::TokenStream {
+    match *ty {
+        syn::Type::Array(ref array) => {
+            match array.len {
+                syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
+                    let size = int.base10_parse::<usize>().unwrap();
+                    quote! {
+                        #ident: { let mut __tmp: #ty = [0u8.into(); #size]; src.gread_inout_with(offset, &mut __tmp, ctx)?; __tmp }
+                    }
+                },
+                _ => panic!("Pread derive with bad array constexpr")
+            }
+        },
+        syn::Type::Group(ref group) => {
+            impl_field(ident, &group.elem)
+        }
+        _ => {
+            quote! {
+                #ident: src.gread_with::<#ty>(offset, ctx)?
+            }
+        }
+    }
+}
+
+fn impl_struct(
+    name: &syn::Ident,
+    fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
+    generics: &syn::Generics,
+) -> proc_macro2::TokenStream {
     let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
         let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
-        match *ty {
-            syn::Type::Array(ref array) => {
-                match array.len {
-                    syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
-                        let size = int.base10_parse::<usize>().unwrap();
-                        quote! {
-                            #ident: { let mut __tmp: #ty = [0u8.into(); #size]; src.gread_inout_with(offset, &mut __tmp, ctx)?; __tmp }
-                        }
-                    },
-                    _ => panic!("Pread derive with bad array constexpr")
-                }
-            },
-            _ => {
-                quote! {
-                    #ident: src.gread_with::<#ty>(offset, ctx)?
-                }
-            }
-        }
+        impl_field(ident, ty)
     }).collect();
 
     let gl = &generics.lt_token;
