@@ -5,6 +5,8 @@ use scroll::ctx::SizeWith;
 
 macro_rules! test {
     ( struct $name:ident { $( $field:ident: $t:ty, )* } ) => {
+	// check we can exist inside a macro_rules
+	// https://github.com/m4b/scroll/pull/75
         #[derive(Pread)]
         pub struct $name {
             $( pub $field: $t, )*
