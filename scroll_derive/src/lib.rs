@@ -111,6 +111,31 @@ pub fn derive_pread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
+fn impl_pwrite_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_macro2::TokenStream {
+    match ty {
+        syn::Type::Array(ref array) => match array.len {
+            syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Int(ref int),
+                ..
+            }) => {
+                let size = int.base10_parse::<usize>().unwrap();
+                quote! {
+                    for i in 0..#size {
+                        dst.gwrite_with(&self.#ident[i], offset, ctx)?;
+                    }
+                }
+            }
+            _ => panic!("Pwrite derive with bad array constexpr"),
+        },
+        syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem),
+        _ => {
+            quote! {
+                dst.gwrite_with(&self.#ident, offset, ctx)?
+            }
+        }
+    }
+}
+
 fn impl_try_into_ctx(
     name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
@@ -125,20 +150,7 @@ fn impl_try_into_ctx(
                 quote! {#t}
             });
             let ty = &f.ty;
-            match *ty {
-                syn::Type::Array(_) => {
-                    quote! {
-                        for i in 0..self.#ident.len() {
-                            dst.gwrite_with(&self.#ident[i], offset, ctx)?;
-                        }
-                    }
-                }
-                _ => {
-                    quote! {
-                        dst.gwrite_with(&self.#ident, offset, ctx)?
-                    }
-                }
-            }
+            impl_pwrite_field(ident, ty)
         })
         .collect();
 
