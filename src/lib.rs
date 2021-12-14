@@ -71,16 +71,25 @@
 //! // Similarly we can also read a single byte at offset 2
 //! // This time using type ascription instead of the turbofish (::<>) operator.
 //! let byte: u8 = bytes.pread(2).unwrap();
+//! #[cfg(target_endian = "little")]
 //! assert_eq!(byte, 0xbe);
+//! #[cfg(target_endian = "big")]
+//! assert_eq!(byte, 0xad);
 //!
 //!
 //! // If required we can also provide a specific parsing context; e.g. if we want to explicitly
 //! // define the endianess to use:
 //! let be_number: u32 = bytes.pread_with(0, scroll::BE).unwrap();
+//! #[cfg(target_endian = "little")]
 //! assert_eq!(be_number, 0xdeadbeef);
+//! #[cfg(target_endian = "big")]
+//! assert_eq!(be_number, 0xefbeadde);
 //!
 //! let be_number16 = bytes.pread_with::<u16>(1, scroll::BE).unwrap();
+//! #[cfg(target_endian = "little")]
 //! assert_eq!(be_number16, 0xadbe);
+//! #[cfg(target_endian = "big")]
+//! assert_eq!(be_number16, 0xbead);
 //!
 //!
 //! // Reads may fail; in this example due to a too large read for the given container.
