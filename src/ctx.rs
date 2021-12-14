@@ -773,44 +773,6 @@ sizeof_impl!(u128);
 sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);
-sizeof_impl!(usize);
-sizeof_impl!(isize);
-
-impl FromCtx<Endian> for usize {
-    #[inline]
-    fn from_ctx(src: &[u8], le: Endian) -> Self {
-        let size = ::core::mem::size_of::<Self>();
-        assert!(src.len() >= size);
-        let mut data: usize = 0;
-        unsafe {
-            copy_nonoverlapping(src.as_ptr(), &mut data as *mut usize as *mut u8, size);
-            if le.is_little() {
-                data.to_le()
-            } else {
-                data.to_be()
-            }
-        }
-    }
-}
-
-impl<'a> TryFromCtx<'a, Endian> for usize
-where
-    usize: FromCtx<Endian>,
-{
-    type Error = error::Error;
-    #[inline]
-    fn try_from_ctx(src: &'a [u8], le: Endian) -> result::Result<(Self, usize), Self::Error> {
-        let size = ::core::mem::size_of::<usize>();
-        if size > src.len() {
-            Err(error::Error::TooBig {
-                size,
-                len: src.len(),
-            })
-        } else {
-            Ok((FromCtx::from_ctx(src, le), size))
-        }
-    }
-}
 
 impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
     type Error = error::Error;
@@ -823,43 +785,6 @@ impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
             })
         } else {
             Ok((&src[..size], size))
-        }
-    }
-}
-
-impl IntoCtx<Endian> for usize {
-    #[inline]
-    fn into_ctx(self, dst: &mut [u8], le: Endian) {
-        let size = ::core::mem::size_of::<Self>();
-        assert!(dst.len() >= size);
-        let mut data = if le.is_little() {
-            self.to_le()
-        } else {
-            self.to_be()
-        };
-        let data = &mut data as *mut usize as *mut u8;
-        unsafe {
-            copy_nonoverlapping(data, dst.as_mut_ptr(), size);
-        }
-    }
-}
-
-impl TryIntoCtx<Endian> for usize
-where
-    usize: IntoCtx<Endian>,
-{
-    type Error = error::Error;
-    #[inline]
-    fn try_into_ctx(self, dst: &mut [u8], le: Endian) -> error::Result<usize> {
-        let size = ::core::mem::size_of::<usize>();
-        if size > dst.len() {
-            Err(error::Error::TooBig {
-                size,
-                len: dst.len(),
-            })
-        } else {
-            <usize as IntoCtx<Endian>>::into_ctx(self, dst, le);
-            Ok(size)
         }
     }
 }
