@@ -2,7 +2,7 @@
 
 // guard against potential undefined behaviour when borrowing from
 // packed structs. See https://github.com/rust-lang/rust/issues/46043
-#![deny(safe_packed_borrows)]
+#![deny(unaligned_references)]
 
 // #[macro_use] extern crate scroll_derive;
 
@@ -285,7 +285,7 @@ fn cwrite_api_customtype() {
         bar: 0xdeadbeef,
     };
     let mut bytes = [0x0; 16];
-    &bytes[..].cwrite::<Bar>(bar, 0);
+    let _ = &bytes[..].cwrite::<Bar>(bar, 0);
     let bar = bytes.cread::<Bar>(0);
     assert_eq!({ bar.foo }, -1);
     assert_eq!({ bar.bar }, 0xdeadbeef);
