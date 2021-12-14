@@ -1,6 +1,6 @@
 [package]
 name = "scroll"
-version = "0.10.2"
+version = "0.11.0"
 authors = ["m4b <m4b.github.io@gmail.com>", "Ted Mielczarek <ted@mielczarek.org>"]
 readme = "README.md"
 edition = "2021"
@@ -11,7 +11,7 @@ documentation = "https://docs.rs/scroll"
 description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 
 [dependencies]
-scroll_derive = { version = "0.10", optional = true, path = "scroll_derive" }
+scroll_derive = { version = "0.11", optional = true, path = "scroll_derive" }
 
 [features]
 default = ["std"]
