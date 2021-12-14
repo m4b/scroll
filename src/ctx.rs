@@ -307,7 +307,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 ///      fn description(&self) -> &str {
 ///          "ExternalError"
 ///      }
-///      fn cause(&self) -> Option<&error::Error> { None}
+///      fn cause(&self) -> Option<&dyn error::Error> { None}
 ///  }
 ///
 ///  impl From<scroll::Error> for ExternalError {
