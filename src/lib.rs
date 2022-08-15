@@ -377,6 +377,11 @@ mod tests {
         assert!(error.is_ok());
     }
 
+    /// In this test, we are testing preading
+    /// at length boundaries.
+    /// In the past, this test was supposed to test failures for `hello_world`.
+    /// Since PR#94, this test is unwrapping as we exploit
+    /// the fact that if you do &x[x.len()..] you get an empty slice.
     #[test]
     fn pread_str_weird() {
         use super::ctx::*;
@@ -385,7 +390,7 @@ mod tests {
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         #[cfg(feature = "std")]
         println!("1 {hello_world:?}");
-        assert!(hello_world.is_err());
+        assert!(hello_world.unwrap().is_empty());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
         println!("2 {error:?}");
