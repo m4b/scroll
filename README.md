@@ -32,7 +32,7 @@ Add to your `Cargo.toml`
 
 ```toml, no_test
 [dependencies]
-scroll = "0.10"
+scroll = "0.11"
 ```
 
 ### Overview
