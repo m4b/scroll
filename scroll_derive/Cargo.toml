@@ -9,6 +9,7 @@ repository = "https://github.com/m4b/scroll"
 license = "MIT"
 documentation = "https://docs.rs/scroll_derive"
 description = "A macros 1.1 derive implementation for Pread and Pwrite traits from the scroll crate"
+include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
 
 [lib]
 proc-macro = true
