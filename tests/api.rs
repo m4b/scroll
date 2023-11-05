@@ -1,3 +1,4 @@
+#![allow(clippy::disallowed_names)]
 // this exists primarily to test various API usages of scroll; e.g., must compile
 
 // #[macro_use] extern crate scroll_derive;
@@ -83,7 +84,7 @@ pub struct Segment<'a> {
 
 impl<'a> Segment<'a> {
     pub fn name(&self) -> Result<&str> {
-        Ok(self.segname.pread::<&str>(0)?)
+        self.segname.pread::<&str>(0)
     }
     pub fn sections(&self) -> Result<Vec<Section<'a>>> {
         let nsects = self.nsects as usize;
@@ -137,6 +138,11 @@ impl<'a> Segments<'a> {
         Ok(sections)
     }
 }
+impl<'a> Default for Segments<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 fn lifetime_passthrough_<'a>(segments: &Segments<'a>, section_name: &str) -> Option<&'a [u8]> {
     let segment_name = "__TEXT";
@@ -163,7 +169,6 @@ fn lifetime_passthrough_<'a>(segments: &Segments<'a>, section_name: &str) -> Opt
 fn lifetime_passthrough() {
     let segments = Segments::new();
     let _res = lifetime_passthrough_(&segments, "__text");
-    assert!(true)
 }
 
 #[derive(Default)]

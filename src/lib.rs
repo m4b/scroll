@@ -267,7 +267,6 @@ doc_comment!(include_str!("../README.md"));
 
 #[cfg(test)]
 mod tests {
-    #[allow(overflowing_literals)]
     use super::LE;
 
     #[test]
@@ -378,14 +377,14 @@ mod tests {
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         println!("1 {:?}", &hello_world);
-        assert_eq!(hello_world.is_err(), true);
+        assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null = bytes.pread::<&str>(0).unwrap();
         println!("3 {:?}", &null);
-        assert_eq!(null.len(), 0);
+        assert!(null.is_empty());
     }
 
     #[test]
@@ -435,11 +434,8 @@ mod tests {
     }
 
     impl From<super::Error> for ExternalError {
-        fn from(err: super::Error) -> Self {
-            //use super::Error::*;
-            match err {
-                _ => ExternalError {},
-            }
+        fn from(_err: super::Error) -> Self {
+            ExternalError {}
         }
     }
 
@@ -451,7 +447,7 @@ mod tests {
         fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<usize, Self::Error> {
             use super::Pwrite;
             if this.len() < 2 {
-                return Err((ExternalError {}).into());
+                return Err(ExternalError {});
             }
             this.pwrite_with(self.0, 0, le)?;
             Ok(2)
@@ -463,7 +459,7 @@ mod tests {
         fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<(Self, usize), Self::Error> {
             use super::Pread;
             if this.len() > 2 {
-                return Err((ExternalError {}).into());
+                return Err(ExternalError {});
             }
             let n = this.pread_with(0, le)?;
             Ok((Foo(n), 2))
@@ -477,9 +473,9 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.pread(i).unwrap();
-        }
+        bytes_to.iter_mut().enumerate().for_each(|(i, item)| {
+            *item = bytes_from.pread(i).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
     }
 
@@ -571,10 +567,10 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        let mut offset = &mut 0;
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.gread(&mut offset).unwrap();
-        }
+        let offset = &mut 0;
+        bytes_to.iter_mut().for_each(|item| {
+            *item = bytes_from.gread(offset).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
     }
@@ -612,11 +608,11 @@ mod tests {
         let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
-        let astring: [u8; 3] = [0x45, 042, 0x44];
+        let astring: [u8; 3] = [0x45, 0x2a, 0x44];
         let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
             &Ok(_) => {}
-            &Err(ref err) => {
+            Err(err) => {
                 println!("{}", &err);
                 panic!();
             }

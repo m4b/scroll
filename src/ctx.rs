@@ -181,7 +181,6 @@
 //! ```
 
 use core::mem::size_of;
-use core::mem::transmute;
 use core::ptr::copy_nonoverlapping;
 use core::result;
 use core::str;
@@ -249,11 +248,7 @@ impl StrCtx {
     }
 
     pub fn is_empty(&self) -> bool {
-        if let StrCtx::Length(_) = *self {
-            true
-        } else {
-            false
-        }
+        matches!(*self, StrCtx::Length(_))
     }
 }
 
@@ -407,11 +402,12 @@ macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => {{
         unsafe {
             assert!($dst.len() >= $size);
-            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() {
+            let bytes = if $endian.is_little() {
                 $n.to_le()
             } else {
                 $n.to_be()
-            });
+            }
+            .to_ne_bytes();
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
     }};
@@ -572,7 +568,7 @@ macro_rules! from_ctx_float_impl {
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
                         $size,
                     );
-                    transmute(if le.is_little() {
+                    $typ::from_bits(if le.is_little() {
                         data.to_le()
                     } else {
                         data.to_be()
@@ -623,13 +619,7 @@ macro_rules! into_ctx_float_impl {
             #[inline]
             fn into_ctx(self, dst: &mut [u8], le: Endian) {
                 assert!(dst.len() >= $size);
-                write_into!(
-                    signed_to_unsigned!($typ),
-                    $size,
-                    transmute::<$typ, signed_to_unsigned!($typ)>(self),
-                    dst,
-                    le
-                );
+                write_into!(signed_to_unsigned!($typ), $size, self.to_bits(), dst, le);
             }
         }
         impl<'a> IntoCtx<Endian> for &'a $typ {
