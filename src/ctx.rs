@@ -267,6 +267,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 /// `[u8]`), then you need to implement this trait
 ///
 /// ```rust
+/// ##[cfg(feature = "std")] {
 /// use scroll::{self, ctx, Pread};
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
@@ -286,6 +287,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 ///
 /// let foo2 = bytes.pread_with::<Foo>(0, scroll::BE).unwrap();
 /// assert_eq!(Foo(0xdeadu16), foo2);
+/// # }
 /// ```
 ///
 /// # Advanced: Using Your Own Error in `TryFromCtx`
@@ -350,6 +352,7 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 /// To implement writing into an arbitrary byte buffer, implement `TryIntoCtx`
 /// # Example
 /// ```rust
+/// ##[cfg(feature = "std")] {
 /// use scroll::{self, ctx, LE, Endian, Pwrite};
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
@@ -369,6 +372,7 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 ///
 /// let mut bytes: [u8; 4] = [0, 0, 0, 0];
 /// bytes.pwrite_with(Foo(0x7f), 1, LE).unwrap();
+/// # }
 /// ```
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
@@ -864,6 +868,7 @@ impl TryIntoCtx for CString {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "std")]
     use super::*;
 
     #[test]

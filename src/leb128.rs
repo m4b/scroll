@@ -184,6 +184,7 @@ mod tests {
         let buf = [2u8 | CONTINUATION_BIT, 1];
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
+        #[cfg(feature = "std")]
         println!("num: {:?}", &num);
         assert_eq!(130u64, num.into());
         assert_eq!(num.size(), 2);
@@ -191,6 +192,7 @@ mod tests {
         let buf = [0x00, 0x01];
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
+        #[cfg(feature = "std")]
         println!("num: {:?}", &num);
         assert_eq!(0u64, num.into());
         assert_eq!(num.size(), 1);
@@ -198,6 +200,7 @@ mod tests {
         let buf = [0x21];
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
+        #[cfg(feature = "std")]
         println!("num: {:?}", &num);
         assert_eq!(0x21u64, num.into());
         assert_eq!(num.size(), 1);

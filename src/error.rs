@@ -23,6 +23,9 @@ pub enum Error {
     #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
     Custom(String),
+    #[cfg(not(feature = "std"))]
+    /// A custom static Scroll error for reporting messages to clients
+    Custom(&'static str),
     #[cfg(feature = "std")]
     /// Returned when IO based errors are encountered
     IO(io::Error),
@@ -72,6 +75,10 @@ impl Display for Error {
             #[cfg(feature = "std")]
             Error::Custom(ref msg) => {
                 write!(fmt, "{}", msg)
+            }
+            #[cfg(not(feature = "std"))]
+            Error::Custom(msg) => {
+                write!(fmt, "{msg}")
             }
             #[cfg(feature = "std")]
             Error::IO(ref err) => {
