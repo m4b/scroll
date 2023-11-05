@@ -1,9 +1,5 @@
 // this exists primarily to test various API usages of scroll; e.g., must compile
 
-// guard against potential undefined behaviour when borrowing from
-// packed structs. See https://github.com/rust-lang/rust/issues/46043
-#![deny(unaligned_references)]
-
 // #[macro_use] extern crate scroll_derive;
 
 use scroll::ctx::SizeWith;
