@@ -1,14 +1,9 @@
 // this exists primarily to test various API usages of scroll; e.g., must compile
 
-// guard against potential undefined behaviour when borrowing from
-// packed structs. See https://github.com/rust-lang/rust/issues/46043
-#![deny(unaligned_references)]
-
-// #[macro_use] extern crate scroll_derive;
-
-use scroll::ctx::SizeWith;
-use scroll::{ctx, Cread, Pread, Result};
 use std::ops::{Deref, DerefMut};
+
+use scroll::ctx::SizeWith as _;
+use scroll::{ctx, Cread, Pread, Result};
 
 #[derive(Default)]
 pub struct Section<'a> {
@@ -87,7 +82,7 @@ pub struct Segment<'a> {
 
 impl<'a> Segment<'a> {
     pub fn name(&self) -> Result<&str> {
-        Ok(self.segname.pread::<&str>(0)?)
+        self.segname.pread::<&str>(0)
     }
     pub fn sections(&self) -> Result<Vec<Section<'a>>> {
         let nsects = self.nsects as usize;
@@ -167,9 +162,9 @@ fn lifetime_passthrough_<'a>(segments: &Segments<'a>, section_name: &str) -> Opt
 fn lifetime_passthrough() {
     let segments = Segments::new();
     let _res = lifetime_passthrough_(&segments, "__text");
-    assert!(true)
 }
 
+#[cfg(feature = "std")]
 #[derive(Default)]
 #[repr(packed)]
 struct Foo {
@@ -177,6 +172,7 @@ struct Foo {
     bar: u32,
 }
 
+#[cfg(feature = "std")]
 impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
     fn from_ctx(bytes: &[u8], ctx: scroll::Endian) -> Self {
         Foo {
@@ -186,6 +182,7 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Foo {
     }
 }
 
+#[cfg(feature = "std")]
 impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
     fn size_with(_: &scroll::Endian) -> usize {
         ::std::mem::size_of::<Foo>()
@@ -195,8 +192,10 @@ impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
 #[test]
 #[cfg(feature = "std")]
 fn ioread_api() {
-    use scroll::{IOread, LE};
     use std::io::Cursor;
+
+    use scroll::{IOread, LE};
+
     let bytes_ = [
         0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xef, 0xbe, 0x00, 0x00,
     ];
@@ -261,8 +260,8 @@ fn cread_api_badindex() {
 
 #[test]
 fn cwrite_api() {
-    use scroll::Cread;
-    use scroll::Cwrite;
+    use scroll::{Cread, Cwrite};
+
     let mut bytes = [0x0; 16];
     bytes.cwrite::<u64>(42, 0);
     bytes.cwrite::<u32>(0xdeadbeef, 8);

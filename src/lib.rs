@@ -253,8 +253,7 @@ pub use crate::pwrite::*;
 
 #[doc(hidden)]
 pub mod export {
-    pub use ::core::mem;
-    pub use ::core::result;
+    pub use ::core::{mem, result};
 }
 
 #[allow(unused)]
@@ -271,7 +270,9 @@ doc_comment!(include_str!("../README.md"));
 
 #[cfg(test)]
 mod tests {
-    #[allow(overflowing_literals)]
+    // FIXME: is this needed?  It used to be incorrectly declared.
+    #![allow(overflowing_literals)]
+
     use super::LE;
 
     #[test]
@@ -462,7 +463,7 @@ mod tests {
         fn try_into_ctx(self, this: &mut [u8], le: super::Endian) -> Result<usize, Self::Error> {
             use super::Pwrite;
             if this.len() < 2 {
-                return Err((ExternalError {}).into());
+                return Err(ExternalError {});
             }
             this.pwrite_with(self.0, 0, le)?;
             Ok(2)
@@ -474,7 +475,7 @@ mod tests {
         fn try_from_ctx(this: &'a [u8], le: super::Endian) -> Result<(Self, usize), Self::Error> {
             use super::Pread;
             if this.len() > 2 {
-                return Err((ExternalError {}).into());
+                return Err(ExternalError {});
             }
             let n = this.pread_with(0, le)?;
             Ok((Foo(n), 2))

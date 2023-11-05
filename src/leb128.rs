@@ -1,9 +1,8 @@
-use crate::ctx::TryFromCtx;
-use crate::error;
-use crate::Pread;
 use core::convert::{AsRef, From};
-use core::result;
-use core::u8;
+use core::{result, u8};
+
+use crate::ctx::TryFromCtx;
+use crate::{error, Pread};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 /// An unsigned leb128 integer
