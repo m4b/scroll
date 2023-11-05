@@ -868,7 +868,6 @@ impl TryIntoCtx for CString {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "std")]
     use super::*;
 
     #[test]

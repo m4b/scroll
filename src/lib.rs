@@ -623,22 +623,17 @@ mod tests {
         let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
-        // FIXME: 0x2A used to be 042 -- a weird way to declare a number, probably a bug
-        let astring: [u8; 3] = [0x45, 0x2A, 0x44];
+        let astring: [u8; 3] = [0x45, 0x42, 0x44];
         let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
             Ok(_) => {}
-            #[cfg(feature = "std")]
-            Err(err) => {
-                println!("{err}");
-                panic!();
-            }
-            #[cfg(not(feature = "std"))]
-            Err(_) => {
+            Err(_err) => {
+                #[cfg(feature = "std")]
+                println!("{_err}");
                 panic!();
             }
         }
-        assert_eq!(string.unwrap(), "E*");
+        assert_eq!(string.unwrap(), "EB");
         *offset = 0;
         let bytes2: &[u8] = b.gread_with(offset, 2).unwrap();
         assert_eq!(*offset, 2);

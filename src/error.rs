@@ -20,14 +20,13 @@ pub enum Error {
         size: usize,
         msg: &'static str,
     },
-    #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
-    Custom(String),
-    #[cfg(not(feature = "std"))]
-    /// A custom static Scroll error for reporting messages to clients
-    Custom(&'static str),
     #[cfg(feature = "std")]
+    Custom(String),
+    /// A custom static Scroll error for reporting messages to clients
+    CustomStatic(&'static str),
     /// Returned when IO based errors are encountered
+    #[cfg(feature = "std")]
     IO(io::Error),
 }
 
@@ -39,6 +38,7 @@ impl error::Error for Error {
             Error::BadOffset(_) => "BadOffset",
             Error::BadInput { .. } => "BadInput",
             Error::Custom(_) => "Custom",
+            Error::CustomStatic(_) => "Custom", // Both Custom and CustomStatic are custom errors
             Error::IO(_) => "IO",
         }
     }
@@ -48,6 +48,7 @@ impl error::Error for Error {
             Error::BadOffset(_) => None,
             Error::BadInput { .. } => None,
             Error::Custom(_) => None,
+            Error::CustomStatic(_) => None,
             Error::IO(ref io) => io.source(),
         }
     }
@@ -76,8 +77,7 @@ impl Display for Error {
             Error::Custom(ref msg) => {
                 write!(fmt, "{}", msg)
             }
-            #[cfg(not(feature = "std"))]
-            Error::Custom(msg) => {
+            Error::CustomStatic(msg) => {
                 write!(fmt, "{msg}")
             }
             #[cfg(feature = "std")]
