@@ -23,8 +23,6 @@ pub enum Error {
     /// A custom Scroll error for reporting messages to clients
     #[cfg(feature = "std")]
     Custom(String),
-    /// A custom static Scroll error for reporting messages to clients
-    CustomStatic(&'static str),
     /// Returned when IO based errors are encountered
     #[cfg(feature = "std")]
     IO(io::Error),
@@ -38,7 +36,6 @@ impl error::Error for Error {
             Error::BadOffset(_) => "BadOffset",
             Error::BadInput { .. } => "BadInput",
             Error::Custom(_) => "Custom",
-            Error::CustomStatic(_) => "Custom", // Both Custom and CustomStatic are custom errors
             Error::IO(_) => "IO",
         }
     }
@@ -48,7 +45,6 @@ impl error::Error for Error {
             Error::BadOffset(_) => None,
             Error::BadInput { .. } => None,
             Error::Custom(_) => None,
-            Error::CustomStatic(_) => None,
             Error::IO(ref io) => io.source(),
         }
     }
@@ -76,9 +72,6 @@ impl Display for Error {
             #[cfg(feature = "std")]
             Error::Custom(ref msg) => {
                 write!(fmt, "{}", msg)
-            }
-            Error::CustomStatic(msg) => {
-                write!(fmt, "{msg}")
             }
             #[cfg(feature = "std")]
             Error::IO(ref err) => {
