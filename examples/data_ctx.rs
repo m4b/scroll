@@ -20,5 +20,5 @@ fn main() {
     let data = bytes.pread_with::<Data>(0, BE).unwrap();
     assert_eq!(data.id, 0x01020304);
     assert_eq!(data.name.to_string(), "UserName".to_string());
-    println!("Data: {:?}", &data);
+    println!("Data: {data:?}");
 }

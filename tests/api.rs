@@ -146,12 +146,12 @@ fn lifetime_passthrough_<'a>(segments: &Segments<'a>, section_name: &str) -> Opt
     let segment_name = "__TEXT";
     for segment in &segments.segments {
         if let Ok(name) = segment.name() {
-            println!("segment.name: {}", name);
+            println!("segment.name: {name}");
             if name == segment_name {
                 if let Ok(sections) = segment.sections() {
                     for section in sections {
                         let sname = section.name().unwrap();
-                        println!("section.name: {}", sname);
+                        println!("section.name: {sname}");
                         if section_name == sname {
                             return Some(section.data);
                         }

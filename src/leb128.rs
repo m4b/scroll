@@ -185,7 +185,7 @@ mod tests {
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
         #[cfg(feature = "std")]
-        println!("num: {:?}", &num);
+        println!("num: {num:?}");
         assert_eq!(130u64, num.into());
         assert_eq!(num.size(), 2);
 
@@ -193,7 +193,7 @@ mod tests {
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
         #[cfg(feature = "std")]
-        println!("num: {:?}", &num);
+        println!("num: {num:?}");
         assert_eq!(0u64, num.into());
         assert_eq!(num.size(), 1);
 
@@ -201,7 +201,7 @@ mod tests {
         let bytes = &buf[..];
         let num = bytes.pread::<Uleb128>(0).unwrap();
         #[cfg(feature = "std")]
-        println!("num: {:?}", &num);
+        println!("num: {num:?}");
         assert_eq!(0x21u64, num.into());
         assert_eq!(num.size(), 1);
     }
