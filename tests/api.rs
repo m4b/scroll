@@ -194,6 +194,7 @@ impl scroll::ctx::SizeWith<scroll::Endian> for Foo {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn ioread_api() {
     use scroll::{IOread, LE};
     use std::io::Cursor;

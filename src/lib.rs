@@ -119,6 +119,7 @@
 //! [FromCtx](ctx/trait.FromCtx.html) and [SizeWith](ctx/trait.SizeWith.html).
 //!
 //! ```rust
+//! ##[cfg(feature = "std")] {
 //! use std::io::Cursor;
 //! use scroll::{IOread, ctx, Endian};
 //! let bytes = [0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0xef,0xbe,0x00,0x00,];
@@ -139,12 +140,14 @@
 //! // read/written, e.g. switching between ELF32 or ELF64 at runtime.
 //! let size = <u64 as ctx::SizeWith<Endian>>::size_with(&Endian::Little) as u64;
 //! assert_eq!(prev + size, after);
+//! # }
 //! ```
 //!
 //! In the same vein as IOread we can use IOwrite to write a type to anything implementing
 //! `std::io::Write`:
 //!
 //! ```rust
+//! ##[cfg(feature = "std")] {
 //! use std::io::Cursor;
 //! use scroll::{IOwrite};
 //!
@@ -155,6 +158,7 @@
 //! cursor.iowrite_with(0xdeadbeef as u32, scroll::BE).unwrap();
 //!
 //! assert_eq!(cursor.into_inner(), [0xde, 0xad, 0xbe, 0xef, 0x0]);
+//! # }
 //! ```
 //!
 //! ## Complex use cases
@@ -354,18 +358,22 @@ mod tests {
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
         let s: &str = b.pread(0).unwrap();
+        #[cfg(feature = "std")]
         println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
         let hello_world: &str = bytes.pread_with(0, StrCtx::Delimiter(NULL)).unwrap();
+        #[cfg(feature = "std")]
         println!("{:?}", &hello_world);
         assert_eq!(hello_world.len(), 13);
         let hello: &str = bytes.pread_with(0, StrCtx::Delimiter(SPACE)).unwrap();
+        #[cfg(feature = "std")]
         println!("{:?}", &hello);
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
         let _error = bytes.pread_with::<&str>(6, StrCtx::Delimiter(SPACE));
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
+        #[cfg(feature = "std")]
         println!("{:?}", &error);
         assert!(error.is_ok());
     }
@@ -376,13 +384,16 @@ mod tests {
         use super::Pread;
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
+        #[cfg(feature = "std")]
         println!("1 {:?}", &hello_world);
         assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
+        #[cfg(feature = "std")]
         println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null = bytes.pread::<&str>(0).unwrap();
+        #[cfg(feature = "std")]
         println!("3 {:?}", &null);
         assert!(null.is_empty());
     }
@@ -412,8 +423,7 @@ mod tests {
         assert_eq!(bytes, "bytes");
     }
 
-    use std::error;
-    use std::fmt::{self, Display};
+    use core::fmt::{self, Display};
 
     #[derive(Debug)]
     pub struct ExternalError {}
@@ -424,11 +434,12 @@ mod tests {
         }
     }
 
-    impl error::Error for ExternalError {
+    #[cfg(feature = "std")]
+    impl std::error::Error for ExternalError {
         fn description(&self) -> &str {
             "ExternalError"
         }
-        fn cause(&self) -> Option<&dyn error::Error> {
+        fn cause(&self) -> Option<&dyn std::error::Error> {
             None
         }
     }
@@ -495,7 +506,7 @@ mod tests {
                 let mut offset = 0;
                 let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
-                assert_eq!(offset, ::std::mem::size_of::<$typ>());
+                assert_eq!(offset, ::core::mem::size_of::<$typ>());
             }
         };
     }
@@ -514,7 +525,7 @@ mod tests {
                 let mut offset = 0;
                 let deadbeef: $typ = bytes.gread_with(&mut offset, LE).unwrap();
                 assert_eq!(deadbeef, $deadbeef as $typ);
-                assert_eq!(offset, ::std::mem::size_of::<$typ>());
+                assert_eq!(offset, ::core::mem::size_of::<$typ>());
             }
         };
     }
@@ -533,8 +544,8 @@ mod tests {
                 let o2 = &mut 0;
                 let val: $typ = buffer.gread_with(o2, LE).unwrap();
                 assert_eq!(val, $val);
-                assert_eq!(*offset, ::std::mem::size_of::<$typ>());
-                assert_eq!(*o2, ::std::mem::size_of::<$typ>());
+                assert_eq!(*offset, ::core::mem::size_of::<$typ>());
+                assert_eq!(*o2, ::core::mem::size_of::<$typ>());
                 assert_eq!(*o2, *offset);
                 buffer.gwrite_with($val.clone(), offset, BE).unwrap();
                 let val: $typ = buffer.gread_with(o2, BE).unwrap();
@@ -611,13 +622,14 @@ mod tests {
         let astring: [u8; 3] = [0x45, 0x2a, 0x44];
         let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
-            &Ok(_) => {}
-            Err(err) => {
-                println!("{}", &err);
+            Ok(_) => {}
+            Err(_err) => {
+                #[cfg(feature = "std")]
+                println!("{_err}");
                 panic!();
             }
         }
-        assert_eq!(string.unwrap(), "E*");
+        assert_eq!(string.unwrap(), "EB");
         *offset = 0;
         let bytes2: &[u8] = b.gread_with(offset, 2).unwrap();
         assert_eq!(*offset, 2);

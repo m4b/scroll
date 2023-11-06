@@ -20,11 +20,11 @@ pub enum Error {
         size: usize,
         msg: &'static str,
     },
-    #[cfg(feature = "std")]
     /// A custom Scroll error for reporting messages to clients
-    Custom(String),
     #[cfg(feature = "std")]
+    Custom(String),
     /// Returned when IO based errors are encountered
+    #[cfg(feature = "std")]
     IO(io::Error),
 }
 
