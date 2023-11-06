@@ -191,7 +191,6 @@ use std::ffi::{CStr, CString};
 use crate::endian::Endian;
 use crate::error;
 use crate::Pread;
-use crate::Pwrite;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -847,20 +846,6 @@ impl<'a, const N: usize> TryFromCtx<'a> for [u8; N] {
     fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
         // Unwrap is OK, since pread_with already asserts the length.
         Ok((from.pread_with::<&'a [u8]>(0, N)?.try_into().unwrap(), N))
-    }
-}
-impl<const N: usize> TryIntoCtx for [u8; N] {
-    type Error = error::Error;
-    #[inline]
-    fn try_into_ctx(self, from: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
-        from.pwrite(self.as_slice(), 0)
-    }
-}
-impl<'a, const N: usize> TryIntoCtx for &'a [u8; N] {
-    type Error = error::Error;
-    #[inline]
-    fn try_into_ctx(self, from: &mut [u8], ctx: ()) -> Result<usize, Self::Error> {
-        (*self).try_into_ctx(from, ctx)
     }
 }
 
