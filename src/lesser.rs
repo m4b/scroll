@@ -1,5 +1,6 @@
-use crate::ctx::{FromCtx, IntoCtx, SizeWith};
 use std::io::{Read, Result, Write};
+
+use crate::ctx::{FromCtx, IntoCtx, SizeWith};
 
 /// An extension trait to `std::io::Read` streams; mainly targeted at reading primitive types with
 /// a known size.

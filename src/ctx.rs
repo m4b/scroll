@@ -182,9 +182,7 @@
 
 use core::mem::size_of;
 use core::ptr::copy_nonoverlapping;
-use core::result;
-use core::str;
-
+use core::{result, str};
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
@@ -240,14 +238,14 @@ impl Default for StrCtx {
 
 impl StrCtx {
     pub fn len(&self) -> usize {
-        match *self {
+        match self {
             StrCtx::Delimiter(_) | StrCtx::DelimiterUntil(_, _) => 1,
             StrCtx::Length(_) => 0,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        matches!(*self, StrCtx::Length(_))
+        matches!(self, StrCtx::Length(_))
     }
 }
 
@@ -263,6 +261,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 /// `[u8]`), then you need to implement this trait
 ///
 /// ```rust
+/// ##[cfg(feature = "std")] {
 /// use scroll::{self, ctx, Pread};
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
@@ -282,6 +281,7 @@ pub trait FromCtx<Ctx: Copy = (), This: ?Sized = [u8]> {
 ///
 /// let foo2 = bytes.pread_with::<Foo>(0, scroll::BE).unwrap();
 /// assert_eq!(Foo(0xdeadu16), foo2);
+/// # }
 /// ```
 ///
 /// # Advanced: Using Your Own Error in `TryFromCtx`
@@ -346,6 +346,7 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 /// To implement writing into an arbitrary byte buffer, implement `TryIntoCtx`
 /// # Example
 /// ```rust
+/// ##[cfg(feature = "std")] {
 /// use scroll::{self, ctx, LE, Endian, Pwrite};
 /// #[derive(Debug, PartialEq, Eq)]
 /// pub struct Foo(u16);
@@ -365,6 +366,7 @@ pub trait IntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
 ///
 /// let mut bytes: [u8; 4] = [0, 0, 0, 0];
 /// bytes.pwrite_with(Foo(0x7f), 1, LE).unwrap();
+/// # }
 /// ```
 pub trait TryIntoCtx<Ctx: Copy = (), This: ?Sized = [u8]>: Sized {
     type Error;
@@ -399,14 +401,14 @@ macro_rules! signed_to_unsigned {
 
 macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => {{
+        assert!($dst.len() >= $size);
+        let bytes = if $endian.is_little() {
+            $n.to_le()
+        } else {
+            $n.to_be()
+        }
+        .to_ne_bytes();
         unsafe {
-            assert!($dst.len() >= $size);
-            let bytes = if $endian.is_little() {
-                $n.to_le()
-            } else {
-                $n.to_be()
-            }
-            .to_ne_bytes();
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
     }};
@@ -567,12 +569,12 @@ macro_rules! from_ctx_float_impl {
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
                         $size,
                     );
-                    $typ::from_bits(if le.is_little() {
-                        data.to_le()
-                    } else {
-                        data.to_be()
-                    })
                 }
+                $typ::from_bits(if le.is_little() {
+                    data.to_le()
+                } else {
+                    data.to_be()
+                })
             }
         }
         impl<'a> TryFromCtx<'a, Endian> for $typ
@@ -862,11 +864,11 @@ impl<'a, const N: usize> TryFromCtx<'a> for [u8; N] {
 // }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "std")]
     fn parse_a_cstr() {
         let src = CString::new("Hello World").unwrap();
         let as_bytes = src.as_bytes_with_nul();
@@ -878,7 +880,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn round_trip_a_c_str() {
         let src = CString::new("Hello World").unwrap();
         let src = src.as_c_str();
