@@ -270,9 +270,6 @@ doc_comment!(include_str!("../README.md"));
 
 #[cfg(test)]
 mod tests {
-    // FIXME: is this needed?  It used to be incorrectly declared.
-    #![allow(overflowing_literals)]
-
     use super::LE;
 
     #[test]
