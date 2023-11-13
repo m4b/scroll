@@ -718,7 +718,7 @@ impl<'a> TryIntoCtx for &'a [u8] {
         let src_len = self.len() as isize;
         let dst_len = dst.len() as isize;
         // if src_len < 0 || dst_len < 0 || offset < 0 {
-        //     return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {} dst len: {} offset: {}", src_len, dst_len, offset)).into())
+        //     return Err(error::Error::BadOffset(format!("requested operation has negative casts: src len: {src_len} dst len: {dst_len} offset: {offset}")).into())
         // }
         if src_len > dst_len {
             Err(error::Error::TooBig {
