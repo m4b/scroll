@@ -10,14 +10,15 @@ license = "MIT"
 documentation = "https://docs.rs/scroll"
 description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
-
-[dependencies]
-scroll_derive = { version = "0.11", optional = true, path = "scroll_derive" }
+rust-version = "1.63"
 
 [features]
 default = ["std"]
 std = []
-derive = ["scroll_derive"]
+derive = ["dep:scroll_derive"]
+
+[dependencies]
+scroll_derive = { version = "0.11", optional = true, path = "scroll_derive" }
 
 [dev-dependencies]
 rayon = "1"

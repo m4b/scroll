@@ -13,9 +13,9 @@ jobs:
       matrix:
         build: [MSRV, stable, nightly, macos, win32, win64]
         include:
-          - build: MSRV # Minimum supported Rust version
+          - build: MSRV # Minimum supported Rust version, ensure it matches the rust-version in Cargo.toml
             os: ubuntu-latest
-            rust: 1.62.1
+            rust: 1.63
           - build: stable
             os: ubuntu-latest
             rust: stable
@@ -56,3 +56,4 @@ jobs:
         cargo fmt -- --check
     - run: cargo build
     - run: cargo test
+    - run: cargo test --no-default-features
