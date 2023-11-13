@@ -11,7 +11,7 @@ impl<'a> ctx::TryFromCtx<'a, Endian> for Data<'a> {
     fn try_from_ctx(src: &'a [u8], endian: Endian) -> Result<(Self, usize), Self::Error> {
         let name = src.pread::<&'a str>(0)?;
         let id = src.pread_with(name.len() + 1, endian)?;
-        Ok((Data { name: name, id: id }, name.len() + 4))
+        Ok((Data { name, id }, name.len() + 4))
     }
 }
 
