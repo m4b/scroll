@@ -59,21 +59,21 @@ impl Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::TooBig { ref size, ref len } => {
-                write!(fmt, "type is too big ({}) for {}", size, len)
+                write!(fmt, "type is too big ({size}) for {len}")
             }
             Error::BadOffset(ref offset) => {
-                write!(fmt, "bad offset {}", offset)
+                write!(fmt, "bad offset {offset}")
             }
             Error::BadInput { ref msg, ref size } => {
-                write!(fmt, "bad input {} ({})", msg, size)
+                write!(fmt, "bad input {msg} ({size})")
             }
             #[cfg(feature = "std")]
             Error::Custom(ref msg) => {
-                write!(fmt, "{}", msg)
+                write!(fmt, "{msg}")
             }
             #[cfg(feature = "std")]
             Error::IO(ref err) => {
-                write!(fmt, "{}", err)
+                write!(fmt, "{err}")
             }
         }
     }

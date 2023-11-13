@@ -358,22 +358,22 @@ mod tests {
         let b = &bytes[..];
         let s: &str = b.pread(0).unwrap();
         #[cfg(feature = "std")]
-        println!("str: {}", s);
+        println!("str: {s}");
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
         let hello_world: &str = bytes.pread_with(0, StrCtx::Delimiter(NULL)).unwrap();
         #[cfg(feature = "std")]
-        println!("{:?}", &hello_world);
+        println!("{hello_world:?}");
         assert_eq!(hello_world.len(), 13);
         let hello: &str = bytes.pread_with(0, StrCtx::Delimiter(SPACE)).unwrap();
         #[cfg(feature = "std")]
-        println!("{:?}", &hello);
+        println!("{hello:?}");
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
         let _error = bytes.pread_with::<&str>(6, StrCtx::Delimiter(SPACE));
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
-        println!("{:?}", &error);
+        println!("{error:?}");
         assert!(error.is_ok());
     }
 
@@ -384,16 +384,16 @@ mod tests {
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         #[cfg(feature = "std")]
-        println!("1 {:?}", &hello_world);
-        assert_eq!(hello_world.is_err(), true);
+        println!("1 {hello_world:?}");
+        assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
-        println!("2 {:?}", &error);
+        println!("2 {error:?}");
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null = bytes.pread::<&str>(0).unwrap();
         #[cfg(feature = "std")]
-        println!("3 {:?}", &null);
+        println!("3 {null:?}");
         assert_eq!(null.len(), 0);
     }
 
