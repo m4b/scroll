@@ -619,7 +619,7 @@ mod tests {
         let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
-        let astring: [u8; 3] = [0x45, 0x2a, 0x44];
+        let astring: [u8; 3] = [0x45, 0x42, 0x44];
         let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
             Ok(_) => {}
