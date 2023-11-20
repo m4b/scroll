@@ -181,15 +181,16 @@
 //! ```
 
 use core::mem::size_of;
+use core::mem::transmute;
 use core::ptr::copy_nonoverlapping;
 use core::{result, str};
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
-use crate::endian::Endian;
-use crate::error;
 use crate::Pread;
 use crate::Pwrite;
+use crate::endian::Endian;
+use crate::error;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -402,14 +403,13 @@ macro_rules! signed_to_unsigned {
 
 macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => {{
-        assert!($dst.len() >= $size);
-        let bytes = if $endian.is_little() {
-            $n.to_le()
-        } else {
-            $n.to_be()
-        }
-        .to_ne_bytes();
         unsafe {
+            assert!($dst.len() >= $size);
+            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() {
+                $n.to_le()
+            } else {
+                $n.to_be()
+            });
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
     }};
@@ -570,12 +570,12 @@ macro_rules! from_ctx_float_impl {
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
                         $size,
                     );
+                    transmute(if le.is_little() {
+                        data.to_le()
+                    } else {
+                        data.to_be()
+                    })
                 }
-                $typ::from_bits(if le.is_little() {
-                    data.to_le()
-                } else {
-                    data.to_be()
-                })
             }
         }
         impl<'a> TryFromCtx<'a, Endian> for $typ
