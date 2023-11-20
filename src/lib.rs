@@ -383,8 +383,7 @@ mod tests {
         use super::Pread;
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
-        #[cfg(feature = "std")]
-        println!("1 {hello_world:?}");
+        println!("1 {:?}", &hello_world);
         assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
@@ -392,9 +391,8 @@ mod tests {
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null = bytes.pread::<&str>(0).unwrap();
-        #[cfg(feature = "std")]
-        println!("3 {null:?}");
-        assert_eq!(null.len(), 0);
+        println!("3 {:?}", &null);
+        assert!(null.is_empty());
     }
 
     #[test]
@@ -444,11 +442,8 @@ mod tests {
     }
 
     impl From<super::Error> for ExternalError {
-        fn from(err: super::Error) -> Self {
-            //use super::Error::*;
-            match err {
-                _ => ExternalError {},
-            }
+        fn from(_err: super::Error) -> Self {
+            ExternalError {}
         }
     }
 
@@ -486,9 +481,9 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.pread(i).unwrap();
-        }
+        bytes_to.iter_mut().enumerate().for_each(|(i, item)| {
+            *item = bytes_from.pread(i).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
     }
 
@@ -580,10 +575,10 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        let mut offset = &mut 0;
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.gread(&mut offset).unwrap();
-        }
+        let offset = &mut 0;
+        bytes_to.iter_mut().for_each(|item| {
+            *item = bytes_from.gread(offset).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
     }
@@ -621,13 +616,12 @@ mod tests {
         let res = b.gread_with::<&str>(offset, StrCtx::Length(3));
         assert!(res.is_err());
         *offset = 0;
-        let astring: [u8; 3] = [0x45, 0x42, 0x44];
+        let astring: [u8; 3] = [0x45, 0x2a, 0x44];
         let string = astring.gread_with::<&str>(offset, StrCtx::Length(2));
         match &string {
-            Ok(_) => {}
-            Err(_err) => {
-                #[cfg(feature = "std")]
-                println!("{_err}");
+            &Ok(_) => {}
+            Err(err) => {
+                println!("{}", &err);
                 panic!();
             }
         }
