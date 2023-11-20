@@ -247,7 +247,7 @@ impl StrCtx {
     }
 
     pub fn is_empty(&self) -> bool {
-        matches!(*self, StrCtx::Length(_))
+        matches!(self, StrCtx::Length(_))
     }
 }
 
