@@ -1,3 +1,4 @@
+#![allow(clippy::disallowed_names)]
 // this exists primarily to test various API usages of scroll; e.g., must compile
 
 use std::ops::{Deref, DerefMut};
@@ -134,6 +135,11 @@ impl<'a> Segments<'a> {
             sections.push(segment.sections()?);
         }
         Ok(sections)
+    }
+}
+impl<'a> Default for Segments<'a> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

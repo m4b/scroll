@@ -358,22 +358,22 @@ mod tests {
         let b = &bytes[..];
         let s: &str = b.pread(0).unwrap();
         #[cfg(feature = "std")]
-        println!("str: {s}");
+        println!("str: {}", s);
         assert_eq!(s.len(), bytes[..].len() - 1);
         let bytes: &[u8] = b"hello, world!\0some_other_things";
         let hello_world: &str = bytes.pread_with(0, StrCtx::Delimiter(NULL)).unwrap();
         #[cfg(feature = "std")]
-        println!("{hello_world:?}");
+        println!("{:?}", &hello_world);
         assert_eq!(hello_world.len(), 13);
         let hello: &str = bytes.pread_with(0, StrCtx::Delimiter(SPACE)).unwrap();
         #[cfg(feature = "std")]
-        println!("{hello:?}");
+        println!("{:?}", &hello);
         assert_eq!(hello.len(), 6);
         // this could result in underflow so we just try it
         let _error = bytes.pread_with::<&str>(6, StrCtx::Delimiter(SPACE));
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
-        println!("{error:?}");
+        println!("{:?}", &error);
         assert!(error.is_ok());
     }
 
@@ -384,17 +384,17 @@ mod tests {
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         #[cfg(feature = "std")]
-        println!("1 {hello_world:?}");
+        println!("1 {:?}", &hello_world);
         assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
-        println!("2 {error:?}");
+        println!("2 {:?}", &error);
         assert!(error.is_err());
         let bytes: &[u8] = b"\0";
         let null = bytes.pread::<&str>(0).unwrap();
         #[cfg(feature = "std")]
-        println!("3 {null:?}");
-        assert_eq!(null.len(), 0);
+        println!("3 {:?}", &null);
+        assert!(null.is_empty());
     }
 
     #[test]
@@ -444,11 +444,8 @@ mod tests {
     }
 
     impl From<super::Error> for ExternalError {
-        fn from(err: super::Error) -> Self {
-            //use super::Error::*;
-            match err {
-                _ => ExternalError {},
-            }
+        fn from(_err: super::Error) -> Self {
+            ExternalError {}
         }
     }
 
@@ -486,9 +483,9 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.pread(i).unwrap();
-        }
+        bytes_to.iter_mut().enumerate().for_each(|(i, item)| {
+            *item = bytes_from.pread(i).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
     }
 
@@ -580,10 +577,10 @@ mod tests {
         let bytes_from: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let bytes_to = &mut bytes_to[..];
         let bytes_from = &bytes_from[..];
-        let mut offset = &mut 0;
-        for i in 0..bytes_from.len() {
-            bytes_to[i] = bytes_from.gread(&mut offset).unwrap();
-        }
+        let offset = &mut 0;
+        bytes_to.iter_mut().for_each(|item| {
+            *item = bytes_from.gread(offset).unwrap();
+        });
         assert_eq!(bytes_to, bytes_from);
         assert_eq!(*offset, bytes_to.len());
     }

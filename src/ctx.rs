@@ -181,6 +181,7 @@
 //! ```
 
 use core::mem::size_of;
+use core::mem::transmute;
 use core::ptr::copy_nonoverlapping;
 use core::{result, str};
 #[cfg(feature = "std")]
@@ -188,6 +189,8 @@ use std::ffi::{CStr, CString};
 
 use crate::endian::Endian;
 use crate::error;
+use crate::Pread;
+use crate::Pwrite;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -244,7 +247,7 @@ impl StrCtx {
     }
 
     pub fn is_empty(&self) -> bool {
-        matches!(self, StrCtx::Length(_))
+        matches!(*self, StrCtx::Length(_))
     }
 }
 
@@ -400,14 +403,13 @@ macro_rules! signed_to_unsigned {
 
 macro_rules! write_into {
     ($typ:ty, $size:expr, $n:expr, $dst:expr, $endian:expr) => {{
-        assert!($dst.len() >= $size);
-        let bytes = if $endian.is_little() {
-            $n.to_le()
-        } else {
-            $n.to_be()
-        }
-        .to_ne_bytes();
         unsafe {
+            assert!($dst.len() >= $size);
+            let bytes = transmute::<$typ, [u8; $size]>(if $endian.is_little() {
+                $n.to_le()
+            } else {
+                $n.to_be()
+            });
             copy_nonoverlapping((&bytes).as_ptr(), $dst.as_mut_ptr(), $size);
         }
     }};
@@ -568,12 +570,12 @@ macro_rules! from_ctx_float_impl {
                         &mut data as *mut signed_to_unsigned!($typ) as *mut u8,
                         $size,
                     );
+                    transmute(if le.is_little() {
+                        data.to_le()
+                    } else {
+                        data.to_be()
+                    })
                 }
-                $typ::from_bits(if le.is_little() {
-                    data.to_le()
-                } else {
-                    data.to_be()
-                })
             }
         }
         impl<'a> TryFromCtx<'a, Endian> for $typ
@@ -839,6 +841,25 @@ impl TryIntoCtx for CString {
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
         self.as_c_str().try_into_ctx(dst, ())
+    }
+}
+impl<'a, const N: usize> TryFromCtx<'a> for [u8; N] {
+    type Error = error::Error;
+    fn try_from_ctx(from: &'a [u8], _ctx: ()) -> Result<(Self, usize), Self::Error> {
+        // Unwrap is OK, since pread_with already asserts the length.
+        Ok((from.pread_with::<&'a [u8]>(0, N)?.try_into().unwrap(), N))
+    }
+}
+impl<const N: usize> TryIntoCtx for [u8; N] {
+    type Error = error::Error;
+    fn try_into_ctx(self, from: &mut [u8], _ctx: ()) -> Result<usize, Self::Error> {
+        from.pwrite(self.as_slice(), 0)
+    }
+}
+impl<'a, const N: usize> TryIntoCtx for &'a [u8; N] {
+    type Error = error::Error;
+    fn try_into_ctx(self, from: &mut [u8], ctx: ()) -> Result<usize, Self::Error> {
+        (*self).try_into_ctx(from, ctx)
     }
 }
 
