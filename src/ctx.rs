@@ -186,10 +186,10 @@ use core::{result, str};
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
-use crate::Pwrite;
 use crate::endian::Endian;
 use crate::error;
 use crate::Pread;
+use crate::Pwrite;
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
