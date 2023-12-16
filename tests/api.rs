@@ -290,3 +290,14 @@ fn cwrite_api_customtype() {
     assert_eq!({ bar.foo }, -1);
     assert_eq!({ bar.bar }, 0xdeadbeef);
 }
+
+#[test]
+fn test_fixed_array_rw() {
+    use scroll::{Pread, Pwrite, Endian, ctx::MeasureWith};
+    let bytes = [0x37, 0x13, 0x37, 0x13];
+    assert_eq!(bytes.measure_with(&()), 4);
+    assert_eq!(bytes.pread_with::<[u16; 2]>(0, Endian::Little).unwrap(), [0x1337u16, 0x1337]);
+    let mut buf = [0x00u8; 4];
+    buf.pwrite([0x1337u16, 0x1337], 0).unwrap();
+    assert_eq!(buf, bytes);
+}

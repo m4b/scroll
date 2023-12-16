@@ -180,14 +180,14 @@
 //! }
 //! ```
 
-use core::mem::size_of;
+use core::mem::{size_of, zeroed};
 use core::ptr::copy_nonoverlapping;
 use core::{result, str};
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
 use crate::endian::Endian;
-use crate::error;
+use crate::{error, Pread, Pwrite};
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -778,6 +778,33 @@ impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
         } else {
             Ok((&src[..size], size))
         }
+    }
+}
+
+impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize>
+    TryFromCtx<'a, Ctx> for [T; N]
+{
+    type Error = error::Error;
+    fn try_from_ctx(src: &'a [u8], ctx: Ctx) -> Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        // SAFETY: We will return an error if filling any of these fails.
+        let mut buf: [T; N] = unsafe { zeroed() };
+
+        for element in buf.iter_mut() {
+            *element = src.gread_with(&mut offset, ctx)?;
+        }
+
+        Ok((buf, offset))
+    }
+}
+impl<Ctx: Copy, T: TryIntoCtx<Ctx, Error = error::Error>, const N: usize> TryIntoCtx<Ctx> for [T; N] {
+    type Error = error::Error;
+    fn try_into_ctx(self, buf: &mut [u8], ctx: Ctx) -> Result<usize, Self::Error> {
+        let mut offset = 0;
+        for element in self {
+            buf.gwrite_with(element, &mut offset, ctx)?;
+        }
+        Ok(offset)
     }
 }
 
