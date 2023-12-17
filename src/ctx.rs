@@ -787,7 +787,7 @@ impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize
     type Error = error::Error;
     fn try_from_ctx(src: &'a [u8], ctx: Ctx) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
-        // SAFETY: We will return an error if filling any of these fails.
+        // SAFETY: This will only be read after everything was overwritten.
         let mut buf: [T; N] = unsafe { zeroed() };
 
         for element in buf.iter_mut() {
