@@ -797,7 +797,9 @@ impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize
         Ok((buf, offset))
     }
 }
-impl<Ctx: Copy, T: TryIntoCtx<Ctx, Error = error::Error>, const N: usize> TryIntoCtx<Ctx> for [T; N] {
+impl<Ctx: Copy, T: TryIntoCtx<Ctx, Error = error::Error>, const N: usize> TryIntoCtx<Ctx>
+    for [T; N]
+{
     type Error = error::Error;
     fn try_into_ctx(self, buf: &mut [u8], ctx: Ctx) -> Result<usize, Self::Error> {
         let mut offset = 0;
