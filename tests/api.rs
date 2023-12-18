@@ -226,6 +226,73 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
         }
     }
 }
+#[derive(Debug)]
+struct StrDrop<'a> {
+    #[allow(unused)]
+    s: &'a str,
+}
+
+impl<'a> scroll::ctx::TryFromCtx<'a, scroll::Endian> for StrDrop<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(
+        bytes: &'a [u8],
+        _ctx: scroll::Endian,
+    ) -> ::std::result::Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        let s = bytes.gread(&mut offset)?;
+        Ok((Self { s }, offset))
+    }
+}
+
+impl<'a> Drop for StrDrop<'a> {
+    fn drop(&mut self) {
+        println!("Dropping {self:?}");
+    }
+}
+
+#[derive(Debug)]
+struct StringDrop {
+    #[allow(unused)]
+    s: String,
+}
+
+impl<'a> scroll::ctx::TryFromCtx<'a, scroll::Endian> for StringDrop {
+    type Error = scroll::Error;
+    fn try_from_ctx(
+        bytes: &'a [u8],
+        _ctx: scroll::Endian,
+    ) -> ::std::result::Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        let s: &str = bytes.gread(&mut offset)?;
+        Ok((Self { s: String::from(s) }, offset))
+    }
+}
+
+impl Drop for StringDrop {
+    fn drop(&mut self) {
+        println!("Dropping {self:?}");
+    }
+}
+
+#[test]
+#[should_panic]
+fn test_fixed_array_str() {
+    use scroll::Pread;
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
+    let _res = bytes
+        .pread_with::<[StrDrop; 3]>(0, Default::default())
+        .unwrap();
+}
+
+#[test]
+#[should_panic]
+fn test_fixed_array_string() {
+    use scroll::Pread;
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
+    let _res = bytes
+        .pread_with::<[StringDrop; 3]>(0, Default::default())
+        .unwrap();
+}
 
 #[test]
 fn cread_api() {
