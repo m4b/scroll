@@ -804,6 +804,8 @@ impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize
         }
         if let Some((e, idx)) = error_ctx {
             for element in &mut buf[0..idx].iter_mut() {
+                // SAFETY: Any element upto idx must have already been initialized, since
+                // we iterate until we encounter an error.
                 unsafe {
                     element.assume_init_drop();
                 }
