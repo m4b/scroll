@@ -180,7 +180,7 @@
 //! }
 //! ```
 
-use core::mem::{size_of, zeroed};
+use core::mem::{size_of, MaybeUninit};
 use core::ptr::copy_nonoverlapping;
 use core::{result, str};
 #[cfg(feature = "std")]
@@ -787,14 +787,33 @@ impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize
     type Error = error::Error;
     fn try_from_ctx(src: &'a [u8], ctx: Ctx) -> Result<(Self, usize), Self::Error> {
         let mut offset = 0;
-        // SAFETY: This will only be read after everything was overwritten.
-        let mut buf: [T; N] = unsafe { zeroed() };
 
-        for element in buf.iter_mut() {
-            *element = src.gread_with(&mut offset, ctx)?;
+        let mut buf: [MaybeUninit<T>; N] = core::array::from_fn(|_| MaybeUninit::uninit());
+
+        let mut error_ctx = None;
+        for (idx, element) in buf.iter_mut().enumerate() {
+            match src.gread_with::<T>(&mut offset, ctx) {
+                Ok(val) => {
+                    *element = MaybeUninit::new(val);
+                }
+                Err(e) => {
+                    error_ctx = Some((e, idx));
+                    break;
+                }
+            }
         }
-
-        Ok((buf, offset))
+        if let Some((e, idx)) = error_ctx {
+            for element in &mut buf[0..idx].iter_mut() {
+                unsafe {
+                    element.assume_init_drop();
+                }
+            }
+            Err(e)
+        } else {
+            // SAFETY: we initialized each element above by preading them out, correctness
+            // of the initialized element is guaranted by pread itself
+            Ok((buf.map(|element| unsafe { element.assume_init() }), offset))
+        }
     }
 }
 impl<Ctx: Copy, T: TryIntoCtx<Ctx, Error = error::Error>, const N: usize> TryIntoCtx<Ctx>
