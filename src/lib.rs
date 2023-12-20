@@ -421,8 +421,7 @@ mod tests {
             .pread_with::<&str>(0, StrCtx::Delimiter(NULL))
             .unwrap();
         assert_eq!(more, "more");
-        let result = bytes
-            .pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL));
+        let result = bytes.pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL));
         assert!(result.is_err());
     }
 
