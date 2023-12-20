@@ -374,7 +374,7 @@ mod tests {
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
         println!("{error:?}");
-        assert!(error.is_ok());
+        assert!(error.is_err());
     }
 
     /// In this test, we are testing preading
@@ -390,7 +390,7 @@ mod tests {
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         #[cfg(feature = "std")]
         println!("1 {hello_world:?}");
-        assert!(hello_world.unwrap().is_empty());
+        assert!(hello_world.is_err());
         let error = bytes.pread_with::<&str>(7, StrCtx::Delimiter(SPACE));
         #[cfg(feature = "std")]
         println!("2 {error:?}");
@@ -421,10 +421,9 @@ mod tests {
             .pread_with::<&str>(0, StrCtx::Delimiter(NULL))
             .unwrap();
         assert_eq!(more, "more");
-        let bytes = bytes
-            .pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL))
-            .unwrap();
-        assert_eq!(bytes, "bytes");
+        let result = bytes
+            .pread_with::<&str>(more.len() + 1, StrCtx::Delimiter(NULL));
+        assert!(result.is_err());
     }
 
     use core::fmt::{self, Display};

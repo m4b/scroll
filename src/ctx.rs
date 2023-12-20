@@ -666,7 +666,10 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
     fn try_from_ctx(src: &'a [u8], ctx: StrCtx) -> Result<(Self, usize), Self::Error> {
         let len = match ctx {
             StrCtx::Length(len) => len,
-            StrCtx::Delimiter(delimiter) => src.iter().take_while(|c| **c != delimiter).count(),
+            StrCtx::Delimiter(delimiter) => match src.iter().copied().position(|c| c == delimiter) {
+                Some(str_len) => str_len,
+                None => return Err(error::Error::BadInput { size: 0, msg: "No delimiter was found." })
+            },
             StrCtx::DelimiterUntil(delimiter, len) => {
                 if len > src.len() {
                     return Err(error::Error::TooBig {
@@ -674,10 +677,10 @@ impl<'a> TryFromCtx<'a, StrCtx> for &'a str {
                         len: src.len(),
                     });
                 };
-                src.iter()
-                    .take_while(|c| **c != delimiter)
-                    .take(len)
-                    .count()
+                match src.iter().copied().position(|c| c == delimiter) {
+                    Some(str_len) => str_len.min(len),
+                    None => return Err(error::Error::BadInput { size: 0, msg: "No delimiter was found." })
+                }
             }
         };
 
