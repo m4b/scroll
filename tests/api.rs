@@ -226,6 +226,78 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
         }
     }
 }
+type MyCtx = ();
+
+#[derive(Debug)]
+struct BytesDrop<'a> {
+    #[allow(unused)]
+    s: &'a [u8],
+}
+
+impl<'a> scroll::ctx::TryFromCtx<'a, MyCtx> for BytesDrop<'a> {
+    type Error = scroll::Error;
+    fn try_from_ctx(
+        src: &'a [u8],
+        _ctx: MyCtx,
+    ) -> ::std::result::Result<(Self, usize), Self::Error> {
+        let len = src.iter().take_while(|c| **c != 0x0).count();
+        if len > src.len() {
+            return Err(scroll::Error::TooBig {
+                size: len,
+                len: src.len(),
+            });
+        };
+        Ok((Self { s: &src[..len] }, len))
+    }
+}
+
+impl<'a> Drop for BytesDrop<'a> {
+    fn drop(&mut self) {
+        println!("Dropping {self:?}");
+    }
+}
+
+#[derive(Debug)]
+struct VecDrop {
+    #[allow(unused)]
+    s: Vec<u8>,
+}
+
+impl<'a> scroll::ctx::TryFromCtx<'a, MyCtx> for VecDrop {
+    type Error = scroll::Error;
+    fn try_from_ctx(
+        bytes: &'a [u8],
+        _ctx: MyCtx,
+    ) -> ::std::result::Result<(Self, usize), Self::Error> {
+        let mut offset = 0;
+        let s: BytesDrop = bytes.gread(&mut offset)?;
+        Ok((Self { s: Vec::from(s.s) }, offset))
+    }
+}
+
+impl Drop for VecDrop {
+    fn drop(&mut self) {
+        println!("Dropping {self:?}");
+    }
+}
+
+#[test]
+fn test_fixed_array_str() {
+    use scroll::Pread;
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
+    let res = bytes.pread_with::<[BytesDrop; 2]>(0, Default::default());
+    println!("{res:?}");
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_fixed_array_string() {
+    use scroll::Pread;
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41, 0x0];
+    let res = bytes.pread_with::<[VecDrop; 2]>(0, Default::default());
+    println!("{res:?}");
+    assert!(res.is_ok());
+}
 
 #[test]
 fn cread_api() {
@@ -289,4 +361,18 @@ fn cwrite_api_customtype() {
     let bar = bytes.cread::<Bar>(0);
     assert_eq!({ bar.foo }, -1);
     assert_eq!({ bar.bar }, 0xdeadbeef);
+}
+
+#[test]
+fn test_fixed_array_rw() {
+    use scroll::{ctx::MeasureWith, Endian, Pread, Pwrite};
+    let bytes = [0x37, 0x13, 0x37, 0x13];
+    assert_eq!(bytes.measure_with(&()), 4);
+    assert_eq!(
+        bytes.pread_with::<[u16; 2]>(0, Endian::Little).unwrap(),
+        [0x1337u16, 0x1337]
+    );
+    let mut buf = [0x00u8; 4];
+    buf.pwrite([0x1337u16, 0x1337], 0).unwrap();
+    assert_eq!(buf, bytes);
 }
