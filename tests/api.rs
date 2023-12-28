@@ -226,72 +226,77 @@ impl scroll::ctx::FromCtx<scroll::Endian> for Bar {
         }
     }
 }
+type MyCtx = ();
+
 #[derive(Debug)]
-struct StrDrop<'a> {
+struct BytesDrop<'a> {
     #[allow(unused)]
-    s: &'a str,
+    s: &'a [u8],
 }
 
-impl<'a> scroll::ctx::TryFromCtx<'a, scroll::Endian> for StrDrop<'a> {
+impl<'a> scroll::ctx::TryFromCtx<'a, MyCtx> for BytesDrop<'a> {
     type Error = scroll::Error;
     fn try_from_ctx(
-        bytes: &'a [u8],
-        _ctx: scroll::Endian,
+        src: &'a [u8],
+        _ctx: MyCtx,
     ) -> ::std::result::Result<(Self, usize), Self::Error> {
-        let mut offset = 0;
-        let s = bytes.gread(&mut offset)?;
-        Ok((Self { s }, offset))
+        let len = src.iter().take_while(|c| **c != 0x0).count();
+        if len > src.len() {
+            return Err(scroll::Error::TooBig {
+                size: len,
+                len: src.len(),
+            });
+        };
+        Ok((Self { s: &src[..len] }, len))
     }
 }
 
-impl<'a> Drop for StrDrop<'a> {
+impl<'a> Drop for BytesDrop<'a> {
     fn drop(&mut self) {
         println!("Dropping {self:?}");
     }
 }
 
 #[derive(Debug)]
-struct StringDrop {
+struct VecDrop {
     #[allow(unused)]
-    s: String,
+    s: Vec<u8>,
 }
 
-impl<'a> scroll::ctx::TryFromCtx<'a, scroll::Endian> for StringDrop {
+impl<'a> scroll::ctx::TryFromCtx<'a, MyCtx> for VecDrop {
     type Error = scroll::Error;
     fn try_from_ctx(
         bytes: &'a [u8],
-        _ctx: scroll::Endian,
+        _ctx: MyCtx,
     ) -> ::std::result::Result<(Self, usize), Self::Error> {
         let mut offset = 0;
-        let s: &str = bytes.gread(&mut offset)?;
-        Ok((Self { s: String::from(s) }, offset))
+        let s: BytesDrop = bytes.gread(&mut offset)?;
+        Ok((Self { s: Vec::from(s.s) }, offset))
     }
 }
 
-impl Drop for StringDrop {
+impl Drop for VecDrop {
     fn drop(&mut self) {
         println!("Dropping {self:?}");
     }
 }
 
 #[test]
-#[should_panic]
 fn test_fixed_array_str() {
     use scroll::Pread;
-    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
-    let _res = bytes
-        .pread_with::<[StrDrop; 3]>(0, Default::default())
-        .unwrap();
+    let bytes = Box::new([0x45, 0x42, 0x0, 0x45, 0x41]);
+    let res = bytes.pread_with::<[BytesDrop; 2]>(0, Default::default());
+    println!("{res:?}");
+    assert!(res.is_ok());
 }
 
 #[test]
-#[should_panic]
 fn test_fixed_array_string() {
     use scroll::Pread;
-    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
-    let _res = bytes
-        .pread_with::<[StringDrop; 3]>(0, Default::default())
-        .unwrap();
+    let bytes = Box::new([0x45, 0x42, 0x0, 0x45, 0x41, 0x0]);
+    let res = bytes.pread_with::<[VecDrop; 2]>(0, Default::default());
+    println!("{res:?}");
+    assert!(res.is_ok());
 }
 
 #[test]
