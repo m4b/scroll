@@ -284,7 +284,7 @@ impl Drop for VecDrop {
 #[test]
 fn test_fixed_array_str() {
     use scroll::Pread;
-    let bytes = Box::new([0x45, 0x42, 0x0, 0x45, 0x41]);
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41];
     let res = bytes.pread_with::<[BytesDrop; 2]>(0, Default::default());
     println!("{res:?}");
     assert!(res.is_ok());
@@ -293,7 +293,7 @@ fn test_fixed_array_str() {
 #[test]
 fn test_fixed_array_string() {
     use scroll::Pread;
-    let bytes = Box::new([0x45, 0x42, 0x0, 0x45, 0x41, 0x0]);
+    let bytes = [0x45, 0x42, 0x0, 0x45, 0x41, 0x0];
     let res = bytes.pread_with::<[VecDrop; 2]>(0, Default::default());
     println!("{res:?}");
     assert!(res.is_ok());
