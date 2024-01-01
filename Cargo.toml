@@ -19,7 +19,3 @@ derive = ["dep:scroll_derive"]
 
 [dependencies]
 scroll_derive = { version = "0.11", optional = true, path = "scroll_derive" }
-
-[dev-dependencies]
-rayon = "1"
-byteorder = "1"
