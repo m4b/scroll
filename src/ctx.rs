@@ -845,6 +845,11 @@ impl<Ctx: Copy, T: TryIntoCtx<Ctx, Error = error::Error>, const N: usize> TryInt
         Ok(offset)
     }
 }
+impl<Ctx, T: SizeWith<Ctx>, const N: usize> SizeWith<Ctx> for [T; N] {
+    fn size_with(ctx: &Ctx) -> usize {
+        T::size_with(ctx) * N
+    }
+}
 
 #[cfg(feature = "std")]
 impl<'a> TryFromCtx<'a> for &'a CStr {
