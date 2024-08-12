@@ -765,6 +765,12 @@ macro_rules! sizeof_impl {
                 size_of::<$ty>()
             }
         }
+        impl SizeWith for $ty {
+            #[inline]
+            fn size_with(_ctx: &()) -> usize {
+                size_of::<$ty>()
+            }
+        }
     };
 }
 
