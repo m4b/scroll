@@ -128,6 +128,14 @@ fn impl_pwrite_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_m
             _ => panic!("Pwrite derive with bad array constexpr"),
         },
         syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem),
+        syn::Type::Reference(reference) => match *reference.elem {
+            syn::Type::Slice(_) => quote! {
+                dst.gwrite_with(self.#ident, offset, ())?
+            },
+            _ => quote! {
+                dst.gwrite_with(self.#ident, offset, ctx)?
+            },
+        },
         _ => {
             quote! {
                 dst.gwrite_with(&self.#ident, offset, ctx)?
@@ -166,32 +174,38 @@ fn impl_try_into_ctx(
     });
     let gn = quote! { #gl #( #gn ),* #gg };
     let gwref = if !gp.is_empty() {
-        let gi = gp.iter().map(|param: &syn::GenericParam| match param {
+        let gi: Vec<_> = gp.iter().filter_map(|param: &syn::GenericParam| match param {
             syn::GenericParam::Type(ref t) => {
                 let ident = &t.ident;
-                quote! {
+                Some(quote! {
                     &'a #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
                     ::scroll::Error: ::std::convert::From<<&'a #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error>,
                     <&'a #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error: ::std::convert::From<scroll::Error>
-                }
+                })
             },
-            p => quote! { #p }
-        });
-        quote! { where #( #gi ),* }
+            syn::GenericParam::Lifetime(_) => None,
+            p => Some(quote! { #p }),
+        }).collect();
+        if !gi.is_empty() {
+            quote! { where #( #gi ),* }
+        } else {
+            quote! {}
+        }
     } else {
         quote! {}
     };
     let gw = if !gp.is_empty() {
-        let gi = gp.iter().map(|param: &syn::GenericParam| match param {
+        let gi = gp.iter().filter_map(|param: &syn::GenericParam| match param {
             syn::GenericParam::Type(ref t) => {
                 let ident = &t.ident;
-                quote! {
+                Some(quote! {
                     #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
                     ::scroll::Error: ::std::convert::From<<#ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error>,
                     <#ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error: ::std::convert::From<scroll::Error>
-                }
+                })
             },
-            p => quote! { #p }
+            syn::GenericParam::Lifetime(_) => None,
+            p => Some(quote! { #p }),
         });
         quote! { where Self: ::std::marker::Copy, #( #gi ),* }
     } else {
@@ -205,7 +219,7 @@ fn impl_try_into_ctx(
             fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
                 use ::scroll::Pwrite;
                 let offset = &mut 0;
-                #(#items;)*;
+                #(#items;)*
                 Ok(*offset)
             }
         }
