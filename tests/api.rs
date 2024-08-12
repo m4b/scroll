@@ -3,7 +3,7 @@
 use std::ops::{Deref, DerefMut};
 
 use scroll::ctx::SizeWith as _;
-use scroll::{ctx, Cread, Pread, Result};
+use scroll::{ctx, Cread, Endian, Pread, Result};
 
 #[derive(Default)]
 pub struct Section<'a> {
@@ -375,4 +375,9 @@ fn test_fixed_array_rw() {
     let mut buf = [0x00u8; 4];
     buf.pwrite([0x1337u16, 0x1337], 0).unwrap();
     assert_eq!(buf, bytes);
+}
+
+#[test]
+fn test_fixed_array_size_with() {
+    assert_eq!(<[u32; 3]>::size_with(&Endian::Little), 12);
 }
