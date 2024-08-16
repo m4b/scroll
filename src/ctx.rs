@@ -731,6 +731,29 @@ impl<'a> TryIntoCtx for &'a [u8] {
     }
 }
 
+impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
+    type Error = error::Error;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], size: usize) -> result::Result<(Self, usize), Self::Error> {
+        if size > src.len() {
+            Err(error::Error::TooBig {
+                size,
+                len: src.len(),
+            })
+        } else {
+            Ok((&src[..size], size))
+        }
+    }
+}
+
+impl<'a> TryFromCtx<'a> for &'a [u8] {
+    type Error = error::Error;
+    #[inline]
+    fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
+        Ok((src, src.len()))
+    }
+}
+
 // TODO: make TryIntoCtx use StrCtx for awesomeness
 impl<'a> TryIntoCtx for &'a str {
     type Error = error::Error;
@@ -772,20 +795,6 @@ sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);
 
-impl<'a> TryFromCtx<'a, usize> for &'a [u8] {
-    type Error = error::Error;
-    #[inline]
-    fn try_from_ctx(src: &'a [u8], size: usize) -> result::Result<(Self, usize), Self::Error> {
-        if size > src.len() {
-            Err(error::Error::TooBig {
-                size,
-                len: src.len(),
-            })
-        } else {
-            Ok((&src[..size], size))
-        }
-    }
-}
 
 impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize>
     TryFromCtx<'a, Ctx> for [T; N]
