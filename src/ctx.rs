@@ -795,7 +795,6 @@ sizeof_impl!(i128);
 sizeof_impl!(f32);
 sizeof_impl!(f64);
 
-
 impl<'a, Ctx: Copy, T: TryFromCtx<'a, Ctx, Error = error::Error>, const N: usize>
     TryFromCtx<'a, Ctx> for [T; N]
 {
