@@ -211,3 +211,24 @@ fn test_newtype() {
     let written = bytes.pwrite_with(&data, 0, LE).unwrap();
     assert_eq!(written, size);
 }
+
+#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
+struct Data10I(u8, u16);
+
+#[derive(Debug, Pwrite)]
+struct Data10<'b> {
+    pub inner: &'b Data10I,
+    pub name: &'b [u8],
+}
+
+#[test]
+fn test_reference() {
+    let inner = Data10I(255, 1);
+    let data = Data10 {
+        inner: &inner,
+        name: b"name",
+    };
+    let mut bytes = vec![0; 32];
+    assert_eq!(bytes.pwrite_with(&data, 0, LE).unwrap(), 7);
+    assert_eq!(bytes[..7], *b"\xff\x01\x00name");
+}
