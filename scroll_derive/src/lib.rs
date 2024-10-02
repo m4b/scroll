@@ -2,11 +2,17 @@
 
 extern crate proc_macro;
 use proc_macro2;
-use quote::quote;
+use quote::{quote, ToTokens};
 
 use proc_macro::TokenStream;
 
-fn impl_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_macro2::TokenStream {
+fn impl_field(
+    ident: &proc_macro2::TokenStream,
+    ty: &syn::Type,
+    custom_ctx: Option<&proc_macro2::TokenStream>,
+) -> proc_macro2::TokenStream {
+    let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
+    let ctx = custom_ctx.unwrap_or(&default_ctx);
     match *ty {
         syn::Type::Array(ref array) => match array.len {
             syn::Expr::Lit(syn::ExprLit {
@@ -15,18 +21,31 @@ fn impl_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_macro2::
             }) => {
                 let size = int.base10_parse::<usize>().unwrap();
                 quote! {
-                    #ident: { let mut __tmp: #ty = [0u8.into(); #size]; src.gread_inout_with(offset, &mut __tmp, ctx)?; __tmp }
+                    #ident: { let mut __tmp: #ty = [0u8.into(); #size]; src.gread_inout_with(offset, &mut __tmp, #ctx)?; __tmp }
                 }
             }
             _ => panic!("Pread derive with bad array constexpr"),
         },
-        syn::Type::Group(ref group) => impl_field(ident, &group.elem),
+        syn::Type::Group(ref group) => impl_field(ident, &group.elem, custom_ctx),
         _ => {
             quote! {
-                #ident: src.gread_with::<#ty>(offset, ctx)?
+                #ident: src.gread_with::<#ty>(offset, #ctx)?
             }
         }
     }
+}
+
+/// Retrieve the field attribute with given ident e.g:
+/// ```ignore
+/// #[attr_ident(..)]
+/// field: T,
+/// ```
+fn get_attr<'a>(attr_ident: &str, field: &'a syn::Field) -> Option<&'a syn::Attribute> {
+    field
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident(attr_ident))
+        .next()
 }
 
 fn impl_struct(
@@ -43,7 +62,30 @@ fn impl_struct(
                 quote! {#t}
             });
             let ty = &f.ty;
-            impl_field(ident, ty)
+            // parse the `expr` out of #[scroll(ctx = expr)]
+            let custom_ctx = get_attr("scroll", f).and_then(|x| {
+                // parsed #[scroll..]
+                // `expr` is `None` if the `ctx` key is not used.
+                let mut expr = None;
+                let res = x.parse_nested_meta(|meta| {
+                    // parsed #[scroll(..)]
+                    if meta.path.is_ident("ctx") {
+                        // parsed #[scroll(ctx..)]
+                        let value = meta.value()?; // parsed #[scroll(ctx = ..)]
+                        expr = Some(value.parse::<syn::Expr>()?); // parsed #[scroll(ctx = expr)]
+                        return Ok(());
+                    }
+                    Err(meta.error(format!(
+                        "unrecognized attribute: {}",
+                        meta.path.get_ident().unwrap()
+                    )))
+                });
+                match res {
+                    Ok(_) => expr.map(|x| x.into_token_stream()),
+                    Err(e) => Some(e.into_compile_error()),
+                }
+            });
+            impl_field(ident, ty, custom_ctx.as_ref())
         })
         .collect();
 
@@ -104,7 +146,7 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-#[proc_macro_derive(Pread)]
+#[proc_macro_derive(Pread, attributes(scroll))]
 pub fn derive_pread(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     let gen = impl_try_from_ctx(&ast);
