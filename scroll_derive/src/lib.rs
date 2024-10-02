@@ -418,6 +418,10 @@ fn impl_cread_struct(
     let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
         let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
+        let custom_ctx = custom_ctx(f);
+        let default_ctx =
+            syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
+        let ctx = custom_ctx.unwrap_or(default_ctx);
         match *ty {
             syn::Type::Array(ref array) => {
                 let arrty = &array.elem;
@@ -429,7 +433,7 @@ fn impl_cread_struct(
                             #ident: {
                                 let mut __tmp: #ty = [0u8.into(); #size];
                                 for i in 0..__tmp.len() {
-                                    __tmp[i] = src.cread_with(*offset, ctx);
+                                    __tmp[i] = src.cread_with(*offset, #ctx);
                                     *offset += #incr;
                                 }
                                 __tmp
@@ -442,7 +446,7 @@ fn impl_cread_struct(
             _ => {
                 let size = quote! { ::scroll::export::mem::size_of::<#ty>() };
                 quote! {
-                    #ident: { let res = src.cread_with::<#ty>(*offset, ctx); *offset += #size; res }
+                    #ident: { let res = src.cread_with::<#ty>(*offset, #ctx); *offset += #size; res }
                 }
             }
         }
@@ -502,7 +506,7 @@ fn impl_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-#[proc_macro_derive(IOread)]
+#[proc_macro_derive(IOread, attributes(scroll))]
 pub fn derive_ioread(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     let gen = impl_from_ctx(&ast);
@@ -524,20 +528,24 @@ fn impl_into_ctx(
             });
             let ty = &f.ty;
             let size = quote! { ::scroll::export::mem::size_of::<#ty>() };
+            let custom_ctx = custom_ctx(f);
+            let default_ctx =
+                syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
+            let ctx = custom_ctx.unwrap_or(default_ctx);
             match *ty {
                 syn::Type::Array(ref array) => {
                     let arrty = &array.elem;
                     quote! {
                         let size = ::scroll::export::mem::size_of::<#arrty>();
                         for i in 0..self.#ident.len() {
-                            dst.cwrite_with(self.#ident[i], *offset, ctx);
+                            dst.cwrite_with(self.#ident[i], *offset, #ctx);
                             *offset += size;
                         }
                     }
                 }
                 _ => {
                     quote! {
-                        dst.cwrite_with(self.#ident, *offset, ctx);
+                        dst.cwrite_with(self.#ident, *offset, #ctx);
                         *offset += #size;
                     }
                 }
@@ -606,7 +614,7 @@ fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-#[proc_macro_derive(IOwrite)]
+#[proc_macro_derive(IOwrite, attributes(scroll))]
 pub fn derive_iowrite(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     let gen = impl_iowrite(&ast);
