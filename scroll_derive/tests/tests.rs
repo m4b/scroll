@@ -1,4 +1,4 @@
-use scroll::{Cread, Cwrite, Pread, Pwrite, LE};
+use scroll::{Cread, Cwrite, IOread, IOwrite, Pread, Pwrite, BE, LE};
 use scroll_derive::{IOread, IOwrite, Pread, Pwrite, SizeWith};
 
 use scroll::ctx::SizeWith;
@@ -231,4 +231,41 @@ fn test_reference() {
     let mut bytes = vec![0; 32];
     assert_eq!(bytes.pwrite_with(&data, 0, LE).unwrap(), 7);
     assert_eq!(bytes[..7], *b"\xff\x01\x00name");
+}
+
+#[derive(Debug, PartialEq, Pwrite, Pread, IOwrite, IOread, SizeWith)]
+struct Data11 {
+    pub a: u16,
+    #[scroll(ctx = LE)]
+    pub b: u16,
+    #[scroll(ctx = BE)]
+    pub c: u16,
+}
+
+#[test]
+fn test_custom_ctx_derive() {
+    let buf = [1, 2, 3, 4, 5, 6];
+    let data = buf.pread_with(0, LE).unwrap();
+    let data2 = Data11 {
+        a: 0x0201,
+        b: 0x0403,
+        c: 0x0506,
+    };
+    assert_eq!(data, data2);
+    let mut bytes = vec![0; 32];
+    assert_eq!(bytes.pwrite_with::<&Data11>(&data, 0, LE).unwrap(), 6);
+    assert_eq!(bytes[..Data11::size_with(&LE)], buf[..]);
+    let mut bytes = std::io::Cursor::new(bytes);
+    assert_eq!(data2, bytes.ioread_with(LE).unwrap());
+    bytes.set_position(0);
+    bytes.iowrite_with(data, BE).unwrap();
+    bytes.set_position(0);
+    assert_eq!(data2, bytes.ioread_with(BE).unwrap());
+    bytes.set_position(0);
+    let data3 = Data11 {
+        a: 0x0102,
+        b: 0x0403,
+        c: 0x0506,
+    };
+    assert_eq!(data3, bytes.ioread_with(LE).unwrap());
 }
