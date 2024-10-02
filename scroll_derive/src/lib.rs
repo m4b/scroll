@@ -323,6 +323,10 @@ fn size_with(
         .iter()
         .map(|f| {
             let ty = &f.ty;
+            let custom_ctx = custom_ctx(f).map(|x| quote! {&#x});
+            let default_ctx =
+                syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
+            let ctx = custom_ctx.unwrap_or(default_ctx);
             match *ty {
                 syn::Type::Array(ref array) => {
                     let elem = &array.elem;
@@ -333,7 +337,7 @@ fn size_with(
                         }) => {
                             let size = int.base10_parse::<usize>().unwrap();
                             quote! {
-                                (#size * <#elem>::size_with(ctx))
+                                (#size * <#elem>::size_with(#ctx))
                             }
                         }
                         _ => panic!("Pread derive with bad array constexpr"),
@@ -341,7 +345,7 @@ fn size_with(
                 }
                 _ => {
                     quote! {
-                        <#ty>::size_with(ctx)
+                        <#ty>::size_with(#ctx)
                     }
                 }
             }
