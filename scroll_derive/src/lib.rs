@@ -66,10 +66,10 @@ fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
                 expr = Some(value.parse::<syn::Expr>()?); // parsed #[scroll(ctx = expr)]
                 return Ok(());
             }
-            Err(meta.error(format!(
-                "unrecognized attribute: {}",
-                meta.path.get_ident().unwrap()
-            )))
+            Err(meta.error(match meta.path.get_ident() {
+                Some(ident) => format!("unrecognized attribute: {ident}"),
+                None => "unrecognized and invalid attribute".to_owned(),
+            }))
         });
         match res {
             Ok(_) => expr.map(|x| x.into_token_stream()),
