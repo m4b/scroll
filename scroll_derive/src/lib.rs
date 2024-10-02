@@ -162,7 +162,13 @@ pub fn derive_pread(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn impl_pwrite_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_macro2::TokenStream {
+fn impl_pwrite_field(
+    ident: &proc_macro2::TokenStream,
+    ty: &syn::Type,
+    custom_ctx: Option<&proc_macro2::TokenStream>,
+) -> proc_macro2::TokenStream {
+    let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
+    let ctx = custom_ctx.unwrap_or(&default_ctx);
     match ty {
         syn::Type::Array(ref array) => match array.len {
             syn::Expr::Lit(syn::ExprLit {
@@ -172,24 +178,24 @@ fn impl_pwrite_field(ident: &proc_macro2::TokenStream, ty: &syn::Type) -> proc_m
                 let size = int.base10_parse::<usize>().unwrap();
                 quote! {
                     for i in 0..#size {
-                        dst.gwrite_with(&self.#ident[i], offset, ctx)?;
+                        dst.gwrite_with(&self.#ident[i], offset, #ctx)?;
                     }
                 }
             }
             _ => panic!("Pwrite derive with bad array constexpr"),
         },
-        syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem),
+        syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem, custom_ctx),
         syn::Type::Reference(reference) => match *reference.elem {
             syn::Type::Slice(_) => quote! {
                 dst.gwrite_with(self.#ident, offset, ())?
             },
             _ => quote! {
-                dst.gwrite_with(self.#ident, offset, ctx)?
+                dst.gwrite_with(self.#ident, offset, #ctx)?
             },
         },
         _ => {
             quote! {
-                dst.gwrite_with(&self.#ident, offset, ctx)?
+                dst.gwrite_with(&self.#ident, offset, #ctx)?
             }
         }
     }
@@ -209,7 +215,8 @@ fn impl_try_into_ctx(
                 quote! {#t}
             });
             let ty = &f.ty;
-            impl_pwrite_field(ident, ty)
+            let custom_ctx = custom_ctx(f);
+            impl_pwrite_field(ident, ty, custom_ctx.as_ref())
         })
         .collect();
 
@@ -300,7 +307,7 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-#[proc_macro_derive(Pwrite)]
+#[proc_macro_derive(Pwrite, attributes(scroll))]
 pub fn derive_pwrite(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     let gen = impl_pwrite(&ast);
@@ -392,7 +399,7 @@ fn impl_size_with(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-#[proc_macro_derive(SizeWith)]
+#[proc_macro_derive(SizeWith, attributes(scroll))]
 pub fn derive_sizewith(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
     let gen = impl_size_with(&ast);
