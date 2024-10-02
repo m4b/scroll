@@ -48,6 +48,36 @@ fn get_attr<'a>(attr_ident: &str, field: &'a syn::Field) -> Option<&'a syn::Attr
         .next()
 }
 
+/// Gets the `TokenStream` for the custom ctx set in the `ctx` attribute. e.g. `expr` in the following
+/// ```ignore
+/// #[scroll(ctx = expr)]
+/// field: T,
+/// ```
+fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
+    get_attr("scroll", field).and_then(|x| {
+        // parsed #[scroll..]
+        // `expr` is `None` if the `ctx` key is not used.
+        let mut expr = None;
+        let res = x.parse_nested_meta(|meta| {
+            // parsed #[scroll(..)]
+            if meta.path.is_ident("ctx") {
+                // parsed #[scroll(ctx..)]
+                let value = meta.value()?; // parsed #[scroll(ctx = ..)]
+                expr = Some(value.parse::<syn::Expr>()?); // parsed #[scroll(ctx = expr)]
+                return Ok(());
+            }
+            Err(meta.error(format!(
+                "unrecognized attribute: {}",
+                meta.path.get_ident().unwrap()
+            )))
+        });
+        match res {
+            Ok(_) => expr.map(|x| x.into_token_stream()),
+            Err(e) => Some(e.into_compile_error()),
+        }
+    })
+}
+
 fn impl_struct(
     name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
@@ -63,28 +93,7 @@ fn impl_struct(
             });
             let ty = &f.ty;
             // parse the `expr` out of #[scroll(ctx = expr)]
-            let custom_ctx = get_attr("scroll", f).and_then(|x| {
-                // parsed #[scroll..]
-                // `expr` is `None` if the `ctx` key is not used.
-                let mut expr = None;
-                let res = x.parse_nested_meta(|meta| {
-                    // parsed #[scroll(..)]
-                    if meta.path.is_ident("ctx") {
-                        // parsed #[scroll(ctx..)]
-                        let value = meta.value()?; // parsed #[scroll(ctx = ..)]
-                        expr = Some(value.parse::<syn::Expr>()?); // parsed #[scroll(ctx = expr)]
-                        return Ok(());
-                    }
-                    Err(meta.error(format!(
-                        "unrecognized attribute: {}",
-                        meta.path.get_ident().unwrap()
-                    )))
-                });
-                match res {
-                    Ok(_) => expr.map(|x| x.into_token_stream()),
-                    Err(e) => Some(e.into_compile_error()),
-                }
-            });
+            let custom_ctx = custom_ctx(f);
             impl_field(ident, ty, custom_ctx.as_ref())
         })
         .collect();
