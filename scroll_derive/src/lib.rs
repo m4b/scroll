@@ -63,7 +63,7 @@ fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
             if meta.path.is_ident("ctx") {
                 // parsed #[scroll(ctx..)]
                 let value = meta.value()?; // parsed #[scroll(ctx = ..)]
-                expr = Some(value.parse::<syn::Expr>()?); // parsed #[scroll(ctx = expr)]
+                expr = Some(value.parse::<syn::Expr>()?.into_token_stream()); // parsed #[scroll(ctx = expr)]
                 return Ok(());
             }
             Err(meta.error(match meta.path.get_ident() {
@@ -72,7 +72,7 @@ fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
             }))
         });
         match res {
-            Ok(_) => expr.map(|x| x.into_token_stream()),
+            Ok(()) => expr,
             Err(e) => Some(e.into_compile_error()),
         }
     })
