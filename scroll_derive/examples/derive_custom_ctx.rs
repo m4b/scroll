@@ -1,15 +1,22 @@
 use scroll_derive::{Pread, Pwrite, SizeWith};
 
-#[derive(Debug, PartialEq)]
-struct CustomCtx {
-    buf: Vec<u8>,
-}
-impl CustomCtx {
-    fn len() -> usize {
-        3 + 2
+/// An example of using a method as the value for a ctx in a derive.
+struct EndianDependent(Endian);
+impl EndianDependent {
+    fn len(&self) -> usize {
+        match self.0 {
+            scroll::Endian::Little => 5,
+            scroll::Endian::Big => 6,
+        }
     }
 }
-impl<'a> TryFromCtx<'a, usize> for CustomCtx {
+
+#[derive(Debug, PartialEq)]
+struct VariableLengthData {
+    buf: Vec<u8>,
+}
+
+impl<'a> TryFromCtx<'a, usize> for VariableLengthData {
     type Error = scroll::Error;
 
     fn try_from_ctx(from: &'a [u8], ctx: usize) -> Result<(Self, usize), Self::Error> {
@@ -18,7 +25,7 @@ impl<'a> TryFromCtx<'a, usize> for CustomCtx {
         Ok((Self { buf }, *offset))
     }
 }
-impl<'a> TryIntoCtx<usize> for &'a CustomCtx {
+impl<'a> TryIntoCtx<usize> for &'a VariableLengthData {
     type Error = scroll::Error;
     fn try_into_ctx(self, dst: &mut [u8], ctx: usize) -> Result<usize, Self::Error> {
         let offset = &mut 0;
@@ -28,7 +35,7 @@ impl<'a> TryIntoCtx<usize> for &'a CustomCtx {
         Ok(*offset)
     }
 }
-impl SizeWith<usize> for CustomCtx {
+impl SizeWith<usize> for VariableLengthData {
     fn size_with(ctx: &usize) -> usize {
         *ctx
     }
@@ -39,15 +46,20 @@ impl SizeWith<usize> for CustomCtx {
 struct Data {
     id: u32,
     timestamp: f64,
+    // You can fix the ctx regardless of what is passed in.
     #[scroll(ctx = BE)]
     arr: [u16; 2],
-    #[scroll(ctx = CustomCtx::len())]
-    custom_ctx: CustomCtx,
+    // You can use arbitrary expressions for the ctx.
+    // You have access to the `ctx` parameter of the `{pread/gread}_with` inside the expression.
+    // TODO(implement) you have access to previous fields.
+    // TODO(check) will this break structs with fields named `ctx`?.
+    #[scroll(ctx = EndianDependent(ctx.clone()).len())]
+    custom_ctx: VariableLengthData,
 }
 
 use scroll::{
     ctx::{SizeWith, TryFromCtx, TryIntoCtx},
-    Pread, Pwrite, BE, LE,
+    Endian, Pread, Pwrite, BE, LE,
 };
 
 fn main() {
@@ -64,9 +76,6 @@ fn main() {
     let data: Data = bytes.pread_with(0, LE).unwrap();
     let data2: Data = bytes2.pread_with(0, LE).unwrap();
     assert_eq!(data, data2);
-
-    /*
-    let data: Data = bytes.cread_with(0, LE);
-       assert_eq!(data, data2);
-    */
+    // Not enough bytes because of ctx dependant length being too long.
+    assert!(bytes.pread_with::<Data>(0, BE).is_err())
 }
