@@ -76,6 +76,6 @@ fn main() {
     let data: Data = bytes.pread_with(0, LE).unwrap();
     let data2: Data = bytes2.pread_with(0, LE).unwrap();
     assert_eq!(data, data2);
-    // Not enough bytes because of ctx dependant length being too long.
+    // Not enough bytes because of ctx dependent length being too long.
     assert!(bytes.pread_with::<Data>(0, BE).is_err())
 }
