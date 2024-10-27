@@ -1,5 +1,5 @@
 use core::convert::{AsRef, From};
-use core::{result, u8};
+use core::result;
 
 use crate::ctx::TryFromCtx;
 use crate::{error, Pread};
