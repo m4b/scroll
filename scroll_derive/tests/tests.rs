@@ -180,7 +180,6 @@ struct Data8<T, Y> {
     ids: [T; 3],
     xyz: Y,
 }
-
 #[test]
 fn test_generics() {
     let mut bytes = [0xde, 0xed, 0xef, 0x10, 0x10];
@@ -268,4 +267,18 @@ fn test_custom_ctx_derive() {
         c: 0x0506,
     };
     assert_eq!(data3, bytes.ioread_with(LE).unwrap());
+}
+
+#[derive(Debug, Pread, SizeWith)]
+struct Data12 {
+    ids: [Data11; 1],
+}
+
+#[test]
+fn test_array_with_nested_pread_data() {
+    let bytes = [0xde, 0xed, 0xef, 0x10, 0x10, 0x01];
+    let data: Data12 = bytes.pread_with(0, LE).unwrap();
+    assert_eq!(data.ids[0].a, 0xedde);
+    assert_eq!(data.ids[0].b, 0x10ef);
+    assert_eq!(data.ids[0].c, 0x1001);
 }

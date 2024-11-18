@@ -14,18 +14,6 @@ fn impl_field(
     let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
     let ctx = custom_ctx.unwrap_or(&default_ctx);
     match *ty {
-        syn::Type::Array(ref array) => match array.len {
-            syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(ref int),
-                ..
-            }) => {
-                let size = int.base10_parse::<usize>().unwrap();
-                quote! {
-                    #ident: { let mut __tmp: #ty = [0u8.into(); #size]; src.gread_inout_with(offset, &mut __tmp, #ctx)?; __tmp }
-                }
-            }
-            _ => panic!("Pread derive with bad array constexpr"),
-        },
         syn::Type::Group(ref group) => impl_field(ident, &group.elem, custom_ctx),
         _ => {
             quote! {
@@ -114,7 +102,7 @@ fn impl_struct(
             syn::GenericParam::Type(ref t) => {
                 let ident = &t.ident;
                 quote! {
-                    #ident : ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian> + ::std::convert::From<u8> + ::std::marker::Copy,
+                    #ident : ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian, Error = ::scroll::Error> + ::std::marker::Copy,
                     ::scroll::Error : ::std::convert::From<< #ident as ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian>>::Error>,
                     < #ident as ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian>>::Error : ::std::convert::From<scroll::Error>
                 }
