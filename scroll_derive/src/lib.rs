@@ -574,7 +574,6 @@ fn impl_into_ctx(
                 use ::scroll::Cwrite;
                 let offset = &mut 0;
                 #(#items;)*;
-                ()
             }
         }
 
