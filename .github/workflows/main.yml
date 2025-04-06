@@ -36,7 +36,7 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Cache CARGO_HOME
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
         path: ~/.cargo
         key: ${{ runner.os }}-cargo-home-${{ hashFiles('**/Cargo.toml') }}
