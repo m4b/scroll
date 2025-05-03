@@ -10,7 +10,7 @@ license = "MIT"
 documentation = "https://docs.rs/scroll"
 description = "A suite of powerful, extensible, generic, endian-aware Read/Write traits for byte buffers"
 include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
-rust-version = "1.63"
+rust-version = "1.81"
 
 [features]
 default = ["std"]
