@@ -3,7 +3,7 @@
 use std::ops::{Deref, DerefMut};
 
 use scroll::ctx::SizeWith as _;
-use scroll::{ctx, Cread, Endian, Pread, Result};
+use scroll::{Cread, Endian, Pread, Result, ctx};
 
 #[derive(Default)]
 pub struct Section<'a> {
@@ -365,7 +365,7 @@ fn cwrite_api_customtype() {
 
 #[test]
 fn test_fixed_array_rw() {
-    use scroll::{ctx::MeasureWith, Endian, Pread, Pwrite};
+    use scroll::{Endian, Pread, Pwrite, ctx::MeasureWith};
     let bytes = [0x37, 0x13, 0x37, 0x13];
     assert_eq!(bytes.measure_with(&()), 4);
     assert_eq!(

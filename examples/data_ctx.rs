@@ -1,4 +1,4 @@
-use scroll::{ctx, Endian, Pread, BE};
+use scroll::{BE, Endian, Pread, ctx};
 
 #[derive(Debug)]
 struct Data<'a> {
