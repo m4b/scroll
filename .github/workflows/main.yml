@@ -15,7 +15,7 @@ jobs:
         include:
           - build: MSRV # Minimum supported Rust version, ensure it matches the rust-version in Cargo.toml
             os: ubuntu-latest
-            rust: 1.63
+            rust: 1.81
           - build: stable
             os: ubuntu-latest
             rust: stable

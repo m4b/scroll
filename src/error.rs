@@ -1,7 +1,7 @@
 use core::fmt::{self, Display};
-use core::result;
+use core::{error, result};
 #[cfg(feature = "std")]
-use std::{error, io};
+use std::io;
 
 #[derive(Debug)]
 /// A custom Scroll error
@@ -26,14 +26,15 @@ pub enum Error {
     IO(io::Error),
 }
 
-#[cfg(feature = "std")]
 impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
             Error::TooBig { .. } => "TooBig",
             Error::BadOffset(_) => "BadOffset",
             Error::BadInput { .. } => "BadInput",
+            #[cfg(feature = "std")]
             Error::Custom(_) => "Custom",
+            #[cfg(feature = "std")]
             Error::IO(_) => "IO",
         }
     }
@@ -42,7 +43,9 @@ impl error::Error for Error {
             Error::TooBig { .. } => None,
             Error::BadOffset(_) => None,
             Error::BadInput { .. } => None,
+            #[cfg(feature = "std")]
             Error::Custom(_) => None,
+            #[cfg(feature = "std")]
             Error::IO(ref io) => io.source(),
         }
     }
