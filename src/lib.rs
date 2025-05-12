@@ -293,7 +293,7 @@ mod tests {
         ($write:ident, $read:ident, $deadbeef:expr) => {
             #[test]
             fn $write() {
-                use super::{Pread, Pwrite, BE};
+                use super::{BE, Pread, Pwrite};
                 let mut bytes: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
                 let b = &mut bytes[..];
                 b.pwrite_with::<$read>($deadbeef, 0, LE).unwrap();
@@ -337,8 +337,8 @@ mod tests {
 
     #[test]
     fn pread_slice() {
-        use super::ctx::StrCtx;
         use super::Pread;
+        use super::ctx::StrCtx;
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let iserr: Result<&str, _> = b.pread_with(0, StrCtx::Length(3));
@@ -352,8 +352,8 @@ mod tests {
 
     #[test]
     fn pread_str() {
-        use super::ctx::*;
         use super::Pread;
+        use super::ctx::*;
         let bytes: [u8; 2] = [0x2e, 0x0];
         let b = &bytes[..];
         let s: &str = b.pread(0).unwrap();
@@ -384,8 +384,8 @@ mod tests {
     /// the fact that if you do &x[x.len()..] you get an empty slice.
     #[test]
     fn pread_str_weird() {
-        use super::ctx::*;
         use super::Pread;
+        use super::ctx::*;
         let bytes: &[u8] = b"";
         let hello_world = bytes.pread_with::<&str>(0, StrCtx::Delimiter(NULL));
         #[cfg(feature = "std")]
@@ -544,7 +544,7 @@ mod tests {
         ($read:ident, $val:expr, $typ:ty) => {
             #[test]
             fn $read() {
-                use super::{Pread, Pwrite, BE, LE};
+                use super::{BE, LE, Pread, Pwrite};
                 let mut buffer = [0u8; 16];
                 let offset = &mut 0;
                 buffer.gwrite_with($val.clone(), offset, LE).unwrap();
@@ -618,8 +618,8 @@ mod tests {
 
     #[test]
     fn gread_slice() {
-        use super::ctx::StrCtx;
         use super::Pread;
+        use super::ctx::StrCtx;
         let bytes: [u8; 2] = [0x7e, 0xef];
         let b = &bytes[..];
         let offset = &mut 0;

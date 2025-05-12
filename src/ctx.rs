@@ -180,14 +180,14 @@
 //! }
 //! ```
 
-use core::mem::{size_of, MaybeUninit};
+use core::mem::{MaybeUninit, size_of};
 use core::ptr::copy_nonoverlapping;
 use core::{result, str};
 #[cfg(feature = "std")]
 use std::ffi::{CStr, CString};
 
 use crate::endian::Endian;
-use crate::{error, Pread, Pwrite};
+use crate::{Pread, Pwrite, error};
 
 /// A trait for measuring how large something is; for a byte sequence, it will be its length.
 pub trait MeasureWith<Ctx> {
@@ -853,7 +853,7 @@ impl<'a> TryFromCtx<'a> for &'a CStr {
                 return Err(error::Error::BadInput {
                     size: 0,
                     msg: "The input doesn't contain a null byte",
-                })
+                });
             }
         };
 

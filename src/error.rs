@@ -46,7 +46,7 @@ impl error::Error for Error {
             #[cfg(feature = "std")]
             Error::Custom(_) => None,
             #[cfg(feature = "std")]
-            Error::IO(ref io) => io.source(),
+            Error::IO(io) => io.source(),
         }
     }
 }
@@ -61,21 +61,21 @@ impl From<io::Error> for Error {
 impl Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::TooBig { ref size, ref len } => {
+            Error::TooBig { size, len } => {
                 write!(fmt, "type is too big ({size}) for {len}")
             }
-            Error::BadOffset(ref offset) => {
+            Error::BadOffset(offset) => {
                 write!(fmt, "bad offset {offset}")
             }
-            Error::BadInput { ref msg, ref size } => {
+            Error::BadInput { msg, size } => {
                 write!(fmt, "bad input {msg} ({size})")
             }
             #[cfg(feature = "std")]
-            Error::Custom(ref msg) => {
+            Error::Custom(msg) => {
                 write!(fmt, "{msg}")
             }
             #[cfg(feature = "std")]
-            Error::IO(ref err) => {
+            Error::IO(err) => {
                 write!(fmt, "{err}")
             }
         }
