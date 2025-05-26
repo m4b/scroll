@@ -8,7 +8,7 @@ struct Data {
     arr: [u16; 2],
 }
 
-use scroll::{Cread, Pread, Pwrite, LE};
+use scroll::{Cread, LE, Pread, Pwrite};
 
 fn main() {
     let bytes = [

@@ -1,4 +1,4 @@
-use scroll::{Cread, Cwrite, IOread, IOwrite, Pread, Pwrite, BE, LE};
+use scroll::{BE, Cread, Cwrite, IOread, IOwrite, LE, Pread, Pwrite};
 use scroll_derive::{IOread, IOwrite, Pread, Pwrite, SizeWith};
 
 use scroll::ctx::SizeWith;
