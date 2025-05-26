@@ -1,7 +1,6 @@
 #![recursion_limit = "1024"]
 
 extern crate proc_macro;
-use proc_macro2;
 use quote::{quote, ToTokens};
 
 use proc_macro::TokenStream;
@@ -31,9 +30,7 @@ fn impl_field(
 fn get_attr<'a>(attr_ident: &str, field: &'a syn::Field) -> Option<&'a syn::Attribute> {
     field
         .attrs
-        .iter()
-        .filter(|attr| attr.path().is_ident(attr_ident))
-        .next()
+        .iter().find(|attr| attr.path().is_ident(attr_ident))
 }
 
 /// Gets the `TokenStream` for the custom ctx set in the `ctx` attribute. e.g. `expr` in the following

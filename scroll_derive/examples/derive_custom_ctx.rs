@@ -58,8 +58,8 @@ struct Data {
 }
 
 use scroll::{
-    BE, Endian, LE, Pread, Pwrite,
     ctx::{SizeWith, TryFromCtx, TryIntoCtx},
+    Endian, Pread, Pwrite, BE, LE,
 };
 
 fn main() {

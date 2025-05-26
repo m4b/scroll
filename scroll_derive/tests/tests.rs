@@ -227,7 +227,7 @@ fn test_reference() {
         inner: &inner,
         name: b"name",
     };
-    let mut bytes = vec![0; 32];
+    let mut bytes = [0; 32];
     assert_eq!(bytes.pwrite_with(&data, 0, LE).unwrap(), 7);
     assert_eq!(bytes[..7], *b"\xff\x01\x00name");
 }
