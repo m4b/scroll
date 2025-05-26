@@ -13,8 +13,8 @@ fn impl_field(
 ) -> proc_macro2::TokenStream {
     let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
     let ctx = custom_ctx.unwrap_or(&default_ctx);
-    match *ty {
-        syn::Type::Group(ref group) => impl_field(ident, &group.elem, custom_ctx),
+    match ty {
+        syn::Type::Group(group) => impl_field(ident, &group.elem, custom_ctx),
         _ => {
             quote! {
                 #ident: src.gread_with::<#ty>(offset, #ctx)?
@@ -90,7 +90,7 @@ fn impl_struct(
     let gp = &generics.params;
     let gg = &generics.gt_token;
     let gn = gp.iter().map(|param: &syn::GenericParam| match param {
-        syn::GenericParam::Type(ref t) => {
+        syn::GenericParam::Type(t) => {
             let ident = &t.ident;
             quote! { #ident }
         }
@@ -99,7 +99,7 @@ fn impl_struct(
     let gn = quote! { #gl #( #gn ),* #gg };
     let gw = if !gp.is_empty() {
         let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 quote! {
                     #ident : ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian, Error = ::scroll::Error> + ::std::marker::Copy,
@@ -131,10 +131,10 @@ fn impl_struct(
 fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
-    match ast.data {
-        syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => impl_struct(name, &fields.named, generics),
-            syn::Fields::Unnamed(ref fields) => impl_struct(name, &fields.unnamed, generics),
+    match &ast.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => impl_struct(name, &fields.named, generics),
+            syn::Fields::Unnamed(fields) => impl_struct(name, &fields.unnamed, generics),
             _ => {
                 panic!("Pread can not be derived for unit structs")
             }
@@ -146,8 +146,8 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 #[proc_macro_derive(Pread, attributes(scroll))]
 pub fn derive_pread(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_try_from_ctx(&ast);
-    gen.into()
+    let generated = impl_try_from_ctx(&ast);
+    generated.into()
 }
 
 fn impl_pwrite_field(
@@ -158,9 +158,9 @@ fn impl_pwrite_field(
     let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
     let ctx = custom_ctx.unwrap_or(&default_ctx);
     match ty {
-        syn::Type::Array(ref array) => match array.len {
+        syn::Type::Array(array) => match &array.len {
             syn::Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(ref int),
+                lit: syn::Lit::Int(int),
                 ..
             }) => {
                 let size = int.base10_parse::<usize>().unwrap();
@@ -212,7 +212,7 @@ fn impl_try_into_ctx(
     let gp = &generics.params;
     let gg = &generics.gt_token;
     let gn = gp.iter().map(|param: &syn::GenericParam| match param {
-        syn::GenericParam::Type(ref t) => {
+        syn::GenericParam::Type(t) => {
             let ident = &t.ident;
             quote! { #ident }
         }
@@ -221,7 +221,7 @@ fn impl_try_into_ctx(
     let gn = quote! { #gl #( #gn ),* #gg };
     let gwref = if !gp.is_empty() {
         let gi: Vec<_> = gp.iter().filter_map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 Some(quote! {
                     &'a #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
@@ -242,7 +242,7 @@ fn impl_try_into_ctx(
     };
     let gw = if !gp.is_empty() {
         let gi = gp.iter().filter_map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 Some(quote! {
                     #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
@@ -283,10 +283,10 @@ fn impl_try_into_ctx(
 fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
-    match ast.data {
-        syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => impl_try_into_ctx(name, &fields.named, generics),
-            syn::Fields::Unnamed(ref fields) => impl_try_into_ctx(name, &fields.unnamed, generics),
+    match &ast.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => impl_try_into_ctx(name, &fields.named, generics),
+            syn::Fields::Unnamed(fields) => impl_try_into_ctx(name, &fields.unnamed, generics),
             _ => {
                 panic!("Pwrite can not be derived for unit structs")
             }
@@ -298,8 +298,8 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 #[proc_macro_derive(Pwrite, attributes(scroll))]
 pub fn derive_pwrite(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_pwrite(&ast);
-    gen.into()
+    let generated = impl_pwrite(&ast);
+    generated.into()
 }
 
 fn size_with(
@@ -315,12 +315,12 @@ fn size_with(
             let default_ctx =
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);
-            match *ty {
-                syn::Type::Array(ref array) => {
+            match ty {
+                syn::Type::Array(array) => {
                     let elem = &array.elem;
-                    match array.len {
+                    match &array.len {
                         syn::Expr::Lit(syn::ExprLit {
-                            lit: syn::Lit::Int(ref int),
+                            lit: syn::Lit::Int(int),
                             ..
                         }) => {
                             let size = int.base10_parse::<usize>().unwrap();
@@ -344,7 +344,7 @@ fn size_with(
     let gp = &generics.params;
     let gg = &generics.gt_token;
     let gn = gp.iter().map(|param: &syn::GenericParam| match param {
-        syn::GenericParam::Type(ref t) => {
+        syn::GenericParam::Type(t) => {
             let ident = &t.ident;
             quote! { #ident }
         }
@@ -353,7 +353,7 @@ fn size_with(
     let gn = quote! { #gl #( #gn ),* #gg };
     let gw = if !gp.is_empty() {
         let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 quote! {
                     #ident : ::scroll::ctx::SizeWith<::scroll::Endian>
@@ -379,10 +379,10 @@ fn size_with(
 fn impl_size_with(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
-    match ast.data {
-        syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => size_with(name, &fields.named, generics),
-            syn::Fields::Unnamed(ref fields) => size_with(name, &fields.unnamed, generics),
+    match &ast.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => size_with(name, &fields.named, generics),
+            syn::Fields::Unnamed(fields) => size_with(name, &fields.unnamed, generics),
             _ => {
                 panic!("SizeWith can not be derived for unit structs")
             }
@@ -394,8 +394,8 @@ fn impl_size_with(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 #[proc_macro_derive(SizeWith, attributes(scroll))]
 pub fn derive_sizewith(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_size_with(&ast);
-    gen.into()
+    let generated = impl_size_with(&ast);
+    generated.into()
 }
 
 fn impl_cread_struct(
@@ -410,11 +410,11 @@ fn impl_cread_struct(
         let default_ctx =
             syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
         let ctx = custom_ctx.unwrap_or(default_ctx);
-        match *ty {
-            syn::Type::Array(ref array) => {
+        match ty {
+            syn::Type::Array(array) => {
                 let arrty = &array.elem;
-                match array.len {
-                    syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(ref int), ..}) => {
+                match &array.len {
+                    syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(int), ..}) => {
                         let size = int.base10_parse::<usize>().unwrap();
                         let incr = quote! { ::scroll::export::mem::size_of::<#arrty>() };
                         quote! {
@@ -444,7 +444,7 @@ fn impl_cread_struct(
     let gp = &generics.params;
     let gg = &generics.gt_token;
     let gn = gp.iter().map(|param: &syn::GenericParam| match param {
-        syn::GenericParam::Type(ref t) => {
+        syn::GenericParam::Type(t) => {
             let ident = &t.ident;
             quote! { #ident }
         }
@@ -453,7 +453,7 @@ fn impl_cread_struct(
     let gn = quote! { #gl #( #gn ),* #gg };
     let gw = if !gp.is_empty() {
         let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 quote! {
                     #ident : ::scroll::ctx::FromCtx<::scroll::Endian> + ::std::convert::From<u8> + ::std::marker::Copy
@@ -482,10 +482,10 @@ fn impl_cread_struct(
 fn impl_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
-    match ast.data {
-        syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => impl_cread_struct(name, &fields.named, generics),
-            syn::Fields::Unnamed(ref fields) => impl_cread_struct(name, &fields.unnamed, generics),
+    match &ast.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => impl_cread_struct(name, &fields.named, generics),
+            syn::Fields::Unnamed(fields) => impl_cread_struct(name, &fields.unnamed, generics),
             _ => {
                 panic!("IOread can not be derived for unit structs")
             }
@@ -497,8 +497,8 @@ fn impl_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 #[proc_macro_derive(IOread, attributes(scroll))]
 pub fn derive_ioread(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_from_ctx(&ast);
-    gen.into()
+    let generated = impl_from_ctx(&ast);
+    generated.into()
 }
 
 fn impl_into_ctx(
@@ -520,8 +520,8 @@ fn impl_into_ctx(
             let default_ctx =
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);
-            match *ty {
-                syn::Type::Array(ref array) => {
+            match ty {
+                syn::Type::Array(array) => {
                     let arrty = &array.elem;
                     quote! {
                         let size = ::scroll::export::mem::size_of::<#arrty>();
@@ -545,7 +545,7 @@ fn impl_into_ctx(
     let gp = &generics.params;
     let gg = &generics.gt_token;
     let gn = gp.iter().map(|param: &syn::GenericParam| match param {
-        syn::GenericParam::Type(ref t) => {
+        syn::GenericParam::Type(t) => {
             let ident = &t.ident;
             quote! { #ident }
         }
@@ -553,7 +553,7 @@ fn impl_into_ctx(
     });
     let gw = if !gp.is_empty() {
         let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(ref t) => {
+            syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 quote! {
                     #ident : ::scroll::ctx::IntoCtx<::scroll::Endian> + ::std::marker::Copy
@@ -589,10 +589,10 @@ fn impl_into_ctx(
 fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
-    match ast.data {
-        syn::Data::Struct(ref data) => match data.fields {
-            syn::Fields::Named(ref fields) => impl_into_ctx(name, &fields.named, generics),
-            syn::Fields::Unnamed(ref fields) => impl_into_ctx(name, &fields.unnamed, generics),
+    match &ast.data {
+        syn::Data::Struct(data) => match &data.fields {
+            syn::Fields::Named(fields) => impl_into_ctx(name, &fields.named, generics),
+            syn::Fields::Unnamed(fields) => impl_into_ctx(name, &fields.unnamed, generics),
             _ => {
                 panic!("IOwrite can not be derived for unit structs")
             }
@@ -604,6 +604,6 @@ fn impl_iowrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 #[proc_macro_derive(IOwrite, attributes(scroll))]
 pub fn derive_iowrite(input: TokenStream) -> TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_iowrite(&ast);
-    gen.into()
+    let generated = impl_iowrite(&ast);
+    generated.into()
 }
