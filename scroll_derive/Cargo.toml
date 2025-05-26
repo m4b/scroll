@@ -1,6 +1,6 @@
 [package]
 name = "scroll_derive"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["m4b <m4b.github.io@gmail.com>", "Ted Mielczarek <ted@mielczarek.org>", "Systemcluster <me@systemcluster.me>"]
 readme = "README.md"
 edition = "2018"
@@ -20,5 +20,5 @@ quote = "1"
 syn = "2"
 
 [dev-dependencies.scroll]
-version = "0.11"
+version = "0.12"
 path = ".."

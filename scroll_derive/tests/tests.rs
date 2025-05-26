@@ -1,4 +1,4 @@
-use scroll::{Cread, Cwrite, Pread, Pwrite, LE};
+use scroll::{Cread, Cwrite, IOread, IOwrite, Pread, Pwrite, BE, LE};
 use scroll_derive::{IOread, IOwrite, Pread, Pwrite, SizeWith};
 
 use scroll::ctx::SizeWith;
@@ -180,7 +180,6 @@ struct Data8<T, Y> {
     ids: [T; 3],
     xyz: Y,
 }
-
 #[test]
 fn test_generics() {
     let mut bytes = [0xde, 0xed, 0xef, 0x10, 0x10];
@@ -210,4 +209,76 @@ fn test_newtype() {
     let size = Data9::size_with(&LE);
     let written = bytes.pwrite_with(&data, 0, LE).unwrap();
     assert_eq!(written, size);
+}
+
+#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
+struct Data10I(u8, u16);
+
+#[derive(Debug, Pwrite)]
+struct Data10<'b> {
+    pub inner: &'b Data10I,
+    pub name: &'b [u8],
+}
+
+#[test]
+fn test_reference() {
+    let inner = Data10I(255, 1);
+    let data = Data10 {
+        inner: &inner,
+        name: b"name",
+    };
+    let mut bytes = vec![0; 32];
+    assert_eq!(bytes.pwrite_with(&data, 0, LE).unwrap(), 7);
+    assert_eq!(bytes[..7], *b"\xff\x01\x00name");
+}
+
+#[derive(Debug, PartialEq, Pwrite, Pread, IOwrite, IOread, SizeWith)]
+struct Data11 {
+    pub a: u16,
+    #[scroll(ctx = LE)]
+    pub b: u16,
+    #[scroll(ctx = BE)]
+    pub c: u16,
+}
+
+#[test]
+fn test_custom_ctx_derive() {
+    let buf = [1, 2, 3, 4, 5, 6];
+    let data = buf.pread_with(0, LE).unwrap();
+    let data2 = Data11 {
+        a: 0x0201,
+        b: 0x0403,
+        c: 0x0506,
+    };
+    assert_eq!(data, data2);
+    let mut bytes = vec![0; 32];
+    assert_eq!(bytes.pwrite_with::<&Data11>(&data, 0, LE).unwrap(), 6);
+    assert_eq!(bytes[..Data11::size_with(&LE)], buf[..]);
+    let mut bytes = std::io::Cursor::new(bytes);
+    assert_eq!(data2, bytes.ioread_with(LE).unwrap());
+    bytes.set_position(0);
+    bytes.iowrite_with(data, BE).unwrap();
+    bytes.set_position(0);
+    assert_eq!(data2, bytes.ioread_with(BE).unwrap());
+    bytes.set_position(0);
+    let data3 = Data11 {
+        a: 0x0102,
+        b: 0x0403,
+        c: 0x0506,
+    };
+    assert_eq!(data3, bytes.ioread_with(LE).unwrap());
+}
+
+#[derive(Debug, Pread, SizeWith)]
+struct Data12 {
+    ids: [Data11; 1],
+}
+
+#[test]
+fn test_array_with_nested_pread_data() {
+    let bytes = [0xde, 0xed, 0xef, 0x10, 0x10, 0x01];
+    let data: Data12 = bytes.pread_with(0, LE).unwrap();
+    assert_eq!(data.ids[0].a, 0xedde);
+    assert_eq!(data.ids[0].b, 0x10ef);
+    assert_eq!(data.ids[0].c, 0x1001);
 }
