@@ -847,18 +847,11 @@ impl<'a> TryFromCtx<'a> for &'a CStr {
     type Error = error::Error;
     #[inline]
     fn try_from_ctx(src: &'a [u8], _ctx: ()) -> result::Result<(Self, usize), Self::Error> {
-        let null_byte = match src.iter().position(|b| *b == 0) {
-            Some(ix) => ix,
-            None => {
-                return Err(error::Error::BadInput {
-                    size: 0,
-                    msg: "The input doesn't contain a null byte",
-                });
-            }
-        };
-
-        let cstr = unsafe { CStr::from_bytes_with_nul_unchecked(&src[..=null_byte]) };
-        Ok((cstr, null_byte + 1))
+        let cstr = CStr::from_bytes_until_nul(src).map_err(|_| error::Error::BadInput {
+            size: 0,
+            msg: "The input doesn't contain a null byte",
+        })?;
+        Ok((cstr, cstr.to_bytes_with_nul().len()))
     }
 }
 
@@ -877,20 +870,7 @@ impl<'a> TryIntoCtx for &'a CStr {
     type Error = error::Error;
     #[inline]
     fn try_into_ctx(self, dst: &mut [u8], _ctx: ()) -> error::Result<usize> {
-        let data = self.to_bytes_with_nul();
-
-        if dst.len() < data.len() {
-            Err(error::Error::TooBig {
-                size: dst.len(),
-                len: data.len(),
-            })
-        } else {
-            unsafe {
-                copy_nonoverlapping(data.as_ptr(), dst.as_mut_ptr(), data.len());
-            }
-
-            Ok(data.len())
-        }
+        dst.pwrite(self.to_bytes_with_nul(), 0)
     }
 }
 
