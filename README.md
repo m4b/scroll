@@ -132,7 +132,7 @@ fn main() -> Result<(), scroll::Error> {
     let mut bytes = Cursor::new(bytes_);
 
     // this will bump the cursor's Seek
-    let foo = bytes.ioread::<usize>()?;
+    let foo = bytes.ioread::<u64>()?;
     // ..ditto
     let bar = bytes.ioread::<u32>()?;
     Ok(())
