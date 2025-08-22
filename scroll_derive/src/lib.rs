@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 
 extern crate proc_macro;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use proc_macro::TokenStream;
 
@@ -30,7 +30,8 @@ fn impl_field(
 fn get_attr<'a>(attr_ident: &str, field: &'a syn::Field) -> Option<&'a syn::Attribute> {
     field
         .attrs
-        .iter().find(|attr| attr.path().is_ident(attr_ident))
+        .iter()
+        .find(|attr| attr.path().is_ident(attr_ident))
 }
 
 /// Gets the `TokenStream` for the custom ctx set in the `ctx` attribute. e.g. `expr` in the following
@@ -45,6 +46,7 @@ fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
         let mut expr = None;
         let res = x.parse_nested_meta(|meta| {
             // parsed #[scroll(..)]
+            // TODO: add noctx here to remove gread_with invocation
             if meta.path.is_ident("ctx") {
                 // parsed #[scroll(ctx..)]
                 let value = meta.value()?; // parsed #[scroll(ctx = ..)]
@@ -93,29 +95,61 @@ fn impl_struct(
         }
         p => quote! { #p },
     });
+
+    let mut lifetimes = gp
+        .iter()
+        .filter_map(|param: &syn::GenericParam| match param {
+            syn::GenericParam::Lifetime(lifetime) => Some(quote! { #lifetime }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if lifetimes.len() > 1 {
+        panic!("Pread cannot be derived for multiple lifetimes")
+    }
+    let lifetime = lifetimes.pop().unwrap_or(quote! { 'a });
     let gn = quote! { #gl #( #gn ),* #gg };
+    // drop the lifetime from our generic params, since we already grabbed it
+    let initial_generic_params = gp
+        .iter()
+        .filter_map(|param: &syn::GenericParam| match param {
+            syn::GenericParam::Lifetime(_) => None,
+            p => Some(p),
+        })
+        .collect::<Vec<_>>();
+    let lhs_gp = if !initial_generic_params.is_empty() {
+        quote! { #( #initial_generic_params ),* }
+    } else {
+        quote! {}
+    };
+
     let gw = if !gp.is_empty() {
-        let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(t) => {
+        let gi = gp.iter().filter_map(|param: &syn::GenericParam| match param {
+            syn::GenericParam::Type(t) => Some({
                 let ident = &t.ident;
                 quote! {
-                    #ident : ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian, Error = ::scroll::Error> + ::std::marker::Copy,
-                    ::scroll::Error : ::std::convert::From<< #ident as ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian>>::Error>,
-                    < #ident as ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian>>::Error : ::std::convert::From<scroll::Error>
+                    #ident : ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian, Error = ::scroll::Error> + ::std::marker::Copy,
+                    ::scroll::Error : ::std::convert::From<< #ident as ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian>>::Error>,
+                    < #ident as ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian>>::Error : ::std::convert::From<scroll::Error>
                 }
-            },
-            p => quote! { #p }
-        });
-        quote! { #( #gi ),* , }
+            }),
+            syn::GenericParam::Lifetime(_) => None,
+            p => Some(quote! { #p })
+        }).collect::<Vec<_>>();
+        if !gi.is_empty() {
+            // NB: that extra comma after * is very important
+            quote! { #( #gi ),*,  }
+        } else {
+            quote! {}
+        }
     } else {
         quote! {}
     };
 
     quote! {
-        impl<'a, #gp > ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian> for #name #gn where #gw #name #gn : 'a {
+        impl<#lifetime, #lhs_gp > ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian> for #name #gn where #gw #name #gn : #lifetime {
             type Error = ::scroll::Error;
             #[inline]
-            fn try_from_ctx(src: &'a [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<(Self, usize), Self::Error> {
+            fn try_from_ctx(src: &#lifetime [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<(Self, usize), Self::Error> {
                 use ::scroll::Pread;
                 let offset = &mut 0;
                 let data  = Self { #(#items,)* };
