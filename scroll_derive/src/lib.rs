@@ -411,6 +411,9 @@ fn size_with(
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);
             match ty {
+                syn::Type::Reference(_) => {
+                    panic!("SizeWith cannot be derived for references")
+                }
                 syn::Type::Array(array) => {
                     let elem = &array.elem;
                     match &array.len {
@@ -423,7 +426,7 @@ fn size_with(
                                 (#size * <#elem>::size_with(#ctx))
                             }
                         }
-                        _ => panic!("Pread derive with bad array constexpr"),
+                        _ => panic!("SizeWith derive has bad array constexpr"),
                     }
                 }
                 _ => {
@@ -447,15 +450,18 @@ fn size_with(
     });
     let gn = quote! { #gl #( #gn ),* #gg };
     let gw = if !gp.is_empty() {
-        let gi = gp.iter().map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Type(t) => {
-                let ident = &t.ident;
-                quote! {
-                    #ident : ::scroll::ctx::SizeWith<::scroll::Endian>
+        let gi = gp
+            .iter()
+            .filter_map(|param: &syn::GenericParam| match param {
+                syn::GenericParam::Type(t) => {
+                    let ident = &t.ident;
+                    Some(quote! {
+                        #ident : ::scroll::ctx::SizeWith<::scroll::Endian>
+                    })
                 }
-            }
-            p => quote! { #p },
-        });
+                syn::GenericParam::Lifetime(_) => None,
+                p => Some(quote! { #p }),
+            });
         quote! { where #( #gi ),* }
     } else {
         quote! {}
@@ -507,6 +513,9 @@ fn impl_cread_struct(
             syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
         let ctx = custom_ctx.unwrap_or(default_ctx);
         match ty {
+            syn::Type::Reference(_) => {
+                panic!("IOread cannot be derived for references, because SizeWith cannot be derived for references")
+            }
             syn::Type::Array(array) => {
                 let arrty = &array.elem;
                 match &array.len {
@@ -618,6 +627,9 @@ fn impl_into_ctx(
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);
             match ty {
+                syn::Type::Reference(_) => {
+                    panic!("IOwrite cannot be derived for references, because SizeWith cannot be derived for references")
+                }
                 syn::Type::Array(array) => {
                     let arrty = &array.elem;
                     quote! {
