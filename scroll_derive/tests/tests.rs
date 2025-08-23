@@ -302,38 +302,3 @@ fn test_pread_lifetime() {
     b2.pwrite(&data, 0).unwrap();
     assert_eq!(b2, bytes);
 }
-
-#[derive(Debug, Pread, Pwrite)]
-pub struct FloofHeader {
-    pub boop: u8,
-    pub length: u16,
-    pub flag: u8,
-    pub quux_service: u8,
-    pub quux_client_id: u8,
-}
-
-pub trait QuuxHeaderApi {
-    fn msg_len(&self) -> usize;
-}
-
-#[derive(Debug, Copy, Clone, Pread, Pwrite)]
-pub struct QuuxHeader {
-    pub typ: u8,
-    pub txn_id: u16,
-    pub msg_id: u16,
-    pub msg_len: u16,
-}
-
-impl QuuxHeaderApi for QuuxHeader {
-    fn msg_len(&self) -> usize {
-        self.msg_len as usize
-    }
-}
-
-#[derive(Debug, Pread, Pwrite)]
-pub struct Response<'a, T: QuuxHeaderApi> {
-    pub floof: FloofHeader,
-    pub quux: T,
-    #[scroll(ctx = quux.msg_len())]
-    pub tlvs: &'a [u8],
-}

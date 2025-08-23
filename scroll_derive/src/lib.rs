@@ -168,7 +168,7 @@ fn impl_struct(
             syn::GenericParam::Type(t) => Some({
                 let ident = &t.ident;
                 quote! {
-                    #ident : ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian, Error = ::scroll::Error> + ::std::marker::Copy,
+                    #ident : ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian, Error = ::scroll::Error>,
                     ::scroll::Error : ::std::convert::From<< #ident as ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian>>::Error>,
                     < #ident as ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian>>::Error : ::std::convert::From<scroll::Error>
                 }
