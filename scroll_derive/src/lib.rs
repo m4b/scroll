@@ -9,14 +9,21 @@ fn impl_field(
     ident: &proc_macro2::TokenStream,
     ty: &syn::Type,
     custom_ctx: Option<&proc_macro2::TokenStream>,
+    noctx: bool,
 ) -> proc_macro2::TokenStream {
     let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
     let ctx = custom_ctx.unwrap_or(&default_ctx);
     match ty {
-        syn::Type::Group(group) => impl_field(ident, &group.elem, custom_ctx),
+        syn::Type::Group(group) => impl_field(ident, &group.elem, custom_ctx, noctx),
         _ => {
-            quote! {
-                #ident: src.gread_with::<#ty>(offset, #ctx)?
+            if noctx {
+                quote! {
+                    let #ident = src.gread::<#ty>(offset)?;
+                }
+            } else {
+                quote! {
+                    let #ident = src.gread_with::<#ty>(offset, #ctx)?;
+                }
             }
         }
     }
@@ -39,18 +46,22 @@ fn get_attr<'a>(attr_ident: &str, field: &'a syn::Field) -> Option<&'a syn::Attr
 /// #[scroll(ctx = expr)]
 /// field: T,
 /// ```
-fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
+fn custom_ctx(field: &syn::Field, noctx: &mut bool) -> Option<proc_macro2::TokenStream> {
     get_attr("scroll", field).and_then(|x| {
         // parsed #[scroll..]
         // `expr` is `None` if the `ctx` key is not used.
-        let mut expr = None;
+        let mut attrib = None;
         let res = x.parse_nested_meta(|meta| {
             // parsed #[scroll(..)]
-            // TODO: add noctx here to remove gread_with invocation
             if meta.path.is_ident("ctx") {
                 // parsed #[scroll(ctx..)]
                 let value = meta.value()?; // parsed #[scroll(ctx = ..)]
-                expr = Some(value.parse::<syn::Expr>()?.into_token_stream()); // parsed #[scroll(ctx = expr)]
+                attrib = Some(value.parse::<syn::Expr>()?.into_token_stream()); // parsed #[scroll(ctx = expr)]
+                return Ok(());
+            }
+            if meta.path.is_ident("noctx") {
+                // parsed #[scroll(noctx)]
+                *noctx = true;
                 return Ok(());
             }
             Err(meta.error(match meta.path.get_ident() {
@@ -59,7 +70,7 @@ fn custom_ctx(field: &syn::Field) -> Option<proc_macro2::TokenStream> {
             }))
         });
         match res {
-            Ok(()) => expr,
+            Ok(()) => attrib,
             Err(e) => Some(e.into_compile_error()),
         }
     })
@@ -69,21 +80,36 @@ fn impl_struct(
     name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
     generics: &syn::Generics,
+    unnamed: bool,
 ) -> proc_macro2::TokenStream {
-    let items: Vec<_> = fields
+    let (items, item_assignments) = fields
         .iter()
         .enumerate()
         .map(|(i, f)| {
-            let ident = &f.ident.as_ref().map(|i| quote! {#i}).unwrap_or({
-                let t = proc_macro2::Literal::usize_unsuffixed(i);
-                quote! {#t}
-            });
+            let (ident, prefixed_ident) = &f
+                .ident
+                .as_ref()
+                .map(|i| (quote! {#i}, quote! {#i}))
+                .unwrap_or({
+                    let t = proc_macro2::Literal::usize_unsuffixed(i);
+                    let suf = if unnamed {
+                        syn::Ident::new(&format!("_{t}"), proc_macro2::Span::call_site())
+                            .into_token_stream()
+                    } else {
+                        t.clone().to_token_stream()
+                    };
+                    (quote! {#t}, suf)
+                });
             let ty = &f.ty;
             // parse the `expr` out of #[scroll(ctx = expr)]
-            let custom_ctx = custom_ctx(f);
-            impl_field(ident, ty, custom_ctx.as_ref())
+            let mut noctx = false;
+            let custom_ctx = custom_ctx(f, &mut noctx);
+            (
+                impl_field(&prefixed_ident, ty, custom_ctx.as_ref(), noctx),
+                quote! { #ident: #prefixed_ident },
+            )
         })
-        .collect();
+        .collect::<(Vec<_>, Vec<_>)>();
 
     let gl = &generics.lt_token;
     let gp = &generics.params;
@@ -146,14 +172,17 @@ fn impl_struct(
     };
 
     quote! {
-        impl<#lifetime, #lhs_gp > ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian> for #name #gn where #gw #name #gn : #lifetime {
+     impl<#lifetime, #lhs_gp > ::scroll::ctx::TryFromCtx<#lifetime, ::scroll::Endian> for #name #gn
+         where #gw #name #gn : #lifetime {
+            // TODO: allow passing user error here
             type Error = ::scroll::Error;
             #[inline]
             fn try_from_ctx(src: &#lifetime [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<(Self, usize), Self::Error> {
-                use ::scroll::Pread;
-                let offset = &mut 0;
-                let data  = Self { #(#items,)* };
-                Ok((data, *offset))
+              use ::scroll::Pread;
+              let offset = &mut 0;
+              #(#items)*
+              let data  = Self { #(#item_assignments,)* };
+              Ok((data, *offset))
             }
         }
     }
@@ -164,8 +193,8 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let generics = &ast.generics;
     match &ast.data {
         syn::Data::Struct(data) => match &data.fields {
-            syn::Fields::Named(fields) => impl_struct(name, &fields.named, generics),
-            syn::Fields::Unnamed(fields) => impl_struct(name, &fields.unnamed, generics),
+            syn::Fields::Named(fields) => impl_struct(name, &fields.named, generics, false),
+            syn::Fields::Unnamed(fields) => impl_struct(name, &fields.unnamed, generics, true),
             _ => {
                 panic!("Pread can not be derived for unit structs")
             }
@@ -185,6 +214,7 @@ fn impl_pwrite_field(
     ident: &proc_macro2::TokenStream,
     ty: &syn::Type,
     custom_ctx: Option<&proc_macro2::TokenStream>,
+    noctx: bool,
 ) -> proc_macro2::TokenStream {
     let default_ctx = syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
     let ctx = custom_ctx.unwrap_or(&default_ctx);
@@ -203,14 +233,29 @@ fn impl_pwrite_field(
             }
             _ => panic!("Pwrite derive with bad array constexpr"),
         },
-        syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem, custom_ctx),
+        syn::Type::Group(group) => impl_pwrite_field(ident, &group.elem, custom_ctx, noctx),
         syn::Type::Reference(reference) => match *reference.elem {
-            syn::Type::Slice(_) => quote! {
-                dst.gwrite_with(self.#ident, offset, ())?
-            },
-            _ => quote! {
-                dst.gwrite_with(self.#ident, offset, #ctx)?
-            },
+            syn::Type::Slice(_) => {
+                quote! {
+                    dst.gwrite_with(self.#ident, offset, ())?
+                }
+            }
+            syn::Type::Path(ref path) => {
+                if path.path.get_ident().unwrap().to_string().as_str() == "str" {
+                    quote! {
+                        dst.gwrite(self.#ident, offset)?
+                    }
+                } else {
+                    quote! {
+                        dst.gwrite_with(self.#ident, offset, #ctx)?
+                    }
+                }
+            }
+            _ => {
+                quote! {
+                    dst.gwrite_with(self.#ident, offset, #ctx)?
+                }
+            }
         },
         _ => {
             quote! {
@@ -234,8 +279,9 @@ fn impl_try_into_ctx(
                 quote! {#t}
             });
             let ty = &f.ty;
-            let custom_ctx = custom_ctx(f);
-            impl_pwrite_field(ident, ty, custom_ctx.as_ref())
+            let mut noctx = false;
+            let custom_ctx = custom_ctx(f, &mut noctx);
+            impl_pwrite_field(ident, ty, custom_ctx.as_ref(), noctx)
         })
         .collect();
 
@@ -342,7 +388,8 @@ fn size_with(
         .iter()
         .map(|f| {
             let ty = &f.ty;
-            let custom_ctx = custom_ctx(f).map(|x| quote! {&#x});
+            let mut noctx = false;
+            let custom_ctx = custom_ctx(f, &mut noctx).map(|x| quote! {&#x});
             let default_ctx =
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);
@@ -437,7 +484,8 @@ fn impl_cread_struct(
     let items: Vec<_> = fields.iter().enumerate().map(|(i, f)| {
         let ident = &f.ident.as_ref().map(|i|quote!{#i}).unwrap_or({let t = proc_macro2::Literal::usize_unsuffixed(i); quote!{#t}});
         let ty = &f.ty;
-        let custom_ctx = custom_ctx(f);
+        let mut noctx = false;
+        let custom_ctx = custom_ctx(f, &mut noctx);
         let default_ctx =
             syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
         let ctx = custom_ctx.unwrap_or(default_ctx);
@@ -546,8 +594,9 @@ fn impl_into_ctx(
                 quote! {#t}
             });
             let ty = &f.ty;
+            let mut noctx = false;
             let size = quote! { ::scroll::export::mem::size_of::<#ty>() };
-            let custom_ctx = custom_ctx(f);
+            let custom_ctx = custom_ctx(f, &mut noctx);
             let default_ctx =
                 syn::Ident::new("ctx", proc_macro2::Span::call_site()).into_token_stream();
             let ctx = custom_ctx.unwrap_or(default_ctx);

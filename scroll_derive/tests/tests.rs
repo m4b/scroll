@@ -282,3 +282,58 @@ fn test_array_with_nested_pread_data() {
     assert_eq!(data.ids[0].b, 0x10ef);
     assert_eq!(data.ids[0].c, 0x1001);
 }
+
+#[derive(Debug, Pread, Pwrite)]
+struct Life1<'b> {
+    #[scroll(ctx = scroll::ctx::StrCtx::Length(6))]
+    ids: &'b str,
+    #[scroll(ctx = 5)]
+    data: &'b [u8],
+}
+
+#[test]
+fn test_pread_lifetime() {
+    let bytes = b"foobar\0\0\0\0\0";
+    let data: Life1 = bytes.pread_with(0, LE).unwrap();
+    dbg!(data.ids);
+    assert_eq!(data.ids, "foobar");
+    assert_eq!(data.data, &[0, 0, 0, 0, 0]);
+    let mut b2 = bytes.clone().to_vec();
+    b2.pwrite(&data, 0).unwrap();
+    assert_eq!(b2, bytes);
+}
+
+#[derive(Debug, Pread)]
+pub struct FloofHeader {
+    pub boop: u8,
+    pub length: u16,
+    pub flag: u8,
+    pub quux_service: u8,
+    pub quux_client_id: u8,
+}
+
+pub trait QuuxHeaderApi {
+    fn msg_len(&self) -> usize;
+}
+
+#[derive(Debug, Copy, Clone, Pread)]
+pub struct QuuxHeader {
+    pub typ: u8,
+    pub txn_id: u16,
+    pub msg_id: u16,
+    pub msg_len: u16,
+}
+
+impl QuuxHeaderApi for QuuxHeader {
+    fn msg_len(&self) -> usize {
+        self.msg_len as usize
+    }
+}
+
+#[derive(Debug, Pread)]
+pub struct Response<'a, T: QuuxHeaderApi> {
+    pub floof: FloofHeader,
+    pub quux: T,
+    #[scroll(ctx = quux.msg_len())]
+    pub tlvs: &'a [u8],
+}
