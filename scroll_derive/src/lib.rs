@@ -1,9 +1,34 @@
 #![recursion_limit = "1024"]
 
 extern crate proc_macro;
+use proc_macro2::Span;
 use quote::{ToTokens, quote};
 
 use proc_macro::TokenStream;
+
+fn extract_lifetime(
+    gp: &syn::punctuated::Punctuated<syn::GenericParam, syn::token::Comma>,
+) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
+    let mut lifetimes = gp
+        .iter()
+        .filter_map(|param: &syn::GenericParam| match param {
+            syn::GenericParam::Lifetime(lifetime) => Some(lifetime.lifetime.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if lifetimes.len() > 1 {
+        panic!("Pread cannot be derived for multiple lifetimes")
+    }
+    let lifetime = lifetimes
+        .pop()
+        .unwrap_or(syn::Lifetime::new("'a", Span::call_site()));
+    // alpha rename/make the thing fresh
+    let alpha = format!("'{}_fresh", lifetime.ident.to_string());
+    (
+        lifetime.to_token_stream(),
+        syn::Lifetime::new(&alpha.to_string(), lifetime.span()).to_token_stream(),
+    )
+}
 
 fn impl_field(
     ident: &proc_macro2::TokenStream,
@@ -122,17 +147,7 @@ fn impl_struct(
         p => quote! { #p },
     });
 
-    let mut lifetimes = gp
-        .iter()
-        .filter_map(|param: &syn::GenericParam| match param {
-            syn::GenericParam::Lifetime(lifetime) => Some(quote! { #lifetime }),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    if lifetimes.len() > 1 {
-        panic!("Pread cannot be derived for multiple lifetimes")
-    }
-    let lifetime = lifetimes.pop().unwrap_or(quote! { 'a });
+    let (lifetime, _fresh_lifetime) = extract_lifetime(gp);
     let gn = quote! { #gl #( #gn ),* #gg };
     // drop the lifetime from our generic params, since we already grabbed it
     let initial_generic_params = gp
@@ -296,14 +311,16 @@ fn impl_try_into_ctx(
         p => quote! { #p },
     });
     let gn = quote! { #gl #( #gn ),* #gg };
+    // it's always important to keep it _fresh_ when we pwrite
+    let (_lifetime, fresh_lifetime) = extract_lifetime(gp);
     let gwref = if !gp.is_empty() {
         let gi: Vec<_> = gp.iter().filter_map(|param: &syn::GenericParam| match param {
             syn::GenericParam::Type(t) => {
                 let ident = &t.ident;
                 Some(quote! {
-                    &'a #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
-                    ::scroll::Error: ::std::convert::From<<&'a #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error>,
-                    <&'a #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error: ::std::convert::From<scroll::Error>
+                    &#fresh_lifetime #ident : ::scroll::ctx::TryIntoCtx<::scroll::Endian>,
+                    ::scroll::Error: ::std::convert::From<<&#fresh_lifetime #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error>,
+                    <&#fresh_lifetime #ident as ::scroll::ctx::TryIntoCtx<::scroll::Endian>>::Error: ::std::convert::From<scroll::Error>
                 })
             },
             syn::GenericParam::Lifetime(_) => None,
@@ -336,7 +353,7 @@ fn impl_try_into_ctx(
     };
 
     quote! {
-        impl<'a, #gp > ::scroll::ctx::TryIntoCtx<::scroll::Endian> for &'a #name #gn #gwref {
+        impl<#fresh_lifetime, #gp > ::scroll::ctx::TryIntoCtx<::scroll::Endian> for &#fresh_lifetime #name #gn #gwref {
             type Error = ::scroll::Error;
             #[inline]
             fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
