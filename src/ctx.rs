@@ -975,6 +975,14 @@ mod tests {
     }
 
     #[test]
+    fn strctx_delimiter_invalid_utf8_after_delimiter() {
+        let data = &[b'f', b'o', b'o', 0, 0xFF, 0xFE];
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "foo");
+        assert_eq!(consumed, 4); // "foo" + delimiter
+    }
+
+    #[test]
     fn strctx_delimiter_until_found_before_limit() {
         let data = b"hello\0world";
         let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 10)).unwrap();
