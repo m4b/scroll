@@ -51,15 +51,13 @@ struct Data {
     arr: [u16; 2],
     // You can use arbitrary expressions for the ctx.
     // You have access to the `ctx` parameter of the `{pread/gread}_with` inside the expression.
-    // TODO(implement) you have access to previous fields.
-    // TODO(check) will this break structs with fields named `ctx`?.
     #[scroll(ctx = EndianDependent(ctx.clone()).len())]
     custom_ctx: VariableLengthData,
 }
 
 use scroll::{
+    BE, Endian, LE, Pread, Pwrite,
     ctx::{SizeWith, TryFromCtx, TryIntoCtx},
-    Endian, Pread, Pwrite, BE, LE,
 };
 
 fn main() {

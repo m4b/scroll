@@ -12,8 +12,7 @@ struct Data8<T, Y> {
     xyz: Y,
 }
 
-//#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
-#[derive(Pread, Pwrite, SizeWith, IOread, IOwrite)]
+#[derive(Debug, PartialEq, Eq, Pread, Pwrite, IOread, IOwrite, SizeWith)]
 struct Data10I(u8, u16);
 
 #[derive(Debug, Pread, Pwrite)]
@@ -22,4 +21,22 @@ struct Life1<'b> {
     ids: &'b str,
     #[scroll(ctx = 5)]
     data: &'b [u8],
+}
+
+#[derive(Pread, Pwrite, SizeWith, IOread, IOwrite)]
+struct TestHygenic {
+    ctx: u8,
+    offset: u32,
+    src: i8,
+    __offset: u8,
+    _offset_: u8,
+    _src: u8,
+    _offset: u8,
+}
+
+#[derive(Pread, Pwrite)]
+struct TestHygenicCtx<'a> {
+    ctx: u8,
+    #[scroll(ctx = ctx as usize)]
+    _ctx: &'a [u8],
 }
