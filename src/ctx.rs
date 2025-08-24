@@ -926,4 +926,167 @@ mod tests {
         assert_eq!(bytes_read, as_bytes.len());
         assert_eq!(got, src);
     }
+
+    #[test]
+    fn strctx_delimiter_nul() {
+        let data = b"hello\0world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_custom() {
+        let data = b"hello|world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(b'|')).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_at_start() {
+        let data = b"\0hello";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn strctx_delimiter_not_found() {
+        let data = b"hello world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "hello world");
+        assert_eq!(consumed, 12); // full string + 1 for missing delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_empty_input() {
+        let data = b"";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    #[should_panic = "BadInput { size: 5, msg: \"invalid utf8\" }"]
+    fn strctx_delimiter_invalid_utf8_before_delimiter() {
+        let data = &[0xFF, 0xFE, 0, b'h', b'i'];
+        let _ = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+    }
+
+    #[test]
+    fn strctx_delimiter_invalid_utf8_after_delimiter() {
+        let data = &[b'f', b'o', b'o', 0, 0xFF, 0xFE];
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Delimiter(0)).unwrap();
+        assert_eq!(s, "foo");
+        assert_eq!(consumed, 4); // "foo" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_until_found_before_limit() {
+        let data = b"hello\0world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 10)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    #[should_panic = "TooBig { size: 32, len: 12 }"]
+    fn strctx_delimiter_until_constrained_by_length() {
+        let data = b"hello world\0";
+        let _ = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 32)).unwrap();
+    }
+
+    #[test]
+    fn strctx_delimiter_until_limit_reached() {
+        let data = b"hello world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 5)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_until_delimiter_at_exact_limit() {
+        let data = b"hello\0world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 6)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_until_delimiter_after_limit() {
+        let data = b"hello world\0";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 5)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    fn strctx_delimiter_until_zero() {
+        let data = b"hello";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 0)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn strctx_delimiter_until_delimiter_at_start() {
+        let data = b"\0hello";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 5)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn strctx_delimiter_until_empty_input() {
+        let data = b"";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 0)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 1);
+    }
+
+    #[test]
+    fn strctx_delimiter_until_exact_input_size() {
+        let data = b"hello";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 5)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 6); // "hello" + delimiter
+    }
+
+    #[test]
+    #[should_panic = "BadInput { size: 5, msg: \"invalid utf8\" }"]
+    fn strctx_delimiter_until_invalid_utf8_before_delimiter() {
+        let data = &[0xFF, 0xFE, 0, b'h', b'i'];
+        let _ = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 5)).unwrap();
+    }
+
+    #[test]
+    fn strctx_length_exact_match() {
+        let data = b"hello world";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Length(5)).unwrap();
+        assert_eq!(s, "hello");
+        assert_eq!(consumed, 5);
+    }
+
+    #[test]
+    fn strctx_length_zero() {
+        let data = b"hello";
+        let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::Length(0)).unwrap();
+        assert_eq!(s, "");
+        assert_eq!(consumed, 0);
+    }
+
+    #[test]
+    #[should_panic = "TooBig { size: 10, len: 5 }"]
+    fn strctx_length_too_big() {
+        let data = b"hello";
+        let _ = <&str>::try_from_ctx(data, StrCtx::Length(10)).unwrap();
+    }
+
+    #[test]
+    #[should_panic = "BadInput { size: 3, msg: \"invalid utf8\" }"]
+    fn strctx_length_invalid_utf8() {
+        let data = &[0xFF, 0xFE, 0xFD];
+        let _ = <&str>::try_from_ctx(data, StrCtx::Length(3)).unwrap();
+    }
 }
