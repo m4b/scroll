@@ -1031,7 +1031,7 @@ mod tests {
 
     #[test]
     fn strctx_delimiter_until_empty_input() {
-        let data: &'static [u8; 0] = b"";
+        let data = b"";
         let (s, consumed) = <&str>::try_from_ctx(data, StrCtx::DelimiterUntil(0, 0)).unwrap();
         assert_eq!(s, "");
         assert_eq!(consumed, 1);
