@@ -302,3 +302,52 @@ fn test_pread_lifetime() {
     b2.pwrite(&data, 0).unwrap();
     assert_eq!(b2, bytes);
 }
+
+#[derive(Pread, Debug, PartialEq, Eq)]
+#[repr(u8)]
+enum Foo {
+    One = 1,
+    Two,
+    Three = 10,
+}
+
+#[test]
+fn test_enum_u8() {
+    let bytes = [10, 1, 2, 0];
+    let res = bytes.pread::<Foo>(0).unwrap();
+    assert_eq!(Foo::Three, res);
+    let res = bytes.pread::<Foo>(1).unwrap();
+    assert_eq!(Foo::One, res);
+    let res = bytes.pread::<Foo>(2).unwrap();
+    assert_eq!(Foo::Two, res);
+}
+
+#[test]
+fn test_roundtrip_enum_u32() {
+    #[derive(Pread, Pwrite, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    enum Foo {
+        One = 1,
+        Two,
+        Three = 10,
+    }
+
+    let mut bytes = [10, 0, 0, 0];
+    let foo_three = bytes.pread::<Foo>(0).unwrap();
+    assert_eq!(Foo::Three, foo_three);
+    bytes[0] = 1;
+    let foo_one = bytes.pread::<Foo>(0).unwrap();
+    assert_eq!(Foo::One, foo_one);
+    bytes[0] = 2;
+    let foo_two = bytes.pread::<Foo>(0).unwrap();
+    assert_eq!(Foo::Two, foo_two);
+    let error = bytes.pread::<Foo>(1);
+    assert!(error.is_err());
+    assert_eq!(bytes.pwrite(foo_two, 0).unwrap(), 4);
+    assert_eq!(bytes, [2, 0, 0, 0]);
+    assert_eq!(bytes.pwrite(foo_one, 0).unwrap(), 4);
+    assert_eq!(bytes, [1, 0, 0, 0]);
+    assert_eq!(bytes.pwrite(foo_three, 0).unwrap(), 4);
+    assert_eq!(bytes, [10, 0, 0, 0]);
+    assert!(bytes.pwrite(Foo::Three, 1).is_err());
+}

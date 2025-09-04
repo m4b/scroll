@@ -276,6 +276,86 @@ fn impl_struct(
     }
 }
 
+fn ensure_fieldless(variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>) {
+    for variant in variants {
+        if !variant.fields.is_empty() {
+            panic!("Deriving enums in scroll must be primitive, fieldless enums");
+        }
+    }
+}
+
+const VALID_PRIMITIVE_REPRS: &[&'static str] = &[
+    "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128",
+];
+
+fn extract_repr_type(ast: &syn::DeriveInput) -> syn::Ident {
+    let mut repr_type: Option<syn::Ident> = None;
+    for attr in &ast.attrs {
+        if attr.path().is_ident("repr") {
+            let _ = attr.parse_nested_meta(|meta| {
+                for prim in VALID_PRIMITIVE_REPRS {
+                    if meta.path.is_ident(prim) {
+                        repr_type = meta.path.get_ident().cloned();
+                        return Ok(());
+                    }
+                }
+                Ok(())
+            });
+        };
+    }
+    let Some(repr_type) = repr_type else {
+        panic!("Deriving pread on enum requires repr with one of: {VALID_PRIMITIVE_REPRS:?}");
+    };
+    repr_type
+}
+
+fn impl_try_from_ctx_enum(
+    name: &syn::Ident,
+    repr_type: syn::Ident,
+    variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
+) -> proc_macro2::TokenStream {
+    let variant_consts = variants.iter().map(|variant| {
+        let ident = &variant.ident;
+        let const_name = format_ident!("_{}", ident.to_string().to_uppercase());
+        quote! {
+            const #const_name: #repr_type = #name::#ident as #repr_type;
+        }
+    });
+    let variant_cases = variants.iter().map(|variant| {
+        let ident = &variant.ident;
+        let const_name = format_ident!("_{}", ident.to_string().to_uppercase());
+        quote! {
+            #const_name => #name::#ident,
+        }
+    });
+    let static_msg = format!(
+        "No variants matched a discriminant of type {}",
+        repr_type.to_string()
+    );
+    quote! {
+     impl<'a> ::scroll::ctx::TryFromCtx<'a, ::scroll::Endian> for #name {
+            type Error = ::scroll::Error;
+            #[inline]
+            fn try_from_ctx(src: &'a [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<(Self, usize), Self::Error> {
+              use ::scroll::Pread;
+              #(#variant_consts)*
+              let offset = &mut 0;
+              let val = match src.gread_with::<#repr_type>(offset, ctx)? {
+                  #(#variant_cases)*
+                  _ => return Err(::scroll::Error::BadInput { size: *offset, msg: #static_msg})
+              };
+              Ok((val, *offset))
+            }
+        }
+    }
+}
+
+fn validate_enum(ast: &syn::DeriveInput, data: &syn::DataEnum) -> Ident {
+    let repr_type = extract_repr_type(ast);
+    ensure_fieldless(&data.variants);
+    repr_type
+}
+
 fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
@@ -287,7 +367,11 @@ fn impl_try_from_ctx(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 panic!("Pread can not be derived for unit structs")
             }
         },
-        _ => panic!("Pread can only be derived for structs"),
+        syn::Data::Enum(data) => {
+            let repr_type = validate_enum(ast, data);
+            impl_try_from_ctx_enum(&ast.ident, repr_type, &data.variants)
+        }
+        _ => panic!("Pread can only be derived for structs and primitive enums"),
     }
 }
 
@@ -451,6 +535,35 @@ fn impl_try_into_ctx(
     }
 }
 
+fn impl_try_into_ctx_primitive_enum(
+    name: &Ident,
+    repr_type: Ident,
+    _variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
+) -> proc_macro2::TokenStream {
+    quote! {
+        impl ::scroll::ctx::TryIntoCtx<::scroll::Endian> for &'_ #name {
+            type Error = ::scroll::Error;
+            #[inline]
+            fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
+                use ::scroll::Pwrite;
+                // SAFETY: https://doc.rust-lang.org/std/mem/fn.discriminant.html#accessing-the-numeric-value-of-the-discriminant
+                // > If an enum has opted-in to having a primitive representation for its discriminant,
+                // > then it’s possible to use pointers to read the memory location storing the discriminant.
+                // NB: the derive macro ensures that we are a primitive (and also fieldless) enum
+                dst.pwrite_with(unsafe { *<*const _>::from(self).cast::<#repr_type>() }, 0, ctx)
+            }
+        }
+
+        impl ::scroll::ctx::TryIntoCtx<::scroll::Endian> for #name {
+            type Error = ::scroll::Error;
+            #[inline]
+            fn try_into_ctx(self, dst: &mut [u8], ctx: ::scroll::Endian) -> ::scroll::export::result::Result<usize, Self::Error> {
+                (&self).try_into_ctx(dst, ctx)
+            }
+        }
+    }
+}
+
 fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let name = &ast.ident;
     let generics = &ast.generics;
@@ -462,7 +575,11 @@ fn impl_pwrite(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 panic!("Pwrite can not be derived for unit structs")
             }
         },
-        _ => panic!("Pwrite can only be derived for structs"),
+        syn::Data::Enum(data) => {
+            let repr_type = validate_enum(ast, data);
+            impl_try_into_ctx_primitive_enum(&ast.ident, repr_type, &data.variants)
+        }
+        _ => panic!("Pwrite can only be derived for structs and primitive enums"),
     }
 }
 
