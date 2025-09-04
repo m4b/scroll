@@ -458,6 +458,7 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq, Eq)]
+    #[allow(dead_code)]
     pub struct Foo(u16);
 
     impl super::ctx::TryIntoCtx<super::Endian> for Foo {
