@@ -3,7 +3,14 @@ All notable changes to this project will be documented in this file.
 
 Before 1.0, this project does not adhere to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.10.0] - unreleased
+## [0.13.1]
+### Added
+- scroll_derive: custom parsing contexts are allowed for fields, e.g., prior fields can be used, etc. See examples or tests for details.
+- scroll_derive: primitive, fieldless enums can now be derived
+### Fixed
+- scroll_derive: deriving with fields with lifetimes like &'a [u8] would fail to derive
+
+## [0.10.0]
 ### Added
  - scroll is now 2018 compliant, thanks @lzutao: https://github.com/m4b/scroll/pull/49
  - scroll_derive now lives in scroll repo itself
