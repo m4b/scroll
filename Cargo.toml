@@ -16,6 +16,8 @@ rust-version = "1.85"
 default = ["std"]
 std = []
 derive = ["dep:scroll_derive"]
+defmt = ["dep:defmt"]
 
 [dependencies]
+defmt = { version = "1.1.1", optional = true }
 scroll_derive = { version = "0.13", optional = true, path = "scroll_derive" }

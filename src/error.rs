@@ -4,6 +4,7 @@ use core::{error, result};
 use std::io;
 
 #[derive(Debug)]
+#[cfg_attr(feature = "scroll", derive(defmt::Format))]
 /// A custom Scroll error
 pub enum Error {
     /// The type you tried to read was too big
