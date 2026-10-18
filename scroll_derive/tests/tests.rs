@@ -351,3 +351,48 @@ fn test_roundtrip_enum_u32() {
     assert_eq!(bytes, [10, 0, 0, 0]);
     assert!(bytes.pwrite(Foo::Three, 1).is_err());
 }
+
+#[test]
+fn test_enum_case_distinct_variants() {
+    #[derive(Pread, Debug, PartialEq, Eq)]
+    #[repr(u16)]
+    enum Opcode {
+        Io = 0x1234,
+        IO = 0x5678,
+    }
+
+    for (ctx, bytes) in [
+        (scroll::LE, [0x34, 0x12, 0x78, 0x56]),
+        (scroll::BE, [0x12, 0x34, 0x56, 0x78]),
+    ] {
+        let offset = &mut 0;
+        assert_eq!(bytes.gread_with::<Opcode>(offset, ctx).unwrap(), Opcode::Io);
+        assert_eq!(*offset, 2);
+        assert_eq!(bytes.gread_with::<Opcode>(offset, ctx).unwrap(), Opcode::IO);
+        assert_eq!(*offset, 4);
+        assert!(bytes.gread_with::<Opcode>(offset, ctx).is_err());
+        assert_eq!(*offset, 4);
+        assert!(matches!(
+            [0, 0].pread_with::<Opcode>(0, ctx),
+            Err(scroll::Error::BadInput { size: 2, .. })
+        ));
+    }
+}
+
+#[test]
+fn test_enum_raw_identifier_variant() {
+    #[allow(non_camel_case_types)]
+    #[derive(Pread, Debug, PartialEq, Eq)]
+    #[repr(i8)]
+    enum Keyword {
+        r#type = -1,
+        Other = 1,
+    }
+
+    assert_eq!([0xff].pread::<Keyword>(0).unwrap(), Keyword::r#type);
+    assert_eq!([1].pread::<Keyword>(0).unwrap(), Keyword::Other);
+    assert!(matches!(
+        [0].pread::<Keyword>(0),
+        Err(scroll::Error::BadInput { size: 1, .. })
+    ));
+}

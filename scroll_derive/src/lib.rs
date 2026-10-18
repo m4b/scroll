@@ -314,16 +314,16 @@ fn impl_try_from_ctx_enum(
     repr_type: syn::Ident,
     variants: &syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>,
 ) -> proc_macro2::TokenStream {
-    let variant_consts = variants.iter().map(|variant| {
+    let variant_consts = variants.iter().enumerate().map(|(index, variant)| {
         let ident = &variant.ident;
-        let const_name = format_ident!("_{}", ident.to_string().to_uppercase());
+        let const_name = format_ident!("__SCROLL_VARIANT_{index}");
         quote! {
             const #const_name: #repr_type = #name::#ident as #repr_type;
         }
     });
-    let variant_cases = variants.iter().map(|variant| {
+    let variant_cases = variants.iter().enumerate().map(|(index, variant)| {
         let ident = &variant.ident;
-        let const_name = format_ident!("_{}", ident.to_string().to_uppercase());
+        let const_name = format_ident!("__SCROLL_VARIANT_{index}");
         quote! {
             #const_name => #name::#ident,
         }
